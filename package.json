@@ -1,0 +1,76 @@
+{
+  "name": "@noop-inc/desktop",
+  "private": true,
+  "productName": "Noop",
+  "version": "0.0.0-automated",
+  "main": ".vite/build/main.js",
+  "author": {
+    "name": "Noop Inc",
+    "email": "hello@noop.dev"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/noop-inc/desktop.git"
+  },
+  "engines": {
+    "node": ">=18",
+    "npm": ">=9"
+  },
+  "scripts": {
+    "common-eslint": "eslint . --ext .vue,.js,.cjs,.mjs --cache --cache-location node_modules/.cache/.eslintcache",
+    "common-parallel": "concurrently --kill-others --raw",
+    "common-prettier": "prettier \"**/*.{htm,html,json,md,markdown,yml,yaml}\" --cache --ignore-path .gitignore",
+    "common-sequential": "concurrently --raw --max-processes 1",
+    "fix": "npm run common-sequential -- npm:fix-*",
+    "fix-eslint": "npm run common-eslint -- --fix",
+    "fix-prettier": "npm run common-prettier -- --write",
+    "lint": "npm run common-sequential -- npm:lint-*",
+    "lint-eslint": "npm run common-eslint",
+    "lint-prettier": "npm run common-prettier -- --check",
+    "make": "electron-forge make",
+    "package": "electron-forge package",
+    "publish": "electron-forge publish",
+    "start": "electron-forge start"
+  },
+  "devDependencies": {
+    "@electron-forge/cli": "^7.0.0",
+    "@electron-forge/maker-dmg": "^7.0.0",
+    "@electron-forge/maker-zip": "^7.0.0",
+    "@electron-forge/plugin-vite": "^7.0.0",
+    "@noop-inc/console": "^2.0.109-pr1085.1",
+    "concurrently": "^8.2.2",
+    "electron": "^27.1.0",
+    "electron-serve": "^1.2.0",
+    "eslint": "^8.53.0",
+    "eslint-config-standard": "^17.1.0",
+    "prettier": "^3.1.0"
+  },
+  "overrides": {
+    "vite": "^5.0.0"
+  },
+  "eslintConfig": {
+    "root": true,
+    "env": {
+      "jest": true
+    },
+    "extends": [
+      "eslint:recommended",
+      "standard"
+    ],
+    "rules": {
+      "import/extensions": [
+        2,
+        "always",
+        {
+          "ignorePackages": true
+        }
+      ]
+    }
+  },
+  "prettier": {
+    "semi": false,
+    "singleQuote": true,
+    "trailingComma": "none",
+    "arrowParens": "avoid"
+  }
+}
