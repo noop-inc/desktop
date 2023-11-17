@@ -37,7 +37,7 @@
     "@electron-forge/maker-dmg": "^7.0.0",
     "@electron-forge/maker-zip": "^7.0.0",
     "@electron-forge/plugin-vite": "^7.0.0",
-    "@noop-inc/console": "^2.0.109-pr1085.1",
+    "@noop-inc/console": "^2.0.109-pr1085.2",
     "concurrently": "^8.2.2",
     "dotenv": "^16.3.1",
     "electron": "^27.1.0",
