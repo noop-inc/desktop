@@ -17,8 +17,7 @@
     "npm": ">=9"
   },
   "scripts": {
-    "common-eslint": "eslint . --ext .vue,.js,.cjs,.mjs --cache --cache-location node_modules/.cache/.eslintcache",
-    "common-parallel": "concurrently --kill-others --raw",
+    "common-eslint": "eslint . --ext .js,.cjs,.mjs --cache --cache-location node_modules/.cache/.eslintcache --ignore-path .gitignore",
     "common-prettier": "prettier \"**/*.{htm,html,json,md,markdown,yml,yaml}\" --cache --ignore-path .gitignore",
     "common-sequential": "concurrently --raw --max-processes 1",
     "fix": "npm run common-sequential -- npm:fix-*",
@@ -28,6 +27,7 @@
     "lint-eslint": "npm run common-eslint",
     "lint-prettier": "npm run common-prettier -- --check",
     "make": "electron-forge make",
+    "noop-link": "npm link @noop-inc/console",
     "package": "electron-forge package",
     "publish": "electron-forge publish",
     "start": "electron-forge start"
@@ -39,6 +39,7 @@
     "@electron-forge/plugin-vite": "^7.0.0",
     "@noop-inc/console": "^2.0.109-pr1085.1",
     "concurrently": "^8.2.2",
+    "dotenv": "^16.3.1",
     "electron": "^27.1.0",
     "electron-serve": "^1.2.0",
     "eslint": "^8.53.0",
