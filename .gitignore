@@ -90,3 +90,6 @@ typings/
 
 # Electron-Forge
 out/
+
+assets/lima-and-qemu.macos-aarch64
+assets/noop-workshop-vm.aarch64.qcow2

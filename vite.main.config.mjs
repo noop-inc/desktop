@@ -7,4 +7,13 @@ export default defineConfig({
     conditions: ['node'],
     mainFields: ['module', 'jsnext:main', 'jsnext']
   }
+  // build: {
+  //   rollupOptions: {
+  //     external: [
+  //       'better-sqlite3',
+  //       'node-pty',
+  //       'Dockerode'
+  //     ]
+  //   }
+  // }
 })

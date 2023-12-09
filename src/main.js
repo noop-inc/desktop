@@ -1,6 +1,7 @@
-import { app, shell, BrowserWindow, screen, ipcMain, nativeTheme } from 'electron'
+import { app, shell, BrowserWindow, screen, ipcMain, nativeTheme/*, dialog */ } from 'electron'
 import { join, resolve } from 'node:path'
 import serve from 'electron-serve'
+// import { createVm, startVm, stopVm, deleteVm } from './vm.js'
 
 const loadURL = MAIN_WINDOW_VITE_DEV_SERVER_URL // eslint-disable-line no-undef
   ? null
@@ -151,7 +152,8 @@ app.on('activate', async () => {
 // code. You can also put them in separate files and import them here.
 
 app.on('certificate-error', async (event, webContents, url, error, certificate, done) => {
-  if (url.startsWith('https://localhost:1234/') && (process.env.NODE_ENV === 'development')) {
+  // if (url.startsWith('https://localhost:1234/') && (process.env.NODE_ENV === 'development')) {
+  if (url.startsWith('https://localhost:1234/')) {
     // bypass cert error if localhost and dev mode
     event.preventDefault()
     done(true)
@@ -191,7 +193,33 @@ app.on('web-contents-created', async (event, contents) => {
   })
 });
 
+// app.on('before-quit', async event => {
+//   event.preventDefault()
+//   // try {
+//   //   await stopVm()
+//   // } catch (error) {
+//   //   dialog.showErrorBox(error?.name, error?.message)
+//   // }
+
+//   // try {
+//   //   await deleteVm()
+//   // } catch (error) {
+//   //   dialog.showErrorBox(error?.name, error?.message)
+//   // }
+//   app.quit()
+// });
+
 (async () => {
   await app.whenReady()
   await createMainWindow()
+  // try {
+  //   await createVm()
+  // } catch (error) {
+  //   dialog.showErrorBox(error?.name, error?.message)
+  // }
+  // try {
+  //   await startVm()
+  // } catch (error) {
+  //   dialog.showErrorBox(error?.name, error?.message)
+  // }
 })()
