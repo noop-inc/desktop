@@ -14,6 +14,10 @@ module.exports = {
     ],
     ignore: (file) =>
       !(!file || file.startsWith('/.vite') || (file === '/package.json')),
+    extraResource: [
+      'assets/lima-and-qemu.macos-aarch64',
+      'assets/noop-workshop-vm.aarch64.qcow2'
+    ],
     osxSign: {},
     osxNotarize: {
       tool: 'notarytool',
