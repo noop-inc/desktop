@@ -14,21 +14,13 @@ module.exports = {
     ],
     ignore: (file) =>
       !(!file || file.startsWith('/.vite') || (file === '/package.json')),
-    extraResource: [
-      'assets/lima-and-qemu.macos-aarch64',
-      'assets/noop-workshop-vm.aarch64.qcow2'
-    ]
-    // osxSign: {
-    //   optionsForFile: filePath => ({
-    //     entitlements: 'assets/entitlements.plist'
-    //   })
-    // },
-    // osxNotarize: {
-    //   tool: 'notarytool',
-    //   appleId: process.env.APPLE_ID,
-    //   appleIdPassword: process.env.APPLE_PASSWORD,
-    //   teamId: process.env.APPLE_TEAM_ID
-    // }
+    osxSign: {},
+    osxNotarize: {
+      tool: 'notarytool',
+      appleId: process.env.APPLE_ID,
+      appleIdPassword: process.env.APPLE_PASSWORD,
+      teamId: process.env.APPLE_TEAM_ID
+    }
   },
   rebuildConfig: {},
   makers: [
@@ -45,10 +37,6 @@ module.exports = {
     }
   ],
   plugins: [
-    {
-      name: '@electron-forge/plugin-auto-unpack-natives',
-      config: {}
-    },
     {
       name: '@electron-forge/plugin-vite',
       config: {
