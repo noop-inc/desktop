@@ -46,7 +46,7 @@
     "eslint": "^8.55.0",
     "eslint-config-standard": "^17.1.0",
     "prettier": "^3.1.1",
-    "vite": "^5.0.7"
+    "vite": "^5.0.8"
   },
   "overrides": {
     "@noop-inc/console": "$@noop-inc/console",
