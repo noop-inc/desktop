@@ -37,7 +37,8 @@
     "@electron-forge/maker-dmg": "^7.2.0",
     "@electron-forge/maker-zip": "^7.2.0",
     "@electron-forge/plugin-vite": "^7.2.0",
-    "@noop-inc/console": "^2.0.111-pr1085.2",
+    "@noop-inc/console": "2.0.111-pr1085.2",
+    "@noop-inc/foundation": "2.0.162-pr658.3",
     "concurrently": "^8.2.2",
     "dotenv": "^16.3.1",
     "electron": "^28.0.0",
@@ -48,6 +49,8 @@
     "vite": "^5.0.7"
   },
   "overrides": {
+    "@noop-inc/console": "$@noop-inc/console",
+    "@noop-inc/foundation": "$@noop-inc/foundation",
     "vite": "$vite"
   },
   "eslintConfig": {

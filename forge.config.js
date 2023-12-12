@@ -18,7 +18,11 @@ module.exports = {
       'assets/lima-and-qemu.macos-aarch64',
       'assets/noop-workshop-vm.aarch64.qcow2'
     ],
-    osxSign: {},
+    osxSign: {
+      optionsForFile: filePath => ({
+        entitlements: 'assets/entitlements.plist'
+      })
+    },
     osxNotarize: {
       tool: 'notarytool',
       appleId: process.env.APPLE_ID,
