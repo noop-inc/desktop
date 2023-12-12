@@ -40,7 +40,10 @@ module.exports = {
       config: {
         // Path to the icon to use for the app in the DMG window
         icon: 'assets/icon.icns',
-        format: 'ULFO'
+        format: 'ULMO',
+        additionalDMGOptions: {
+          filesystem: 'APFS'
+        }
       }
     }
   ],
