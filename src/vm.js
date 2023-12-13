@@ -13,8 +13,6 @@ const lima = new Lima({ binPath: limaBinPath })
 const template = {
   arch: 'aarch64',
   images: [{ location: workshopVmPath, arch: 'aarch64' }],
-  cpus: 2,
-  memory: '4GiB',
   provision: [],
   containerd: {
     system: true,
