@@ -37,7 +37,12 @@ const template = {
   portForwards: [
     { guestPort: 1234, hostIP: '0.0.0.0' },
     { guestPort: 443, hostIP: '127.0.0.1' }
-  ]
+  ],
+  hostResolver: {
+    hosts: {
+      'registry.workshop': '127.0.0.1'
+    }
+  }
 }
 
 export const createVm = async () => {
