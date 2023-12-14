@@ -151,17 +151,17 @@ app.on('activate', async () => {
 // In this file you can include the rest of your app's specific main process
 // code. You can also put them in separate files and import them here.
 
-app.on('certificate-error', async (event, webContents, url, error, certificate, done) => {
-  // if (url.startsWith('https://localhost:1234/') && (process.env.NODE_ENV === 'development')) {
-  if (url.startsWith('https://localhost:1234/')) {
-    // bypass cert error if localhost and dev mode
-    event.preventDefault()
-    done(true)
-  } else {
-    // otherwise block request
-    done(false)
-  }
-})
+// app.on('certificate-error', async (event, webContents, url, error, certificate, done) => {
+//   // if (url.startsWith('https://localhost:1234/') && (process.env.NODE_ENV === 'development')) {
+//   if (url.startsWith('https://inspector.local.noop.app:1234')) {
+//     // bypass cert error if localhost and dev mode
+//     event.preventDefault()
+//     done(true)
+//   } else {
+//     // otherwise block request
+//     done(false)
+//   }
+// })
 
 app.on('web-contents-created', async (event, contents) => {
   contents.setWindowOpenHandler(({ url }) => {
