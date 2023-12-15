@@ -11,8 +11,8 @@ const exec = promisify(function (command, done) {
   })
 })
 
-const githubRef = process.env.GITHUB_REF
-if (!githubRef) throw new Error('Missing githubRef')
+const versionInput = process.env.VERSION_INPUT
+if (!versionInput) throw new Error('Missing versionInput')
 
 // matches format '1.2.3'
 const latestMatch = /^v([0-9]+)\.([0-9]+)\.([0-9]+)$/
@@ -21,11 +21,11 @@ const nextMatch = /^v([0-9]+)\.([0-9]+)\.([0-9]+)\-([0-9]+)$/
 // matches format '1.2.3-alpha.4'
 const preMatch = /^v([0-9]+)\.([0-9]+)\.([0-9]+)\-[a-zA-Z0-9_]+\.([0-9]+)$/
 
-if (!latestMatch.test(githubRef) && !nextMatch.test(githubRef) && !preMatch.test(githubRef)) {
+if (!latestMatch.test(versionInput) && !nextMatch.test(versionInput) && !preMatch.test(versionInput)) {
   throw new Error('Unable to identify version number format')
 }
 
-const versionNumber = githubRef?.replace(/^v/, '')
+const versionNumber = versionInput?.replace(/^v/, '')
 if (!versionNumber) throw new Error('Missing versionNumber')
 
 // bump version, but do not create associated tag/commit

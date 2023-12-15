@@ -90,19 +90,3 @@ jobs:
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           TEAM_ID: ${{ secrets.TEAM_ID }}
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN }}
-
-      # - name: Deploy Main to S3
-      #   if: github.event.inputs.DeploySector == 'main'
-      #   run: aws s3 cp --recursive --acl public-read --cache-control max-age=60 dist/ s3://noop-console/
-      #   env:
-      #     AWS_REGION: us-west-2
-      #     AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      #     AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-
-      # - name: Deploy Staging to S3
-      #   if: github.event.inputs.DeploySector == 'staging'
-      #   run: aws s3 cp --recursive --acl public-read --cache-control max-age=60 dist/ s3://noop-console-staging/
-      #   env:
-      #     AWS_REGION: us-west-2
-      #     AWS_ACCESS_KEY_ID: ${{ secrets.STAGING_ACCESS_KEY }}
-      #     AWS_SECRET_ACCESS_KEY: ${{ secrets.STAGING_SECRET_KEY }}
