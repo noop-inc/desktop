@@ -38,6 +38,7 @@
     "@electron-forge/maker-zip": "^7.2.0",
     "@electron-forge/plugin-vite": "^7.2.0",
     "@noop-inc/console": "2.0.111-pr1085.3",
+    "@noop-inc/desktop-lima": "0.0.55",
     "@noop-inc/foundation": "2.0.163-pr658.4",
     "concurrently": "^8.2.2",
     "dotenv": "^16.3.1",
@@ -46,7 +47,7 @@
     "eslint": "^8.55.0",
     "eslint-config-standard": "^17.1.0",
     "prettier": "^3.1.1",
-    "vite": "^5.0.8"
+    "vite": "^5.0.9"
   },
   "overrides": {
     "@noop-inc/console": "$@noop-inc/console",
