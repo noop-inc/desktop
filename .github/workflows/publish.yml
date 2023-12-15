@@ -1,4 +1,4 @@
-name: Website
+name: Publish
 
 on:
   workflow_dispatch:
@@ -10,7 +10,7 @@ on:
 jobs:
   website:
     name: Build and Deploy Website
-    runs-on: macos-13-large
+    runs-on: macos-13-xlarge
 
     steps:
       - name: Code Checkout
@@ -27,7 +27,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      
+
       - name: Install the Apple certificate
         env:
           BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
