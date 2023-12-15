@@ -15,8 +15,8 @@ module.exports = {
     ignore: (file) =>
       !(!file || file.startsWith('/.vite') || (file === '/package.json')),
     extraResource: [
-      'node_modules/@noop-inc/desktop-lima/dist/lima-and-qemu.macos-aarch64',
-      'assets/noop-workshop-vm.aarch64.qcow2'
+      // 'node_modules/@noop-inc/desktop-lima/dist/lima-and-qemu.macos-aarch64'
+      // 'assets/noop-workshop-vm.aarch64.qcow2'
     ],
     osxSign: {
       optionsForFile: filePath => ({
@@ -70,6 +70,20 @@ module.exports = {
             config: 'node_modules/@noop-inc/console/vite.config.mjs'
           }
         ]
+      }
+    }
+  ],
+  publishers: [
+    {
+      name: '@electron-forge/publisher-github',
+      config: {
+        repository: {
+          owner: 'noop-inc',
+          name: 'desktop'
+        },
+        prerelease: true,
+        draft: true,
+        force: true
       }
     }
   ]
