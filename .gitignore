@@ -91,4 +91,5 @@ typings/
 # Electron-Forge
 out/
 
-assets/noop-workshop-vm.aarch64.qcow2
+*.qcow2
+*.zip

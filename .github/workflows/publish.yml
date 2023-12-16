@@ -3,8 +3,11 @@ name: Publish
 on:
   workflow_dispatch:
     inputs:
-      Version:
-        description: Version
+      DesktopVersion:
+        description: Deskstop Version
+        required: true
+      WorkshopVmVersion:
+        description: Workshop VM Version
         required: true
 
 jobs:
@@ -56,7 +59,7 @@ jobs:
       - name: Bump Version
         run: node .github/workflows/bump.mjs
         env:
-          VERSION_INPUT: ${{ github.event.inputs.Version }}
+          VERSION_INPUT: ${{ github.event.inputs.DesktopVersion }}
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # - name: Cache NPM
@@ -75,6 +78,24 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN }}
 
+      - name: Install Dependencies
+        # if: steps.cache-npm.outputs.cache-hit != 'true'
+        run: npm ci
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN }}
+
+      - name: Upload Build
+        run: |
+          VERSION=${WORKSHOP_VM_VERSION#v}
+          echo Version: $VERSION
+          gh release download "${WORKSHOP_VM_VERSION}" -p "noop-workshop-vm-${VERSION}.aarch64.qcow2.zip"
+          ls
+          ditto -x -k "noop-workshop-vm-${VERSION}.aarch64.qcow2.zip" .
+          
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WORKSHOP_VM_VERSION: ${{ github.event.inputs.WorkshopVmVersion }}
+
       # - name: Cache Build
       #   id: cache-build
       #   uses: actions/cache@v3
@@ -90,3 +111,4 @@ jobs:
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           TEAM_ID: ${{ secrets.TEAM_ID }}
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN }}
+          WORKSHOP_VM_VERSION: ${{ github.event.inputs.WorkshopVmVersion }}

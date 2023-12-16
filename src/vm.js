@@ -2,10 +2,13 @@
 // import { mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import Lima from '@noop-inc/foundation/lib/Lima.js'
+import { readdir } from 'node:fs/promises'
 
 const { resourcesPath } = process
+const files = await readdir(resourcesPath)
+
 const limaBinPath = join(resourcesPath, 'lima-and-qemu.macos-aarch64', 'bin')
-const workshopVmPath = join(resourcesPath, 'noop-workshop-vm.aarch64.qcow2')
+const workshopVmPath = join(resourcesPath, files.find(file => file.startsWith('noop-workshop-vm') && file.endsWith('.aarch64.qcow2')))
 // const userData = join(app.getPath('userData'), 'data')
 
 const lima = new Lima({ binPath: limaBinPath })

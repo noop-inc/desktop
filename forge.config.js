@@ -15,8 +15,8 @@ module.exports = {
     ignore: (file) =>
       !(!file || file.startsWith('/.vite') || (file === '/package.json')),
     extraResource: [
-      // 'node_modules/@noop-inc/desktop-lima/dist/lima-and-qemu.macos-aarch64'
-      // 'assets/noop-workshop-vm.aarch64.qcow2'
+      'node_modules/@noop-inc/desktop-lima/dist/lima-and-qemu.macos-aarch64',
+      'noop-workshop-vm-*.*.*.aarch64.qcow2'
     ],
     osxSign: {
       optionsForFile: filePath => ({
