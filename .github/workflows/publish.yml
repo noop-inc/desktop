@@ -88,10 +88,10 @@ jobs:
         run: |
           VERSION=${WORKSHOP_VM_VERSION#v}
           echo Version: $VERSION
-          gh release download "${WORKSHOP_VM_VERSION}" -p "noop-workshop-vm-${VERSION}.aarch64.qcow2.zip"
+          gh release download "${WORKSHOP_VM_VERSION}" -p "noop-workshop-vm-${VERSION}.aarch64.qcow2.zip" -R "noop-inc/workshop-vm"
           ls
           ditto -x -k "noop-workshop-vm-${VERSION}.aarch64.qcow2.zip" .
-          
+
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           WORKSHOP_VM_VERSION: ${{ github.event.inputs.WorkshopVmVersion }}
