@@ -11,8 +11,8 @@ on:
         required: true
 
 jobs:
-  website:
-    name: Build and Deploy Website
+  Publish:
+    name: Publish Desktop Release
     runs-on: macos-13-xlarge
 
     steps:
@@ -80,11 +80,9 @@ jobs:
 
       - name: Download Workshop VM
         run: |
-          VERSION=${WORKSHOP_VM_VERSION#v}
-          echo Version: $VERSION
-          gh release download "${WORKSHOP_VM_VERSION}" -p "noop-workshop-vm-${VERSION}.aarch64.qcow2.zip" -R "noop-inc/workshop-vm"
-          ls
-          ditto -x -k "noop-workshop-vm-${VERSION}.aarch64.qcow2.zip" .
+          SHORT_VERSION=${WORKSHOP_VM_VERSION#v}
+          gh release download "${WORKSHOP_VM_VERSION}" -p "noop-workshop-vm-${SHORT_VERSION}.aarch64.qcow2.zip" -R "noop-inc/workshop-vm"
+          ditto -x -k "noop-workshop-vm-${SHORT_VERSION}.aarch64.qcow2.zip" .
 
         env:
           GITHUB_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN }}
