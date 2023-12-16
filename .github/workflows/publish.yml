@@ -84,7 +84,7 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN }}
 
-      - name: Upload Build
+      - name: Download Workshop VM
         run: |
           VERSION=${WORKSHOP_VM_VERSION#v}
           echo Version: $VERSION
@@ -103,7 +103,7 @@ jobs:
       #     path: ./node_modules/.cache/webpack
       #     key: ${{ runner.os }}-webpack-cache-${{ github.sha }}
 
-      - name: Build Console
+      - name: Build and Publish Desktop
         run: npm run publish
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
