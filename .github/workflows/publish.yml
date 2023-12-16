@@ -78,12 +78,6 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN }}
 
-      - name: Install Dependencies
-        # if: steps.cache-npm.outputs.cache-hit != 'true'
-        run: npm ci
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN }}
-
       - name: Download Workshop VM
         run: |
           VERSION=${WORKSHOP_VM_VERSION#v}
@@ -93,7 +87,7 @@ jobs:
           ditto -x -k "noop-workshop-vm-${VERSION}.aarch64.qcow2.zip" .
 
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN }}
           WORKSHOP_VM_VERSION: ${{ github.event.inputs.WorkshopVmVersion }}
 
       # - name: Cache Build
