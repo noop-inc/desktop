@@ -56,22 +56,52 @@ export const createVm = async () => {
 
   try {
     await lima.get('workshop-vm')
+    try {
+      await stopVm()
+    } catch (error) {
+      // nothing to stop
+    }
+    try {
+      await deleteVm()
+    } catch (error) {
+      // nothing to delete
+    }
   } catch (error) {
-    await lima.create('workshop-vm', template)
+    // workshop-vm does not exist
+    console.error(error)
   }
+  await lima.create('workshop-vm', template)
 }
 
 export const startVm = async () => {
-  const start = lima.limactl(['start', 'workshop-vm'])
-  await start.done()
+  try {
+    const start = lima.limactl(['start', 'workshop-vm'])
+    start.on('log', console.log)
+    await start.done()
+  } catch (error) {
+    console.error(error)
+    throw error
+  }
 }
 
 export const stopVm = async () => {
-  const stop = lima.limactl(['stop', 'workshop-vm'])
-  await stop.done()
+  try {
+    const stop = lima.limactl(['stop', 'workshop-vm'])
+    stop.on('log', console.log)
+    await stop.done()
+  } catch (error) {
+    console.error(error)
+    throw error
+  }
 }
 
 export const deleteVm = async () => {
-  const dlt = lima.limactl(['delete', 'workshop-vm'])
-  await dlt.done()
+  try {
+    const dlt = lima.limactl(['delete', 'workshop-vm'])
+    dlt.on('log', console.log)
+    await dlt.done()
+  } catch (error) {
+    console.error(error)
+    throw error
+  }
 }

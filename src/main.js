@@ -2,6 +2,22 @@ import { app, shell, BrowserWindow, screen, ipcMain, nativeTheme, dialog } from 
 import { join, resolve } from 'node:path'
 import serve from 'electron-serve'
 import { createVm, startVm, stopVm, deleteVm } from './vm.js'
+import log from 'electron-log/main'
+import { updateElectronApp, UpdateSourceType } from 'update-electron-app'
+
+log.initialize()
+
+Object.assign(console, log.functions)
+
+if (!MAIN_WINDOW_VITE_DEV_SERVER_URL && (app.getVersion() !== '0.0.0-automated') && !app.getVersion().includes('-')) { // eslint-disable-line no-undef
+  updateElectronApp({
+    updateSource: {
+      type: UpdateSourceType.ElectronPublicUpdateService,
+      repo: 'noop-inc/desktop',
+      host: 'https://update.electronjs.org'
+    }
+  })
+}
 
 const loadURL = MAIN_WINDOW_VITE_DEV_SERVER_URL // eslint-disable-line no-undef
   ? null
@@ -217,6 +233,7 @@ app.on('before-quit', async event => {
 
 (async () => {
   await app.whenReady()
+  await createMainWindow()
   if (!MAIN_WINDOW_VITE_DEV_SERVER_URL) { // eslint-disable-line no-undef
     try {
       await createVm()
@@ -229,5 +246,4 @@ app.on('before-quit', async event => {
       dialog.showErrorBox(error?.name, error?.message)
     }
   }
-  await createMainWindow()
 })()
