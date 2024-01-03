@@ -14,10 +14,16 @@ module.exports = {
     ],
     ignore: (file) =>
       !(!file || file.startsWith('/.vite') || (file === '/package.json')),
-    extraResource: [
-      'node_modules/@noop-inc/desktop-lima/dist/lima-and-qemu.macos-aarch64',
-      `noop-workshop-vm-${process.env.WORKSHOP_VM_VERSION.slice(1)}.aarch64.qcow2`
-    ],
+    ...(
+      process.env.npm_lifecycle_event === 'start'
+        ? {}
+        : {
+            extraResource: [
+              'node_modules/@noop-inc/desktop-lima/dist/lima-and-qemu.macos-aarch64',
+              `noop-workshop-vm-${process.env.WORKSHOP_VM_VERSION.slice(1)}.aarch64.qcow2`
+            ]
+          }
+    ),
     osxSign: {
       optionsForFile: filePath => ({
         entitlements: 'assets/entitlements.plist'
