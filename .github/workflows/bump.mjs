@@ -30,4 +30,4 @@ if (!versionNumber) throw new Error('Missing versionNumber')
 
 // bump version
 await exec(`npm version ${versionNumber}`)
-await exec(`git push origin ${versionNumber} --force`)
+await exec(`git push origin v${versionNumber} --force`)
