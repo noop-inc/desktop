@@ -20,7 +20,7 @@ module.exports = {
         : {
             extraResource: [
               'node_modules/@noop-inc/desktop-lima/dist/lima-and-qemu.macos-aarch64',
-              `noop-workshop-vm-${process.env.WORKSHOP_VM_VERSION.slice(1)}.aarch64.qcow2`
+              `noop-workshop-vm-${process.env.WORKSHOP_VM_VERSION}.aarch64.qcow2`
             ]
           }
     ),

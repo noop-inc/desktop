@@ -57,6 +57,9 @@
     "@noop-inc/foundation": "$@noop-inc/foundation",
     "vite": "$vite"
   },
+  "noop-inc": {
+    "workshop-vm": "0.1.3"
+  },
   "eslintConfig": {
     "root": true,
     "env": {
