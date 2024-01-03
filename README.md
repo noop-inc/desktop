@@ -4,7 +4,7 @@ This repo contains the release artifacts for Noop Desktop, a platform for runnin
 
 Noop Desktop includes Cloud Console (the management console for Applications running in the cloud) and Workshop (a local instance of all Cloud functionality).
 
-We currently release binaries for Apple aarch64 and Intel x86_64 chips as well as Linux x86_64. See [releases](https://github.com/noop-inc/desktop-lima/releases) for current version and release notes.
+We currently release binaries for Mac computers with Apple silicon. See [releases](https://github.com/noop-inc/desktop/releases) for latest version and release notes.
 
 Please use our community forum to [submit bug reports](https://github.com/orgs/noop-inc/discussions/new?category=bugs), [request features](https://github.com/orgs/noop-inc/discussions/new?category=feature-requests-and-ideas), [ask questions](https://github.com/orgs/noop-inc/discussions/new?category=questions), or [share your work](https://github.com/orgs/noop-inc/discussions/new?category=show-and-tell).
 
