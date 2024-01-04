@@ -11,7 +11,7 @@ const limaBinPath = join(resourcesPath, 'lima-and-qemu.macos-aarch64', 'bin')
 
 const lima = new Lima({ binPath: limaBinPath })
 
-export const createVm = async () => {
+export const createVm = async ({ projectsDir }) => {
   // try {
   //   await mkdir(userData, { recursive: true })
   // } catch (error) {
@@ -32,7 +32,7 @@ export const createVm = async () => {
     ssh: { loadDotSSHPubKeys: false },
     mounts: [
       {
-        location: '~',
+        location: projectsDir,
         mountPoint: '/noop/projects',
         sshfs: { cache: false }
       }

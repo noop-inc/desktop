@@ -1,5 +1,6 @@
 import { app, shell, BrowserWindow, screen, ipcMain, nativeTheme, dialog, autoUpdater } from 'electron'
 import { join, resolve } from 'node:path'
+import { homedir, EOL } from 'node:os'
 import serve from 'electron-serve'
 import { createVm, startVm, stopVm, deleteVm } from './vm.js'
 import log from 'electron-log/main'
@@ -17,6 +18,7 @@ const noopProtocal = 'noop'
 let githubLoginUrl
 let mainWindow
 let authWindow
+let updaterInterval
 
 const createMainWindow = async () => {
   await app.whenReady()
@@ -55,7 +57,7 @@ const createMainWindow = async () => {
 }
 
 const ensureMainWindow = async () => {
-  await app.whenReady()
+  if (!app.isReady()) return
   if (!mainWindow) await createMainWindow()
 }
 
@@ -188,6 +190,7 @@ let deleted
 app.on('before-quit', async event => {
   if (!MAIN_WINDOW_VITE_DEV_SERVER_URL && app.isPackaged && !stopped && !deleted) { // eslint-disable-line no-undef
     event.preventDefault()
+    clearInterval(updaterInterval)
     try {
       await stopVm()
     } catch (error) {
@@ -209,8 +212,40 @@ app.on('before-quit', async event => {
   await createMainWindow()
 
   if (!MAIN_WINDOW_VITE_DEV_SERVER_URL && app.isPackaged) { // eslint-disable-line no-undef
+    await dialog.showMessageBox(mainWindow, {
+      title: 'Projects Directory',
+      message: `Noop Workshop will automatically discover compatiable projects on your machine.${EOL}${EOL}Select the root-level Projects Directory to use for this session.`,
+      buttons: ['Next'],
+      type: 'info'
+    })
+
+    let projectsDir
+
+    while (!projectsDir) {
+      const returnValue = await dialog.showOpenDialog(mainWindow, {
+        title: 'Projects Directory',
+        message: 'Select Projects Directory',
+        defaultPath: homedir(),
+        buttonLabel: 'Select',
+        properties: ['openDirectory']
+      })
+      if (!returnValue.canceled && returnValue.filePaths.length) {
+        console.log(returnValue.filePaths[0])
+        projectsDir = returnValue.filePaths[0]
+      } else {
+        await dialog.showMessageBox(mainWindow, {
+          title: 'Projects Directory',
+          message: 'Selecting a Projects Directory is required.',
+          buttons: ['Next'],
+          type: 'warning'
+        })
+      }
+    }
+
+    console.log('Project Directory', projectsDir)
+
     try {
-      await createVm()
+      await createVm({ projectsDir })
     } catch (error) {
       // dialog.showErrorBox(error?.name, error?.message)
     }
@@ -229,6 +264,9 @@ app.on('before-quit', async event => {
     const platform = process.platform
     const arch = process.arch
     const url = `${server}/${repo}/${platform}-${arch}/${version}`
+
+    console.log('Auto Updater Feed URL', url)
+
     autoUpdater.setFeedURL({ url })
 
     autoUpdater.on('error', error => {
@@ -250,17 +288,16 @@ app.on('before-quit', async event => {
 
     autoUpdater.on('update-downloaded', async (event, releaseNotes, releaseName, releaseDate, updateURL) => {
       console.log('update-downloaded', [event, releaseNotes, releaseName, releaseDate, updateURL])
-      const dialogOpts = {
+      await ensureMainWindow()
+      const returnValue = await dialog.showMessageBox(mainWindow, {
         type: 'info',
         buttons: ['Restart', 'Later'],
         title: 'Application Update',
         message: process.platform === 'win32' ? releaseNotes : releaseName,
-        detail:
-          'A new version has been downloaded. Restart the application to apply the updates.'
-      }
-
-      const returnValue = await dialog.showMessageBox(dialogOpts)
+        detail: 'A new version has been downloaded. Restart the application to apply the updates.'
+      })
       if (returnValue.response === 0) {
+        clearInterval(updaterInterval)
         try {
           await stopVm()
         } catch (error) {
@@ -278,7 +315,7 @@ app.on('before-quit', async event => {
     })
 
     autoUpdater.checkForUpdates()
-    setInterval(() => {
+    updaterInterval = setInterval(() => {
       autoUpdater.checkForUpdates()
     }, 1000 * 60 * 10)
   }
