@@ -12,8 +12,7 @@ export default defineConfig({
       external: [
         'aws-sdk',
         'better-sqlite3',
-        'node-pty',
-        'update-electron-app'
+        'node-pty'
       ]
     }
   }

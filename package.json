@@ -2,7 +2,7 @@
   "name": "@noop-inc/desktop",
   "private": true,
   "productName": "Noop",
-  "version": "0.0.0-automated",
+  "version": "0.1.10",
   "main": ".vite/build/main.js",
   "author": {
     "name": "Noop Inc",
@@ -32,9 +32,6 @@
     "publish": "electron-forge publish",
     "start": "electron-forge start"
   },
-  "dependencies": {
-    "update-electron-app": "^3.0.0"
-  },
   "devDependencies": {
     "@electron-forge/cli": "^7.2.0",
     "@electron-forge/maker-dmg": "^7.2.0",
@@ -46,7 +43,7 @@
     "@noop-inc/foundation": "2.0.163-pr658.8",
     "concurrently": "^8.2.2",
     "dotenv": "^16.3.1",
-    "electron": "^28.1.1",
+    "electron": "^27.2.1",
     "electron-log": "^5.0.3",
     "electron-serve": "^1.2.0",
     "eslint": "^8.56.0",

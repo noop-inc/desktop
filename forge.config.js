@@ -13,7 +13,7 @@ module.exports = {
       }
     ],
     ignore: file =>
-      !(!file || file.startsWith('/.vite') || (file === '/package.json') || (file === '/package-lock.json') || (file.startsWith('/node_modules') && !file.startsWith('/node_modules/.'))),
+      !(!file || file.startsWith('/.vite') || (file === '/package.json')),
     ...(
       process.env.npm_lifecycle_event === 'start'
         ? {}

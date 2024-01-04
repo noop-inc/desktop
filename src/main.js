@@ -1,15 +1,15 @@
-import { app, shell, BrowserWindow, screen, ipcMain, nativeTheme, dialog } from 'electron'
+import { app, shell, BrowserWindow, screen, ipcMain, nativeTheme, dialog, autoUpdater } from 'electron'
 import { join, resolve } from 'node:path'
 import serve from 'electron-serve'
 import { createVm, startVm, stopVm, deleteVm } from './vm.js'
 import log from 'electron-log/main'
-const { updateElectronApp, UpdateSourceType } = require('update-electron-app')
 
 log.initialize()
-
+log.errorHandler.startCatching()
+log.eventLogger.startLogging()
 Object.assign(console, log.functions)
 
-const loadURL = MAIN_WINDOW_VITE_DEV_SERVER_URL // eslint-disable-line no-undef
+const loadURL = (MAIN_WINDOW_VITE_DEV_SERVER_URL && !app.isPackaged)// eslint-disable-line no-undef
   ? null
   : serve({ directory: `./.vite/renderer/${MAIN_WINDOW_VITE_NAME}` }) // eslint-disable-line no-undef
 
@@ -45,7 +45,7 @@ const createMainWindow = async () => {
   })
 
   // and load the index.html of the app.
-  if (MAIN_WINDOW_VITE_DEV_SERVER_URL) { // eslint-disable-line no-undef
+  if (MAIN_WINDOW_VITE_DEV_SERVER_URL && !app.isPackaged) { // eslint-disable-line no-undef
     mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL) // eslint-disable-line no-undef
     // Open the DevTools.
     mainWindow.webContents.openDevTools()
@@ -186,20 +186,20 @@ let stopped
 let deleted
 
 app.on('before-quit', async event => {
-  if (!MAIN_WINDOW_VITE_DEV_SERVER_URL && !stopped && !deleted) { // eslint-disable-line no-undef
+  if (!MAIN_WINDOW_VITE_DEV_SERVER_URL && app.isPackaged && !stopped && !deleted) { // eslint-disable-line no-undef
     event.preventDefault()
     try {
       await stopVm()
-      stopped = true
     } catch (error) {
-      dialog.showErrorBox(`STOP ${error?.name}`, error?.message)
+      // dialog.showErrorBox(`STOP ${error?.name}`, error?.message)
     }
+    stopped = true
     try {
       await deleteVm()
-      deleted = true
     } catch (error) {
-      dialog.showErrorBox(`DELETE ${error?.name}`, error?.message)
+      // dialog.showErrorBox(`DELETE ${error?.name}`, error?.message)
     }
+    deleted = true
     app.quit()
   }
 });
@@ -208,29 +208,78 @@ app.on('before-quit', async event => {
   await app.whenReady()
   await createMainWindow()
 
-  if (!MAIN_WINDOW_VITE_DEV_SERVER_URL) { // eslint-disable-line no-undef
+  if (!MAIN_WINDOW_VITE_DEV_SERVER_URL && app.isPackaged) { // eslint-disable-line no-undef
     try {
       await createVm()
     } catch (error) {
-      dialog.showErrorBox(error?.name, error?.message)
+      // dialog.showErrorBox(error?.name, error?.message)
     }
     try {
       await startVm()
     } catch (error) {
-      dialog.showErrorBox(error?.name, error?.message)
+      // dialog.showErrorBox(error?.name, error?.message)
     }
   }
 
-  if (!MAIN_WINDOW_VITE_DEV_SERVER_URL && (app.getVersion() !== '0.0.0-automated') && !app.getVersion().includes('-') && app.isPackaged) { // eslint-disable-line no-undef
-    updateElectronApp({
-      updateSource: {
-        type: UpdateSourceType.ElectronPublicUpdateService,
-        repo: 'noop-inc/desktop',
-        host: 'https://update.electronjs.org'
-      },
-      updateInterval: '10 minutes',
-      logger: console,
-      notifyUser: true
+  const version = app.getVersion()
+
+  if (!MAIN_WINDOW_VITE_DEV_SERVER_URL && app.isPackaged && !version.includes('-')) { // eslint-disable-line no-undef
+    const server = 'https://update.electronjs.org'
+    const repo = 'noop-inc/desktop'
+    const platform = process.platform
+    const arch = process.arch
+    const url = `${server}/${repo}/${platform}-${arch}/${version}`
+    autoUpdater.setFeedURL({ url })
+
+    autoUpdater.on('error', error => {
+      console.log('updater error')
+      console.log(error)
     })
+    autoUpdater.on('checking-for-update', () => {
+      console.log('checking-for-update')
+    })
+    autoUpdater.on('update-available', () => {
+      console.log('update-available; downloading...')
+    })
+    autoUpdater.on('update-not-available', () => {
+      console.log('update-not-available')
+    })
+    autoUpdater.on('before-quit-for-update', () => {
+      console.log('before-quit-for-update')
+    })
+
+    autoUpdater.on('update-downloaded', async (event, releaseNotes, releaseName, releaseDate, updateURL) => {
+      console.log('update-downloaded', [event, releaseNotes, releaseName, releaseDate, updateURL])
+      const dialogOpts = {
+        type: 'info',
+        buttons: ['Restart', 'Later'],
+        title: 'Application Update',
+        message: process.platform === 'win32' ? releaseNotes : releaseName,
+        detail:
+          'A new version has been downloaded. Restart the application to apply the updates.'
+      }
+
+      const returnValue = await dialog.showMessageBox(dialogOpts)
+      if (returnValue.response === 0) {
+        try {
+          await stopVm()
+        } catch (error) {
+          // dialog.showErrorBox(`STOP ${error?.name}`, error?.message)
+        }
+        stopped = true
+        try {
+          await deleteVm()
+        } catch (error) {
+          // dialog.showErrorBox(`DELETE ${error?.name}`, error?.message)
+        }
+        deleted = true
+        autoUpdater.quitAndInstall()
+      }
+    })
+
+    autoUpdater.checkForUpdates()
+    setInterval(() => {
+      autoUpdater.checkForUpdates()
+    }, 1000 * 60 * 10)
   }
 })()
