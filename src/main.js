@@ -3,7 +3,7 @@ import { join, resolve } from 'node:path'
 import serve from 'electron-serve'
 import { createVm, startVm, stopVm, deleteVm } from './vm.js'
 import log from 'electron-log/main'
-import { updateElectronApp, UpdateSourceType } from 'update-electron-app'
+const { updateElectronApp, UpdateSourceType } = require('update-electron-app')
 
 log.initialize()
 
@@ -221,7 +221,7 @@ app.on('before-quit', async event => {
     }
   }
 
-  if (!MAIN_WINDOW_VITE_DEV_SERVER_URL && (app.getVersion() !== '0.0.0-automated') && !app.getVersion().includes('-')) { // eslint-disable-line no-undef
+  if (!MAIN_WINDOW_VITE_DEV_SERVER_URL && (app.getVersion() !== '0.0.0-automated') && !app.getVersion().includes('-') && app.isPackaged) { // eslint-disable-line no-undef
     updateElectronApp({
       updateSource: {
         type: UpdateSourceType.ElectronPublicUpdateService,
