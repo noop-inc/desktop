@@ -2,7 +2,7 @@
   "name": "@noop-inc/desktop",
   "private": true,
   "productName": "Noop",
-  "version": "0.1.10",
+  "version": "0.1.6",
   "main": ".vite/build/main.js",
   "author": {
     "name": "Noop Inc",
