@@ -9,16 +9,6 @@ log.initialize()
 
 Object.assign(console, log.functions)
 
-if (!MAIN_WINDOW_VITE_DEV_SERVER_URL && (app.getVersion() !== '0.0.0-automated') && !app.getVersion().includes('-')) { // eslint-disable-line no-undef
-  updateElectronApp({
-    updateSource: {
-      type: UpdateSourceType.ElectronPublicUpdateService,
-      repo: 'noop-inc/desktop',
-      host: 'https://update.electronjs.org'
-    }
-  })
-}
-
 const loadURL = MAIN_WINDOW_VITE_DEV_SERVER_URL // eslint-disable-line no-undef
   ? null
   : serve({ directory: `./.vite/renderer/${MAIN_WINDOW_VITE_NAME}` }) // eslint-disable-line no-undef
@@ -139,11 +129,6 @@ if (!gotTheLock) {
     await handleUpdateRoute(commandLine.pop().slice(0, -1))
   })
 
-  // This method will be called when Electron has finished
-  // initialization and is ready to create browser windows.
-  // Some APIs can only be used after this event occurs.
-  // app.on('ready', createMainWindow)
-
   app.on('open-url', async (event, url) => {
     await handleUpdateRoute(url)
   })
@@ -166,18 +151,6 @@ app.on('activate', async () => {
 
 // In this file you can include the rest of your app's specific main process
 // code. You can also put them in separate files and import them here.
-
-// app.on('certificate-error', async (event, webContents, url, error, certificate, done) => {
-//   // if (url.startsWith('https://localhost:1234/') && (process.env.NODE_ENV === 'development')) {
-//   if (url.startsWith('https://inspector.local.noop.app:1234')) {
-//     // bypass cert error if localhost and dev mode
-//     event.preventDefault()
-//     done(true)
-//   } else {
-//     // otherwise block request
-//     done(false)
-//   }
-// })
 
 app.on('web-contents-created', async (event, contents) => {
   contents.setWindowOpenHandler(({ url }) => {
@@ -234,6 +207,7 @@ app.on('before-quit', async event => {
 (async () => {
   await app.whenReady()
   await createMainWindow()
+
   if (!MAIN_WINDOW_VITE_DEV_SERVER_URL) { // eslint-disable-line no-undef
     try {
       await createVm()
@@ -245,5 +219,18 @@ app.on('before-quit', async event => {
     } catch (error) {
       dialog.showErrorBox(error?.name, error?.message)
     }
+  }
+
+  if (!MAIN_WINDOW_VITE_DEV_SERVER_URL && (app.getVersion() !== '0.0.0-automated') && !app.getVersion().includes('-')) { // eslint-disable-line no-undef
+    updateElectronApp({
+      updateSource: {
+        type: UpdateSourceType.ElectronPublicUpdateService,
+        repo: 'noop-inc/desktop',
+        host: 'https://update.electronjs.org'
+      },
+      updateInterval: '10 minutes',
+      logger: console,
+      notifyUser: true
+    })
   }
 })()

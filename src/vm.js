@@ -86,7 +86,7 @@ export const startVm = async () => {
 
 export const stopVm = async () => {
   try {
-    const stop = lima.limactl(['stop', 'workshop-vm'])
+    const stop = lima.limactl(['stop', 'workshop-vm', '-f'])
     stop.on('log', console.log)
     await stop.done()
   } catch (error) {
@@ -97,7 +97,7 @@ export const stopVm = async () => {
 
 export const deleteVm = async () => {
   try {
-    const dlt = lima.limactl(['delete', 'workshop-vm'])
+    const dlt = lima.limactl(['delete', 'workshop-vm', '-f'])
     dlt.on('log', console.log)
     await dlt.done()
   } catch (error) {
