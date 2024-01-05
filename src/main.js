@@ -1,6 +1,6 @@
 import { app, shell, BrowserWindow, screen, ipcMain, nativeTheme, dialog, autoUpdater } from 'electron'
 import { join, resolve } from 'node:path'
-import { homedir, EOL } from 'node:os'
+import { homedir } from 'node:os'
 import serve from 'electron-serve'
 import { createVm, startVm, stopVm, deleteVm } from './vm.js'
 import log from 'electron-log/main'
@@ -214,7 +214,8 @@ app.on('before-quit', async event => {
   if (!MAIN_WINDOW_VITE_DEV_SERVER_URL && app.isPackaged) { // eslint-disable-line no-undef
     await dialog.showMessageBox(mainWindow, {
       title: 'Projects Directory',
-      message: `Noop Workshop will automatically discover compatiable projects on your machine.${EOL}${EOL}Select the root-level Projects Directory to use for this session.`,
+      message: 'Configuration Needed',
+      detail: 'Noop Workshop will automatically discover compatiable projects on your machine. Select the root-level Projects Directory to use for this session.',
       buttons: ['Next'],
       type: 'info'
     })
@@ -235,7 +236,8 @@ app.on('before-quit', async event => {
       } else {
         await dialog.showMessageBox(mainWindow, {
           title: 'Projects Directory',
-          message: 'Selecting a Projects Directory is required.',
+          message: 'Configuration Needed',
+          details: 'Selecting a Projects Directory is required. Please try again.',
           buttons: ['Next'],
           type: 'warning'
         })
