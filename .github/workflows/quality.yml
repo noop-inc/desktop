@@ -1,0 +1,51 @@
+name: Code Quality
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+  push:
+    branches: [main]
+
+jobs:
+  linting:
+    name: Linting
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Code Checkout
+        uses: actions/checkout@v4
+
+      - name: Install NodeJS
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@noop-inc'
+
+      - name: Cache NPM
+        id: cache-npm
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.npm
+            ./node_modules
+          key: ${{ runner.os }}-npm-${{ hashFiles('package-lock.json') }}
+          restore-keys: ${{ runner.os }}-npm-
+
+      - name: Install Dependencies
+        run: npm ci
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN }}
+
+      - name: Cache Lint
+        id: cache-lint
+        uses: actions/cache@v3
+        with:
+          path: |
+            ./node_modules/.cache/prettier
+            ./node_modules/.cache/.eslintcache
+          key: ${{ runner.os }}-lint-${{ github.sha }}
+          restore-keys: ${{ runner.os }}-lint-
+
+      - name: Code Linting
+        run: npm run lint
