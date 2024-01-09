@@ -40,7 +40,7 @@
     "@electron-forge/publisher-github": "^7.2.0",
     "@noop-inc/console": "2.0.111-pr1085.10",
     "@noop-inc/desktop-lima": "0.0.59",
-    "@noop-inc/foundation": "2.0.163-pr658.10",
+    "@noop-inc/foundation": "2.0.166-pr658.0",
     "concurrently": "^8.2.2",
     "dotenv": "^16.3.1",
     "electron": "^27.2.1",
