@@ -59,9 +59,7 @@ jobs:
 
       - name: Install Node Modules
         id: install-node-modules
-        run: |
-          npm ci
-          cd node_modules/@noop-inc/desktop-lima && npm run install && cd ../../../
+        run: npm ci
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN }}
 

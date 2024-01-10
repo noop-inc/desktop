@@ -26,11 +26,12 @@
     "lint": "npm run common-sequential -- npm:lint-*",
     "lint-eslint": "npm run common-eslint",
     "lint-prettier": "npm run common-prettier -- --check",
-    "make": "electron-forge make",
+    "make": "npm run postinstall && electron-forge make",
     "noop-link": "npm link @noop-inc/console",
-    "package": "electron-forge package",
-    "publish": "electron-forge publish",
-    "start": "electron-forge start"
+    "package": "npm run postinstall && electron-forge package",
+    "postinstall": "cd node_modules/@noop-inc/desktop-lima && npm run postinstall",
+    "publish": "npm run postinstall && electron-forge publish",
+    "start": "npm run postinstall && electron-forge start"
   },
   "devDependencies": {
     "@electron-forge/cli": "^7.2.0",
@@ -39,7 +40,7 @@
     "@electron-forge/plugin-vite": "^7.2.0",
     "@electron-forge/publisher-github": "^7.2.0",
     "@noop-inc/console": "3.0.0",
-    "@noop-inc/desktop-lima": "0.0.60",
+    "@noop-inc/desktop-lima": "0.0.61",
     "@noop-inc/foundation": "2.0.168-pr658.0",
     "concurrently": "^8.2.2",
     "dotenv": "^16.3.1",
