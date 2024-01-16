@@ -57,7 +57,7 @@
     "vite": "$vite"
   },
   "@noop-inc": {
-    "workshop-vm": "0.1.6"
+    "workshop-vm": "0.1.7"
   },
   "eslintConfig": {
     "root": true,
