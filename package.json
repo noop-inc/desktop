@@ -39,9 +39,9 @@
     "@electron-forge/maker-zip": "^7.2.0",
     "@electron-forge/plugin-vite": "^7.2.0",
     "@electron-forge/publisher-github": "^7.2.0",
-    "@noop-inc/console": "^3.0.2",
+    "@noop-inc/console": "^3.0.3",
     "@noop-inc/desktop-lima": "^0.0.61",
-    "@noop-inc/foundation": "2.0.168-pr658.1",
+    "@noop-inc/foundation": "2.0.168-pr658.3",
     "concurrently": "^8.2.2",
     "dotenv": "^16.3.1",
     "electron": "^27.2.2",
@@ -49,7 +49,7 @@
     "electron-serve": "^1.2.0",
     "eslint": "^8.56.0",
     "eslint-config-standard": "^17.1.0",
-    "prettier": "^3.1.1",
+    "prettier": "^3.2.2",
     "vite": "^5.0.11"
   },
   "overrides": {
