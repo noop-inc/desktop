@@ -4,6 +4,11 @@ import { homedir } from 'node:os'
 import serve from 'electron-serve'
 import { createVm, startVm, stopVm, deleteVm } from './vm.js'
 import log from 'electron-log/main'
+import { extract } from 'tar-fs'
+import { Readable } from 'node:stream'
+import { finished } from 'node:stream/promises'
+import { readdir, mkdir } from 'node:fs/promises'
+import { pathToFileURL } from 'node:url'
 
 log.initialize()
 log.errorHandler.startCatching()
@@ -14,11 +19,13 @@ const loadURL = (MAIN_WINDOW_VITE_DEV_SERVER_URL && !app.isPackaged)// eslint-di
   ? null
   : serve({ directory: `./.vite/renderer/${MAIN_WINDOW_VITE_NAME}` }) // eslint-disable-line no-undef
 
+const workshopApiBase = 'https://inspector.local.noop.app:1234'
 const noopProtocal = 'noop'
 let githubLoginUrl
 let mainWindow
 let authWindow
 let updaterInterval
+let projectsDir
 
 const createMainWindow = async () => {
   await app.whenReady()
@@ -105,9 +112,76 @@ const handleLogout = async () => {
   })
   if (authWindow) authWindow.close()
   githubLoginUrl = null
+  return true
 }
 
-ipcMain.handle('logout', async () => handleLogout())
+ipcMain.handle('logout', handleLogout)
+
+const handleSubdirectoryInput = async () => {
+  await ensureMainWindow()
+  let subdirectory = null
+  while (!subdirectory) {
+    const returnValue = await dialog.showOpenDialog(mainWindow, {
+      title: 'Directory',
+      message: 'Select Directory',
+      defaultPath: projectsDir,
+      buttonLabel: 'Select',
+      properties: ['openDirectory', 'createDirectory']
+    })
+    if (returnValue.canceled) {
+      subdirectory = null
+      break
+    }
+    const selected = returnValue?.filePaths?.[0] || null
+    if ((selected === projectsDir) || selected?.startsWith(`${projectsDir}/`)) {
+      subdirectory = selected
+      break
+    }
+    await dialog.showMessageBox(mainWindow, {
+      title: 'Directory',
+      message: `Configuration ${returnValue.filePaths[0] ? 'Invalid' : 'Needed'}`,
+      detail: 'Selected directory must be scoped within the current Projects Directory. Please try again.',
+      buttons: ['Next'],
+      type: 'warning'
+    })
+  }
+  return subdirectory
+}
+
+ipcMain.handle('subdirectory-input', handleSubdirectoryInput)
+
+const handleCloneRepository = async (_event, { repositoryUrl, subdirectory }) => {
+  if (!((subdirectory === projectsDir) || subdirectory?.startsWith(`${projectsDir}/`))) {
+    throw Error('Selected directory must be scoped within the current Projects Directory.')
+  }
+  await ensureMainWindow()
+  const directoryName = repositoryUrl.split('/').at(-1).split('.git')[0]
+  const files = await readdir(subdirectory)
+  let num = 1
+  while (files.find(file => file === `${directoryName}${num === 1 ? '' : `-${num}`}`)) {
+    num++
+  }
+  const foundDirectory = join(subdirectory, `${directoryName}${num === 1 ? '' : `-${num}`}`)
+  await mkdir(foundDirectory, { recursive: true })
+  const res1 = await fetch(`${workshopApiBase}/local/repos/clone`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ repositoryUrl })
+  })
+  const tarStream = Readable.fromWeb(res1.body)
+  const tarExtractor = extract(foundDirectory)
+  await finished(tarStream.pipe(tarExtractor))
+  const url = pathToFileURL(foundDirectory.replace(projectsDir, '/noop/projects')).href
+  const res2 = await fetch(`${workshopApiBase}/local/repos`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url })
+  })
+  const repo = await res2.json()
+  return repo
+}
+
+ipcMain.handle('clone-repository', handleCloneRepository)
 
 if (process.defaultApp) {
   if (process.argv.length >= 2) {
@@ -220,8 +294,6 @@ app.on('before-quit', async event => {
       type: 'info'
     })
 
-    let projectsDir
-
     while (!projectsDir) {
       const returnValue = await dialog.showOpenDialog(mainWindow, {
         title: 'Projects Directory',
@@ -231,13 +303,12 @@ app.on('before-quit', async event => {
         properties: ['openDirectory']
       })
       if (!returnValue.canceled && returnValue.filePaths.length) {
-        console.log(returnValue.filePaths[0])
         projectsDir = returnValue.filePaths[0]
       } else {
         await dialog.showMessageBox(mainWindow, {
           title: 'Projects Directory',
           message: 'Configuration Needed',
-          details: 'Selecting a Projects Directory is required. Please try again.',
+          detail: 'Selecting a Projects Directory is required. Please try again.',
           buttons: ['Next'],
           type: 'warning'
         })
@@ -256,6 +327,8 @@ app.on('before-quit', async event => {
     } catch (error) {
       // dialog.showErrorBox(error?.name, error?.message)
     }
+  } else {
+    projectsDir = homedir()
   }
 
   const version = app.getVersion()

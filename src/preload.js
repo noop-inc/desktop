@@ -6,9 +6,12 @@ import { ipcRenderer, contextBridge } from 'electron'
 contextBridge.exposeInMainWorld(
   'electron',
   {
-    logout: async () => {
-      await ipcRenderer.invoke('logout')
-    }
+    logout: async () =>
+      await ipcRenderer.invoke('logout'),
+    subdirectoryInput: async () =>
+      await ipcRenderer.invoke('subdirectory-input'),
+    cloneRepository: async ({ repositoryUrl, subdirectory }) =>
+      await ipcRenderer.invoke('clone-repository', { repositoryUrl, subdirectory })
   }
 )
 
