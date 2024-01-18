@@ -8,7 +8,7 @@ import { extract } from 'tar-fs'
 import { Readable } from 'node:stream'
 import { finished } from 'node:stream/promises'
 import { readdir, mkdir } from 'node:fs/promises'
-import { pathToFileURL } from 'node:url'
+import { pathToFileURL, fileURLToPath } from 'node:url'
 
 log.initialize()
 log.errorHandler.startCatching()
@@ -26,6 +26,10 @@ let mainWindow
 let authWindow
 let updaterInterval
 let projectsDir
+
+let vmStatus = ((!MAIN_WINDOW_VITE_DEV_SERVER_URL && app.isPackaged) || (process.env.npm_lifecycle_event === 'serve')) // eslint-disable-line no-undef
+  ? 'PENDING'
+  : 'UNKNOWN'
 
 const createMainWindow = async () => {
   await app.whenReady()
@@ -61,11 +65,16 @@ const createMainWindow = async () => {
   } else {
     await loadURL(mainWindow)
   }
+
+  if ((!MAIN_WINDOW_VITE_DEV_SERVER_URL && app.isPackaged) || (process.env.npm_lifecycle_event === 'serve')) { // eslint-disable-line no-undef
+    await handleVmStatus()
+  }
 }
 
 const ensureMainWindow = async () => {
   if (!app.isReady()) return
   if (!mainWindow) await createMainWindow()
+  return mainWindow
 }
 
 const createAuthWindow = async () => {
@@ -104,6 +113,14 @@ const handleUpdateRoute = async url => {
   mainWindow.webContents.send('update-route', url)
   if (authWindow) authWindow.close()
 }
+
+const handleVmStatus = async status => {
+  if (status && (status !== vmStatus)) vmStatus = status
+  mainWindow?.webContents.send('vm-status', vmStatus)
+  return vmStatus
+}
+
+ipcMain.handle('vm-status', async () => await handleVmStatus())
 
 const handleLogout = async () => {
   await ensureMainWindow()
@@ -183,6 +200,15 @@ const handleCloneRepository = async (_event, { repositoryUrl, subdirectory }) =>
 
 ipcMain.handle('clone-repository', handleCloneRepository)
 
+const handleShowItemInFolder = async (_event, url) => {
+  if ((url === 'file:///noop/projects') || url?.startsWith('file:///noop/projects/')) {
+    url = url.replace('/noop/projects', projectsDir)
+  }
+  shell.showItemInFolder(fileURLToPath(url))
+}
+
+ipcMain.handle('show-item-in-folder', handleShowItemInFolder)
+
 if (process.defaultApp) {
   if (process.argv.length >= 2) {
     app.setAsDefaultProtocolClient(noopProtocal, process.execPath, [resolve(process.argv[1])])
@@ -258,25 +284,24 @@ app.on('web-contents-created', async (event, contents) => {
   })
 })
 
-let stopped
-let deleted
-
 app.on('before-quit', async event => {
-  if (!MAIN_WINDOW_VITE_DEV_SERVER_URL && app.isPackaged && !stopped && !deleted) { // eslint-disable-line no-undef
+  if (((!MAIN_WINDOW_VITE_DEV_SERVER_URL && app.isPackaged) || (process.env.npm_lifecycle_event === 'serve')) && !['PENDING', 'DELETED'].includes(vmStatus)) { // eslint-disable-line no-undef
     event.preventDefault()
     clearInterval(updaterInterval)
     try {
+      await handleVmStatus('STOPPING')
       await stopVm()
     } catch (error) {
       // dialog.showErrorBox(`STOP ${error?.name}`, error?.message)
     }
-    stopped = true
+    await handleVmStatus('STOPPED')
     try {
+      await handleVmStatus('DELETING')
       await deleteVm()
     } catch (error) {
       // dialog.showErrorBox(`DELETE ${error?.name}`, error?.message)
     }
-    deleted = true
+    await handleVmStatus('DELETED')
     app.quit()
   }
 });
@@ -285,7 +310,7 @@ app.on('before-quit', async event => {
   await app.whenReady()
   await createMainWindow()
 
-  if (!MAIN_WINDOW_VITE_DEV_SERVER_URL && app.isPackaged) { // eslint-disable-line no-undef
+  if ((!MAIN_WINDOW_VITE_DEV_SERVER_URL && app.isPackaged) || (process.env.npm_lifecycle_event === 'serve')) { // eslint-disable-line no-undef
     await dialog.showMessageBox(mainWindow, {
       title: 'Projects Directory',
       message: 'Configuration Needed',
@@ -300,7 +325,7 @@ app.on('before-quit', async event => {
         message: 'Select Projects Directory',
         defaultPath: homedir(),
         buttonLabel: 'Select',
-        properties: ['openDirectory']
+        properties: ['openDirectory', 'createDirectory']
       })
       if (!returnValue.canceled && returnValue.filePaths.length) {
         projectsDir = returnValue.filePaths[0]
@@ -318,15 +343,20 @@ app.on('before-quit', async event => {
     console.log('Project Directory', projectsDir)
 
     try {
+      await handleVmStatus('CREATING')
       await createVm({ projectsDir })
     } catch (error) {
       // dialog.showErrorBox(error?.name, error?.message)
     }
+    await handleVmStatus('CREATED')
     try {
+      await handleVmStatus('STARTING')
       await startVm()
+      mainWindow.webContents.send('workshop-started')
     } catch (error) {
       // dialog.showErrorBox(error?.name, error?.message)
     }
+    await handleVmStatus('STARTED')
   } else {
     projectsDir = homedir()
   }
@@ -373,18 +403,22 @@ app.on('before-quit', async event => {
       })
       if (returnValue.response === 0) {
         clearInterval(updaterInterval)
-        try {
-          await stopVm()
-        } catch (error) {
-          // dialog.showErrorBox(`STOP ${error?.name}`, error?.message)
+        if (!['PENDING', 'DELETED'].includes(vmStatus)) {
+          try {
+            await handleVmStatus('STOPPING')
+            await stopVm()
+          } catch (error) {
+            // dialog.showErrorBox(`STOP ${error?.name}`, error?.message)
+          }
+          await handleVmStatus('STOPPED')
+          try {
+            await handleVmStatus('DELETING')
+            await deleteVm()
+          } catch (error) {
+            // dialog.showErrorBox(`DELETE ${error?.name}`, error?.message)
+          }
+          await handleVmStatus('DELETED')
         }
-        stopped = true
-        try {
-          await deleteVm()
-        } catch (error) {
-          // dialog.showErrorBox(`DELETE ${error?.name}`, error?.message)
-        }
-        deleted = true
         autoUpdater.quitAndInstall()
       }
     })

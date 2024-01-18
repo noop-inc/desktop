@@ -6,10 +6,15 @@ import { readdir } from 'node:fs/promises'
 
 const { resourcesPath } = process
 
-const limaBinPath = join(resourcesPath, 'lima-and-qemu.macos-aarch64', 'bin')
+const limaBinPath = (process.env.npm_lifecycle_event === 'serve')
+  ? join(process.env.npm_config_local_prefix, 'node_modules/@noop-inc/desktop-lima/dist/lima-and-qemu.macos-aarch64/bin')
+  : join(resourcesPath, 'lima-and-qemu.macos-aarch64', 'bin')
+
 // const userData = join(app.getPath('userData'), 'data')
 
 const lima = new Lima({ binPath: limaBinPath })
+
+const logHandler = message => console.log(message)
 
 export const createVm = async ({ projectsDir }) => {
   // try {
@@ -18,8 +23,11 @@ export const createVm = async ({ projectsDir }) => {
   //   if (error.code !== 'EEXIST') throw error
   // }
 
-  const files = await readdir(resourcesPath)
-  const workshopVmPath = join(resourcesPath, files.find(file => file.startsWith('noop-workshop-vm') && file.endsWith('.aarch64.qcow2')))
+  console.log('Creating Workshop VM')
+
+  const workshopVmPath = (process.env.npm_lifecycle_event === 'serve')
+    ? join(process.env.npm_config_local_prefix, `noop-workshop-vm-${process.env.WORKSHOP_VM_VERSION}.aarch64.qcow2`)
+    : join(resourcesPath, (await readdir(resourcesPath)).find(file => file.startsWith('noop-workshop-vm') && file.endsWith('.aarch64.qcow2')))
 
   const template = {
     arch: 'aarch64',
@@ -74,33 +82,47 @@ export const createVm = async ({ projectsDir }) => {
 }
 
 export const startVm = async () => {
+  console.log('Starting Workshop VM')
+
+  let start
   try {
-    const start = lima.limactl(['start', 'workshop-vm'])
-    start.on('log', console.log)
+    start = lima.limactl(['start', 'workshop-vm'])
+    start.on('log', logHandler)
     await start.done()
+    start.off('log', logHandler)
   } catch (error) {
+    start?.off('log', logHandler)
     console.error(error)
     throw error
   }
 }
 
 export const stopVm = async () => {
+  console.log('Stopping Workshop VM')
+
+  let stop
   try {
-    const stop = lima.limactl(['stop', 'workshop-vm', '-f'])
-    stop.on('log', console.log)
+    stop = lima.limactl(['stop', 'workshop-vm', '-f'])
+    stop.on('log', logHandler)
     await stop.done()
   } catch (error) {
+    stop?.off('log', logHandler)
     console.error(error)
     throw error
   }
 }
 
 export const deleteVm = async () => {
+  console.log('Deleting Workshop VM')
+
+  let dlt
   try {
-    const dlt = lima.limactl(['delete', 'workshop-vm', '-f'])
-    dlt.on('log', console.log)
+    dlt = lima.limactl(['delete', 'workshop-vm', '-f'])
+    dlt.on('log', logHandler)
     await dlt.done()
+    dlt.off('log', logHandler)
   } catch (error) {
+    dlt?.off('log', logHandler)
     console.error(error)
     throw error
   }

@@ -15,7 +15,7 @@ module.exports = {
     ignore: file =>
       !(!file || file.startsWith('/.vite') || (file === '/package.json')),
     ...(
-      process.env.npm_lifecycle_event === 'start'
+      ['dev', 'serve'].includes(process.env.npm_lifecycle_event)
         ? {}
         : {
             extraResource: [

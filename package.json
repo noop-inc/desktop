@@ -20,6 +20,7 @@
     "common-eslint": "eslint . --ext .js,.cjs,.mjs --cache --cache-location node_modules/.cache/.eslintcache --ignore-path .gitignore",
     "common-prettier": "prettier \"**/*.{htm,html,json,md,markdown,yml,yaml}\" --cache --ignore-path .gitignore",
     "common-sequential": "concurrently --raw --max-processes 1",
+    "dev": "electron-forge start",
     "fix": "npm run common-sequential -- npm:fix-*",
     "fix-eslint": "npm run common-eslint -- --fix",
     "fix-prettier": "npm run common-prettier -- --write",
@@ -31,7 +32,7 @@
     "package": "npm run postinstall && electron-forge package",
     "postinstall": "sh -c 'if [ -f ./node_modules/@noop-inc/desktop-lima/bin/postinstall.js ]; then cd node_modules/@noop-inc/desktop-lima && npm run postinstall; fi'",
     "publish": "npm run postinstall && electron-forge publish",
-    "start": "electron-forge start"
+    "serve": "electron-forge start"
   },
   "devDependencies": {
     "@electron-forge/cli": "^7.2.0",
