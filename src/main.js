@@ -172,6 +172,19 @@ const handleCloneRepository = async (_event, { repositoryUrl, subdirectory }) =>
     throw Error('Selected directory must be scoped within the current Projects Directory.')
   }
   await ensureMainWindow()
+  const cloneResponse = await fetch(`${workshopApiBase}/local/repos/clone`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ repositoryUrl })
+  })
+  if (!cloneResponse.ok) {
+    if (cloneResponse.headers.get('content-type') === 'application/json') {
+      const body = await cloneResponse.json()
+      throw new Error(body.message)
+    } else {
+      throw new Error(cloneResponse.body)
+    }
+  }
   const directoryName = repositoryUrl.split('/').at(-1).split('.git')[0]
   const files = await readdir(subdirectory)
   let num = 1
@@ -180,21 +193,24 @@ const handleCloneRepository = async (_event, { repositoryUrl, subdirectory }) =>
   }
   const foundDirectory = join(subdirectory, `${directoryName}${num === 1 ? '' : `-${num}`}`)
   await mkdir(foundDirectory, { recursive: true })
-  const res1 = await fetch(`${workshopApiBase}/local/repos/clone`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ repositoryUrl })
-  })
-  const tarStream = Readable.fromWeb(res1.body)
+  const tarStream = Readable.fromWeb(cloneResponse.body)
   const tarExtractor = extract(foundDirectory)
   await finished(tarStream.pipe(tarExtractor))
   const url = pathToFileURL(foundDirectory.replace(projectsDir, '/noop/projects')).href
-  const res2 = await fetch(`${workshopApiBase}/local/repos`, {
+  const repoResponse = await fetch(`${workshopApiBase}/local/repos`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ url })
   })
-  const repo = await res2.json()
+  if (!repoResponse.ok) {
+    if (repoResponse.headers.get('content-type') === 'application/json') {
+      const body = await repoResponse.json()
+      throw new Error(body.message)
+    } else {
+      throw new Error(repoResponse.body)
+    }
+  }
+  const repo = await repoResponse.json()
   return repo
 }
 
