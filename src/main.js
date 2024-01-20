@@ -220,7 +220,7 @@ const handleShowItemInFolder = async (_event, url) => {
   if ((url === 'file:///noop/projects') || url?.startsWith('file:///noop/projects/')) {
     url = url.replace('/noop/projects', projectsDir)
   }
-  shell.showItemInFolder(fileURLToPath(url))
+  shell.openPath(fileURLToPath(url))
 }
 
 ipcMain.handle('show-item-in-folder', handleShowItemInFolder)
