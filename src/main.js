@@ -221,9 +221,31 @@ const handleShowItemInFolder = async (_event, url) => {
     url = url.replace('/noop/projects', projectsDir)
   }
   shell.showItemInFolder(fileURLToPath(url))
+  return true
 }
 
 ipcMain.handle('show-item-in-folder', handleShowItemInFolder)
+
+const handleRestartVm = async () => {
+  try {
+    await handleVmStatus('CREATING')
+    await createVm({ projectsDir })
+  } catch (error) {
+    // dialog.showErrorBox(error?.name, error?.message)
+  }
+  await handleVmStatus('CREATED')
+  try {
+    await handleVmStatus('STARTING')
+    await startVm()
+    mainWindow.webContents.send('workshop-started')
+  } catch (error) {
+    // dialog.showErrorBox(error?.name, error?.message)
+  }
+  await handleVmStatus('STARTED')
+  return true
+}
+
+ipcMain.handle('restart-vm', handleRestartVm)
 
 if (process.defaultApp) {
   if (process.argv.length >= 2) {

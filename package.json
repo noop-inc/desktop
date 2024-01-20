@@ -44,7 +44,7 @@
     "@noop-inc/desktop-lima": "^0.0.61",
     "@noop-inc/foundation": "2.0.168-pr658.5",
     "concurrently": "^8.2.2",
-    "dotenv": "^16.3.1",
+    "dotenv": "^16.3.2",
     "electron": "^27.2.4",
     "electron-log": "^5.0.3",
     "electron-serve": "^1.2.0",
@@ -52,8 +52,8 @@
     "eslint-config-standard": "^17.1.0",
     "prettier": "^3.2.4",
     "tar-fs": "^3.0.4",
-    "tar-stream": "^3.1.6",
-    "vite": "^5.0.11"
+    "tar-stream": "^3.1.7",
+    "vite": "^5.0.12"
   },
   "overrides": {
     "@noop-inc/foundation": "$@noop-inc/foundation",

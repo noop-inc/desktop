@@ -15,7 +15,9 @@ contextBridge.exposeInMainWorld(
     vmStatus: async () =>
       await ipcRenderer.invoke('vm-status'),
     showItemInFolder: async url =>
-      await ipcRenderer.invoke('show-item-in-folder', url)
+      await ipcRenderer.invoke('show-item-in-folder', url),
+    restartVm: async () =>
+      await ipcRenderer.invoke('restart-vm')
   }
 )
 
