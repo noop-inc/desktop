@@ -29,7 +29,7 @@ let projectsDir
 
 let workshopVmStatus = ((!MAIN_WINDOW_VITE_DEV_SERVER_URL && app.isPackaged) || (process.env.npm_lifecycle_event === 'serve')) // eslint-disable-line no-undef
   ? 'PENDING'
-  : 'UNKNOWN'
+  : 'RUNNING'
 
 const createMainWindow = async () => {
   await app.whenReady()
