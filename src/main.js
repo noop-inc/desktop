@@ -26,6 +26,7 @@ let mainWindow
 let authWindow
 let updaterInterval
 let projectsDir
+let appIsQuitting = false
 
 let workshopVmStatus = ((!MAIN_WINDOW_VITE_DEV_SERVER_URL && app.isPackaged) || (process.env.npm_lifecycle_event === 'serve')) // eslint-disable-line no-undef
   ? 'PENDING'
@@ -53,6 +54,13 @@ const createMainWindow = async () => {
     }
   })
 
+  mainWindow.on('close', event => {
+    if (!appIsQuitting) {
+      event.preventDefault()
+      mainWindow.hide()
+    }
+  })
+
   mainWindow.once('closed', () => {
     mainWindow = null
   })
@@ -74,6 +82,7 @@ const createMainWindow = async () => {
 const ensureMainWindow = async () => {
   if (!app.isReady()) return
   if (!mainWindow) await createMainWindow()
+  mainWindow.show()
   return mainWindow
 }
 
@@ -294,9 +303,7 @@ app.on('window-all-closed', async () => {
 app.on('activate', async () => {
   // On OS X it's common to re-create a window in the app when the
   // dock icon is clicked and there are no other windows open.
-  if (BrowserWindow.getAllWindows().length === 0) {
-    await ensureMainWindow()
-  }
+  await ensureMainWindow()
 })
 
 // In this file you can include the rest of your app's specific main process
@@ -333,6 +340,7 @@ app.on('web-contents-created', async (event, contents) => {
 })
 
 app.on('before-quit', async event => {
+  appIsQuitting = true
   if (((!MAIN_WINDOW_VITE_DEV_SERVER_URL && app.isPackaged) || (process.env.npm_lifecycle_event === 'serve')) && !['PENDING', 'DELETED'].includes(workshopVmStatus)) { // eslint-disable-line no-undef
     event.preventDefault()
     clearInterval(updaterInterval)
@@ -435,6 +443,7 @@ app.on('before-quit', async event => {
       console.log('update-not-available')
     })
     autoUpdater.on('before-quit-for-update', () => {
+      appIsQuitting = true
       console.log('before-quit-for-update')
     })
 
