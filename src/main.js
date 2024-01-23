@@ -27,7 +27,7 @@ let authWindow
 let updaterInterval
 let projectsDir
 
-let vmStatus = ((!MAIN_WINDOW_VITE_DEV_SERVER_URL && app.isPackaged) || (process.env.npm_lifecycle_event === 'serve')) // eslint-disable-line no-undef
+let workshopVmStatus = ((!MAIN_WINDOW_VITE_DEV_SERVER_URL && app.isPackaged) || (process.env.npm_lifecycle_event === 'serve')) // eslint-disable-line no-undef
   ? 'PENDING'
   : 'UNKNOWN'
 
@@ -67,7 +67,7 @@ const createMainWindow = async () => {
   }
 
   if ((!MAIN_WINDOW_VITE_DEV_SERVER_URL && app.isPackaged) || (process.env.npm_lifecycle_event === 'serve')) { // eslint-disable-line no-undef
-    await handleVmStatus()
+    await handleWorkshopVmStatus()
   }
 }
 
@@ -114,13 +114,13 @@ const handleUpdateRoute = async url => {
   if (authWindow) authWindow.close()
 }
 
-const handleVmStatus = async status => {
-  if (status && (status !== vmStatus)) vmStatus = status
-  mainWindow?.webContents.send('vm-status', vmStatus)
-  return vmStatus
+const handleWorkshopVmStatus = async status => {
+  if (status && (status !== workshopVmStatus)) workshopVmStatus = status
+  mainWindow?.webContents.send('workshop-vm-status', workshopVmStatus)
+  return workshopVmStatus
 }
 
-ipcMain.handle('vm-status', async () => await handleVmStatus())
+ipcMain.handle('workshop-vm-status', async () => await handleWorkshopVmStatus())
 
 const handleLogout = async () => {
   await ensureMainWindow()
@@ -216,7 +216,7 @@ const handleCloneRepository = async (_event, { repositoryUrl, subdirectory }) =>
 
 ipcMain.handle('clone-repository', handleCloneRepository)
 
-const handleShowItemInFolder = async (_event, url) => {
+const handleOpenPath = async (_event, url) => {
   if ((url === 'file:///noop/projects') || url?.startsWith('file:///noop/projects/')) {
     url = url.replace('/noop/projects', projectsDir)
   }
@@ -224,28 +224,38 @@ const handleShowItemInFolder = async (_event, url) => {
   return true
 }
 
-ipcMain.handle('show-item-in-folder', handleShowItemInFolder)
+ipcMain.handle('open-path', handleOpenPath)
 
-const handleRestartVm = async () => {
-  try {
-    await handleVmStatus('CREATING')
-    await createVm({ projectsDir })
-  } catch (error) {
-    // dialog.showErrorBox(error?.name, error?.message)
+const handleRestartWorkshopVm = async () => {
+  await ensureMainWindow()
+  const returnValue = await dialog.showMessageBox(mainWindow, {
+    type: 'info',
+    buttons: ['Restart', 'Cancel'],
+    title: 'Restart Workshop VM',
+    detail: 'Restarting Workshop will erase Workshop\'s existing state.'
+  })
+  if (returnValue.response === 0) {
+    try {
+      await handleWorkshopVmStatus('RESTARTING')
+      await createVm({ projectsDir })
+    } catch (error) {
+      // dialog.showErrorBox(error?.name, error?.message)
+    }
+    try {
+      await startVm()
+    } catch (error) {
+      // dialog.showErrorBox(error?.name, error?.message)
+    }
+    await handleWorkshopVmStatus('RUNNING')
+    return true
   }
-  await handleVmStatus('CREATED')
-  try {
-    await handleVmStatus('STARTING')
-    await startVm()
-    mainWindow.webContents.send('workshop-started')
-  } catch (error) {
-    // dialog.showErrorBox(error?.name, error?.message)
-  }
-  await handleVmStatus('STARTED')
-  return true
 }
 
-ipcMain.handle('restart-vm', handleRestartVm)
+ipcMain.handle('restart-workshop-vm', handleRestartWorkshopVm)
+
+const handleSetBadgeCount = (_event, num) => app.setBadgeCount(num || 0)
+
+ipcMain.handle('set-badge-count', handleSetBadgeCount)
 
 if (process.defaultApp) {
   if (process.argv.length >= 2) {
@@ -323,23 +333,23 @@ app.on('web-contents-created', async (event, contents) => {
 })
 
 app.on('before-quit', async event => {
-  if (((!MAIN_WINDOW_VITE_DEV_SERVER_URL && app.isPackaged) || (process.env.npm_lifecycle_event === 'serve')) && !['PENDING', 'DELETED'].includes(vmStatus)) { // eslint-disable-line no-undef
+  if (((!MAIN_WINDOW_VITE_DEV_SERVER_URL && app.isPackaged) || (process.env.npm_lifecycle_event === 'serve')) && !['PENDING', 'DELETED'].includes(workshopVmStatus)) { // eslint-disable-line no-undef
     event.preventDefault()
     clearInterval(updaterInterval)
     try {
-      await handleVmStatus('STOPPING')
+      await handleWorkshopVmStatus('STOPPING')
       await stopVm()
     } catch (error) {
       // dialog.showErrorBox(`STOP ${error?.name}`, error?.message)
     }
-    await handleVmStatus('STOPPED')
+    await handleWorkshopVmStatus('STOPPED')
     try {
-      await handleVmStatus('DELETING')
+      await handleWorkshopVmStatus('DELETING')
       await deleteVm()
     } catch (error) {
       // dialog.showErrorBox(`DELETE ${error?.name}`, error?.message)
     }
-    await handleVmStatus('DELETED')
+    await handleWorkshopVmStatus('DELETED')
     app.quit()
   }
 });
@@ -381,20 +391,19 @@ app.on('before-quit', async event => {
     console.log('Project Directory', projectsDir)
 
     try {
-      await handleVmStatus('CREATING')
+      await handleWorkshopVmStatus('CREATING')
       await createVm({ projectsDir })
     } catch (error) {
       // dialog.showErrorBox(error?.name, error?.message)
     }
-    await handleVmStatus('CREATED')
+    await handleWorkshopVmStatus('CREATED')
     try {
-      await handleVmStatus('STARTING')
+      await handleWorkshopVmStatus('STARTING')
       await startVm()
-      mainWindow.webContents.send('workshop-started')
     } catch (error) {
       // dialog.showErrorBox(error?.name, error?.message)
     }
-    await handleVmStatus('STARTED')
+    await handleWorkshopVmStatus('RUNNING')
   } else {
     projectsDir = homedir()
   }
@@ -441,21 +450,21 @@ app.on('before-quit', async event => {
       })
       if (returnValue.response === 0) {
         clearInterval(updaterInterval)
-        if (!['PENDING', 'DELETED'].includes(vmStatus)) {
+        if (!['PENDING', 'DELETED'].includes(workshopVmStatus)) {
           try {
-            await handleVmStatus('STOPPING')
+            await handleWorkshopVmStatus('STOPPING')
             await stopVm()
           } catch (error) {
             // dialog.showErrorBox(`STOP ${error?.name}`, error?.message)
           }
-          await handleVmStatus('STOPPED')
+          await handleWorkshopVmStatus('STOPPED')
           try {
-            await handleVmStatus('DELETING')
+            await handleWorkshopVmStatus('DELETING')
             await deleteVm()
           } catch (error) {
             // dialog.showErrorBox(`DELETE ${error?.name}`, error?.message)
           }
-          await handleVmStatus('DELETED')
+          await handleWorkshopVmStatus('DELETED')
         }
         autoUpdater.quitAndInstall()
       }

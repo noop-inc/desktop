@@ -12,12 +12,14 @@ contextBridge.exposeInMainWorld(
       await ipcRenderer.invoke('subdirectory-input'),
     cloneRepository: async ({ repositoryUrl, subdirectory }) =>
       await ipcRenderer.invoke('clone-repository', { repositoryUrl, subdirectory }),
-    vmStatus: async () =>
-      await ipcRenderer.invoke('vm-status'),
-    showItemInFolder: async url =>
-      await ipcRenderer.invoke('show-item-in-folder', url),
-    restartVm: async () =>
-      await ipcRenderer.invoke('restart-vm')
+    workshopVmStatus: async () =>
+      await ipcRenderer.invoke('workshop-vm-status'),
+    openPath: async url =>
+      await ipcRenderer.invoke('open-path', url),
+    restartWorkshopVm: async () =>
+      await ipcRenderer.invoke('restart-workshop-vm'),
+    setBadgeCount: async num =>
+      await ipcRenderer.invoke('set-badge-count', num)
   }
 )
 
@@ -27,8 +29,8 @@ ipcRenderer.on('update-route', async (_event, path) => {
   }))
 })
 
-ipcRenderer.on('vm-status', async (_event, status) => {
-  window.dispatchEvent(new CustomEvent('vm-status', {
+ipcRenderer.on('workshop-vm-status', async (_event, status) => {
+  window.dispatchEvent(new CustomEvent('workshop-vm-status', {
     detail: { status }
   }))
 })
