@@ -12,7 +12,8 @@ export default defineConfig({
       external: [
         'aws-sdk',
         'better-sqlite3',
-        'node-pty'
+        'node-pty',
+        'chokidar'
       ]
     }
   }
