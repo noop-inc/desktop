@@ -116,7 +116,7 @@ export default class FileWatcher extends EventEmitter {
       }
       this.patterns = patterns
     } catch (error) {
-      formatter(error)
+      formatter({ event: 'watcher.patterns.error', path: this.path, error })
       this.patterns = {}
     }
   }

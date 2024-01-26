@@ -143,8 +143,8 @@ const handleUpdateRoute = async url => {
 
 const handleWorkshopVmStatus = async status => {
   if (status === 'DELETED') localRepositories = []
-  mainWindow?.webContents.send('workshop-vm-status', vm.status)
-  return vm.status
+  mainWindow?.webContents.send('workshop-vm-status', vm?.status || 'RUNNING')
+  return vm?.status || 'RUNNING'
 }
 
 ipcMain.handle('workshop-vm-status', async () => await handleWorkshopVmStatus())
