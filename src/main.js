@@ -2,20 +2,40 @@ import { app, shell, BrowserWindow, screen, ipcMain, nativeTheme, dialog, autoUp
 import { join, resolve } from 'node:path'
 import { homedir } from 'node:os'
 import serve from 'electron-serve'
-import { createVm, startVm, stopVm, deleteVm } from './vm.js'
+import VM from './VM.js'
 import log from 'electron-log/main'
 import { extract } from 'tar-fs'
 import { Readable } from 'node:stream'
 import { finished } from 'node:stream/promises'
 import { readdir, mkdir } from 'node:fs/promises'
 import { pathToFileURL, fileURLToPath } from 'node:url'
+import FileWatcher from './FileWatcher.js'
+import { inspect } from 'node:util'
 
 log.initialize()
 log.errorHandler.startCatching()
 log.eventLogger.startLogging()
 Object.assign(console, log.functions)
 
-const loadURL = (MAIN_WINDOW_VITE_DEV_SERVER_URL && !app.isPackaged)// eslint-disable-line no-undef
+const {
+  npm_lifecycle_event: npmLifecycleEvent
+} = process.env
+
+const managingVm = ((!MAIN_WINDOW_VITE_DEV_SERVER_URL && app.isPackaged) || (npmLifecycleEvent === 'serve')) // eslint-disable-line no-undef
+
+const vm = managingVm ? new VM() : null
+
+const formatter = (...messages) =>
+  console[messages[0].event.includes('.error') ? 'error' : 'log'](
+    ...messages.map(message =>
+      inspect(
+        message,
+        { breakLength: 10000, colors: true, compact: true, depth: null }
+      )
+    )
+  )
+
+const loadURL = (MAIN_WINDOW_VITE_DEV_SERVER_URL && !app.isPackaged) // eslint-disable-line no-undef
   ? null
   : serve({ directory: `./.vite/renderer/${MAIN_WINDOW_VITE_NAME}` }) // eslint-disable-line no-undef
 
@@ -27,10 +47,8 @@ let authWindow
 let updaterInterval
 let projectsDir
 let appIsQuitting = false
-
-let workshopVmStatus = ((!MAIN_WINDOW_VITE_DEV_SERVER_URL && app.isPackaged) || (process.env.npm_lifecycle_event === 'serve')) // eslint-disable-line no-undef
-  ? 'PENDING'
-  : 'RUNNING'
+let localRepositories = []
+const fileWatchers = {}
 
 const createMainWindow = async () => {
   await app.whenReady()
@@ -74,7 +92,7 @@ const createMainWindow = async () => {
     await loadURL(mainWindow)
   }
 
-  if ((!MAIN_WINDOW_VITE_DEV_SERVER_URL && app.isPackaged) || (process.env.npm_lifecycle_event === 'serve')) { // eslint-disable-line no-undef
+  if (managingVm) {
     await handleWorkshopVmStatus()
   }
 }
@@ -124,9 +142,9 @@ const handleUpdateRoute = async url => {
 }
 
 const handleWorkshopVmStatus = async status => {
-  if (status && (status !== workshopVmStatus)) workshopVmStatus = status
-  mainWindow?.webContents.send('workshop-vm-status', workshopVmStatus)
-  return workshopVmStatus
+  if (status === 'DELETED') localRepositories = []
+  mainWindow?.webContents.send('workshop-vm-status', vm.status)
+  return vm.status
 }
 
 ipcMain.handle('workshop-vm-status', async () => await handleWorkshopVmStatus())
@@ -236,27 +254,23 @@ const handleOpenPath = async (_event, url) => {
 ipcMain.handle('open-path', handleOpenPath)
 
 const handleRestartWorkshopVm = async () => {
-  await ensureMainWindow()
-  const returnValue = await dialog.showMessageBox(mainWindow, {
-    type: 'info',
-    buttons: ['Restart', 'Cancel'],
-    title: 'Restart Workshop VM',
-    detail: 'Restarting Workshop will erase Workshop\'s existing state.'
-  })
-  if (returnValue.response === 0) {
-    try {
-      await handleWorkshopVmStatus('RESTARTING')
-      await createVm({ projectsDir })
-    } catch (error) {
-      // dialog.showErrorBox(error?.name, error?.message)
+  if (managingVm) {
+    await ensureMainWindow()
+    const returnValue = await dialog.showMessageBox(mainWindow, {
+      type: 'info',
+      buttons: ['Restart', 'Cancel'],
+      title: 'Restart Workshop VM',
+      detail: 'Restarting Workshop will erase Workshop\'s existing state.'
+    })
+    if (returnValue.response === 0) {
+      await Promise.all(Object.entries(fileWatchers).map(async ([repoId, watcher]) => {
+        await watcher.stop()
+        watcher.removeAllListeners()
+        delete fileWatchers[repoId]
+      }))
+      await vm.restart()
+      return true
     }
-    try {
-      await startVm()
-    } catch (error) {
-      // dialog.showErrorBox(error?.name, error?.message)
-    }
-    await handleWorkshopVmStatus('RUNNING')
-    return true
   }
 }
 
@@ -265,6 +279,63 @@ ipcMain.handle('restart-workshop-vm', handleRestartWorkshopVm)
 const handleSetBadgeCount = (_event, num) => app.setBadgeCount(num || 0)
 
 ipcMain.handle('set-badge-count', handleSetBadgeCount)
+
+const handleLocalRepositories = async repositories => {
+  localRepositories = repositories || []
+
+  await Promise.all(Object.entries(fileWatchers).map(async ([repoId, watcher]) => {
+    if (!localRepositories.some(({ id }) => (id === repoId))) {
+      await watcher.stop()
+      watcher.removeAllListeners()
+      delete fileWatchers[repoId]
+    }
+  }))
+
+  await Promise.all(localRepositories.map(async ({ id, url }) => {
+    let watcher = fileWatchers[id]
+    if (!(id in fileWatchers)) {
+      fileWatchers[id] = new FileWatcher({ repoId: id, url, projectsDir })
+      watcher = fileWatchers[id]
+      const changeHandler = async files => {
+        formatter({ event: 'repo.update', repoId, path, files })
+        try {
+          const createEvent = await fetch(`${workshopApiBase}${repoId}/events`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({})
+          })
+          const response = await createEvent.json()
+          formatter({ event: 'repo.updated', repoId, path, response })
+        } catch (error) {
+          formatter({ event: 'repo.update.error', repoId, error, path })
+        }
+      }
+      const deleteHandler = async files => {
+        formatter({ event: 'repo.destroy', repoId, path, files })
+        try {
+          const deleteRepo = await fetch(`${workshopApiBase}${repoId}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({})
+          })
+          const response = await deleteRepo.json()
+          formatter({ event: 'repo.destroyed', repoId, path, response })
+          watcher.off('change', changeHandler)
+          watcher.off('delete', deleteHandler)
+        } catch (error) {
+          formatter({ event: 'repo.destroy.error', repoId, error, path })
+        }
+      }
+      watcher.on('change', changeHandler)
+      watcher.on('delete', deleteHandler)
+    }
+    const { repoId, path } = watcher
+    await watcher.start()
+  }))
+  return true
+}
+
+ipcMain.handle('local-repositories', async (_event, repositories) => await handleLocalRepositories(repositories))
 
 if (process.defaultApp) {
   if (process.argv.length >= 2) {
@@ -341,23 +412,16 @@ app.on('web-contents-created', async (event, contents) => {
 
 app.on('before-quit', async event => {
   appIsQuitting = true
-  if (((!MAIN_WINDOW_VITE_DEV_SERVER_URL && app.isPackaged) || (process.env.npm_lifecycle_event === 'serve')) && !['PENDING', 'DELETED'].includes(workshopVmStatus)) { // eslint-disable-line no-undef
+  if (managingVm && !['PENDING', 'DELETED'].includes(vm.status)) {
     event.preventDefault()
     clearInterval(updaterInterval)
-    try {
-      await handleWorkshopVmStatus('STOPPING')
-      await stopVm()
-    } catch (error) {
-      // dialog.showErrorBox(`STOP ${error?.name}`, error?.message)
-    }
-    await handleWorkshopVmStatus('STOPPED')
-    try {
-      await handleWorkshopVmStatus('DELETING')
-      await deleteVm()
-    } catch (error) {
-      // dialog.showErrorBox(`DELETE ${error?.name}`, error?.message)
-    }
-    await handleWorkshopVmStatus('DELETED')
+    await Promise.all(Object.entries(fileWatchers).map(async ([repoId, watcher]) => {
+      await watcher.stop()
+      watcher.removeAllListeners()
+      delete fileWatchers[repoId]
+    }))
+    await vm.stop()
+    await vm.delete()
     app.quit()
   }
 });
@@ -366,7 +430,7 @@ app.on('before-quit', async event => {
   await app.whenReady()
   await createMainWindow()
 
-  if ((!MAIN_WINDOW_VITE_DEV_SERVER_URL && app.isPackaged) || (process.env.npm_lifecycle_event === 'serve')) { // eslint-disable-line no-undef
+  if (managingVm) {
     await dialog.showMessageBox(mainWindow, {
       title: 'Projects Directory',
       message: 'Configuration Needed',
@@ -397,21 +461,9 @@ app.on('before-quit', async event => {
     }
 
     console.log('Project Directory', projectsDir)
-
-    try {
-      await handleWorkshopVmStatus('CREATING')
-      await createVm({ projectsDir })
-    } catch (error) {
-      // dialog.showErrorBox(error?.name, error?.message)
-    }
-    await handleWorkshopVmStatus('CREATED')
-    try {
-      await handleWorkshopVmStatus('STARTING')
-      await startVm()
-    } catch (error) {
-      // dialog.showErrorBox(error?.name, error?.message)
-    }
-    await handleWorkshopVmStatus('RUNNING')
+    vm.on('status', handleWorkshopVmStatus)
+    await vm.create({ projectsDir })
+    await vm.start()
   } else {
     projectsDir = homedir()
   }
@@ -431,7 +483,7 @@ app.on('before-quit', async event => {
 
     autoUpdater.on('error', error => {
       console.log('updater error')
-      console.log(error)
+      console.error(error)
     })
     autoUpdater.on('checking-for-update', () => {
       console.log('checking-for-update')
@@ -459,22 +511,15 @@ app.on('before-quit', async event => {
       })
       if (returnValue.response === 0) {
         clearInterval(updaterInterval)
-        if (!['PENDING', 'DELETED'].includes(workshopVmStatus)) {
-          try {
-            await handleWorkshopVmStatus('STOPPING')
-            await stopVm()
-          } catch (error) {
-            // dialog.showErrorBox(`STOP ${error?.name}`, error?.message)
-          }
-          await handleWorkshopVmStatus('STOPPED')
-          try {
-            await handleWorkshopVmStatus('DELETING')
-            await deleteVm()
-          } catch (error) {
-            // dialog.showErrorBox(`DELETE ${error?.name}`, error?.message)
-          }
-          await handleWorkshopVmStatus('DELETED')
-        }
+        await Promise.all(Object.entries(fileWatchers).map(async ([repoId, watcher]) => {
+          await watcher.stop()
+          watcher.removeAllListeners()
+          delete fileWatchers[repoId]
+        }))
+
+        await vm.stop()
+        await vm.delete()
+
         autoUpdater.quitAndInstall()
       }
     })

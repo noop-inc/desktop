@@ -19,7 +19,9 @@ contextBridge.exposeInMainWorld(
     restartWorkshopVm: async () =>
       await ipcRenderer.invoke('restart-workshop-vm'),
     setBadgeCount: async num =>
-      await ipcRenderer.invoke('set-badge-count', num)
+      await ipcRenderer.invoke('set-badge-count', num),
+    localRepositories: async repos =>
+      await ipcRenderer.invoke('local-repositories', repos || [])
   }
 )
 
