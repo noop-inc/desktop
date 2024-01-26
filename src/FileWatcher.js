@@ -13,7 +13,7 @@ const formatter = (...messages) =>
     ...messages.map(message =>
       inspect(
         message,
-        { breakLength: 10000, colors: true, compact: true }
+        { breakLength: 10000, colors: true, compact: true, depth: null }
       )
     )
   )

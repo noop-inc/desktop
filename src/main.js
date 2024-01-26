@@ -17,19 +17,25 @@ log.errorHandler.startCatching()
 log.eventLogger.startLogging()
 Object.assign(console, log.functions)
 
-const vm = new VM()
+const {
+  npm_lifecycle_event: npmLifecycleEvent
+} = process.env
+
+const managingVm = ((!MAIN_WINDOW_VITE_DEV_SERVER_URL && app.isPackaged) || (npmLifecycleEvent === 'serve')) // eslint-disable-line no-undef
+
+const vm = managingVm ? new VM() : null
 
 const formatter = (...messages) =>
   console[messages[0].event.includes('.error') ? 'error' : 'log'](
     ...messages.map(message =>
       inspect(
         message,
-        { breakLength: 10000, colors: true, compact: true }
+        { breakLength: 10000, colors: true, compact: true, depth: null }
       )
     )
   )
 
-const loadURL = (MAIN_WINDOW_VITE_DEV_SERVER_URL && !app.isPackaged)// eslint-disable-line no-undef
+const loadURL = (MAIN_WINDOW_VITE_DEV_SERVER_URL && !app.isPackaged) // eslint-disable-line no-undef
   ? null
   : serve({ directory: `./.vite/renderer/${MAIN_WINDOW_VITE_NAME}` }) // eslint-disable-line no-undef
 
@@ -86,7 +92,7 @@ const createMainWindow = async () => {
     await loadURL(mainWindow)
   }
 
-  if ((!MAIN_WINDOW_VITE_DEV_SERVER_URL && app.isPackaged) || (process.env.npm_lifecycle_event === 'serve')) { // eslint-disable-line no-undef
+  if (managingVm) {
     await handleWorkshopVmStatus()
   }
 }
@@ -140,8 +146,6 @@ const handleWorkshopVmStatus = async status => {
   mainWindow?.webContents.send('workshop-vm-status', vm.status)
   return vm.status
 }
-
-vm.on('status', handleWorkshopVmStatus)
 
 ipcMain.handle('workshop-vm-status', async () => await handleWorkshopVmStatus())
 
@@ -250,20 +254,23 @@ const handleOpenPath = async (_event, url) => {
 ipcMain.handle('open-path', handleOpenPath)
 
 const handleRestartWorkshopVm = async () => {
-  await ensureMainWindow()
-  const returnValue = await dialog.showMessageBox(mainWindow, {
-    type: 'info',
-    buttons: ['Restart', 'Cancel'],
-    title: 'Restart Workshop VM',
-    detail: 'Restarting Workshop will erase Workshop\'s existing state.'
-  })
-  if (returnValue.response === 0) {
-    await Promise.all(Object.entries(fileWatchers).map(async ([repoId, watcher]) => {
-      await watcher.stop()
-      delete fileWatchers[repoId]
-    }))
-    await vm.restart()
-    return true
+  if (managingVm) {
+    await ensureMainWindow()
+    const returnValue = await dialog.showMessageBox(mainWindow, {
+      type: 'info',
+      buttons: ['Restart', 'Cancel'],
+      title: 'Restart Workshop VM',
+      detail: 'Restarting Workshop will erase Workshop\'s existing state.'
+    })
+    if (returnValue.response === 0) {
+      await Promise.all(Object.entries(fileWatchers).map(async ([repoId, watcher]) => {
+        await watcher.stop()
+        watcher.removeAllListeners()
+        delete fileWatchers[repoId]
+      }))
+      await vm.restart()
+      return true
+    }
   }
 }
 
@@ -279,6 +286,7 @@ const handleLocalRepositories = async repositories => {
   await Promise.all(Object.entries(fileWatchers).map(async ([repoId, watcher]) => {
     if (!localRepositories.some(({ id }) => (id === repoId))) {
       await watcher.stop()
+      watcher.removeAllListeners()
       delete fileWatchers[repoId]
     }
   }))
@@ -289,21 +297,33 @@ const handleLocalRepositories = async repositories => {
       fileWatchers[id] = new FileWatcher({ repoId: id, url, projectsDir })
       watcher = fileWatchers[id]
       const changeHandler = async files => {
-        formatter({ event: 'repo.updated', repoId, path, files })
+        formatter({ event: 'repo.update', repoId, path, files })
+        try {
+          const createEvent = await fetch(`${workshopApiBase}${repoId}/events`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({})
+          })
+          const response = await createEvent.json()
+          formatter({ event: 'repo.updated', repoId, path, response })
+        } catch (error) {
+          formatter({ event: 'repo.update.error', repoId, error, path })
+        }
       }
       const deleteHandler = async files => {
+        formatter({ event: 'repo.destroy', repoId, path, files })
         try {
           const deleteRepo = await fetch(`${workshopApiBase}${repoId}`, {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({})
           })
-          await deleteRepo.json()
-          formatter({ event: 'repo.destroyed', repoId, path, files })
+          const response = await deleteRepo.json()
+          formatter({ event: 'repo.destroyed', repoId, path, response })
           watcher.off('change', changeHandler)
           watcher.off('delete', deleteHandler)
         } catch (error) {
-          formatter({ event: 'repo.destroy.error', repoId, path, files })
+          formatter({ event: 'repo.destroy.error', repoId, error, path })
         }
       }
       watcher.on('change', changeHandler)
@@ -392,11 +412,12 @@ app.on('web-contents-created', async (event, contents) => {
 
 app.on('before-quit', async event => {
   appIsQuitting = true
-  if (((!MAIN_WINDOW_VITE_DEV_SERVER_URL && app.isPackaged) || (process.env.npm_lifecycle_event === 'serve')) && !['PENDING', 'DELETED'].includes(vm.status)) { // eslint-disable-line no-undef
+  if (managingVm && !['PENDING', 'DELETED'].includes(vm.status)) {
     event.preventDefault()
     clearInterval(updaterInterval)
     await Promise.all(Object.entries(fileWatchers).map(async ([repoId, watcher]) => {
       await watcher.stop()
+      watcher.removeAllListeners()
       delete fileWatchers[repoId]
     }))
     await vm.stop()
@@ -409,7 +430,7 @@ app.on('before-quit', async event => {
   await app.whenReady()
   await createMainWindow()
 
-  if ((!MAIN_WINDOW_VITE_DEV_SERVER_URL && app.isPackaged) || (process.env.npm_lifecycle_event === 'serve')) { // eslint-disable-line no-undef
+  if (managingVm) {
     await dialog.showMessageBox(mainWindow, {
       title: 'Projects Directory',
       message: 'Configuration Needed',
@@ -440,7 +461,7 @@ app.on('before-quit', async event => {
     }
 
     console.log('Project Directory', projectsDir)
-
+    vm.on('status', handleWorkshopVmStatus)
     await vm.create({ projectsDir })
     await vm.start()
   } else {
@@ -492,6 +513,7 @@ app.on('before-quit', async event => {
         clearInterval(updaterInterval)
         await Promise.all(Object.entries(fileWatchers).map(async ([repoId, watcher]) => {
           await watcher.stop()
+          watcher.removeAllListeners()
           delete fileWatchers[repoId]
         }))
 

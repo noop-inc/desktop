@@ -26,7 +26,7 @@ const formatter = (...messages) =>
     ...messages.map(message =>
       inspect(
         message,
-        { breakLength: 10000, colors: true, compact: true }
+        { breakLength: 10000, colors: true, compact: true, depth: null }
       )
     )
   )
@@ -37,7 +37,6 @@ export default class VM extends EventEmitter {
   #projectsDir
   #restarting
   #lastCmd
-  // #restart
   #status = ((!MAIN_WINDOW_VITE_DEV_SERVER_URL && app.isPackaged) || (npmLifecycleEvent === 'serve')) // eslint-disable-line no-undef
     ? 'PENDING'
     : 'RUNNING'
