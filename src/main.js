@@ -206,10 +206,9 @@ const handleCloneRepository = async (_event, { repositoryUrl, subdirectory }) =>
   })
   if (!cloneResponse.ok) {
     if (cloneResponse.headers.get('content-type') === 'application/json') {
-      const body = await cloneResponse.json()
-      throw new Error(body.message)
+      throw await cloneResponse.json()
     } else {
-      throw new Error(cloneResponse.body)
+      throw cloneResponse.body
     }
   }
   const directoryName = repositoryUrl.split('/').at(-1).split('.git')[0]
@@ -231,14 +230,12 @@ const handleCloneRepository = async (_event, { repositoryUrl, subdirectory }) =>
   })
   if (!repoResponse.ok) {
     if (repoResponse.headers.get('content-type') === 'application/json') {
-      const body = await repoResponse.json()
-      throw new Error(body.message)
+      throw await repoResponse.json()
     } else {
-      throw new Error(repoResponse.body)
+      throw repoResponse.body
     }
   }
-  const repo = await repoResponse.json()
-  return repo
+  return await repoResponse.json()
 }
 
 ipcMain.handle('clone-repository', handleCloneRepository)
@@ -291,11 +288,11 @@ const handleLocalRepositories = async repositories => {
     }
   }))
 
-  await Promise.all(localRepositories.map(async ({ id, url }) => {
-    let watcher = fileWatchers[id]
-    if (!(id in fileWatchers)) {
-      fileWatchers[id] = new FileWatcher({ repoId: id, url, projectsDir })
-      watcher = fileWatchers[id]
+  await Promise.all(localRepositories.map(async ({ id: repoId, url }) => {
+    const watcher = fileWatchers[repoId] || new FileWatcher({ repoId, url, projectsDir })
+    if (!(repoId in fileWatchers)) {
+      fileWatchers[repoId] = watcher
+      const { path } = watcher
       const changeHandler = async files => {
         formatter({ event: 'repo.update', repoId, path, files })
         try {
@@ -304,10 +301,19 @@ const handleLocalRepositories = async repositories => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({})
           })
+          if (!createEvent.ok) {
+            if (createEvent.headers.get('content-type') === 'application/json') {
+              throw await createEvent.json()
+            } else {
+              throw createEvent.body
+            }
+          }
           const response = await createEvent.json()
           formatter({ event: 'repo.updated', repoId, path, response })
+          return response
         } catch (error) {
           formatter({ event: 'repo.update.error', repoId, error, path })
+          throw error
         }
       }
       const deleteHandler = async files => {
@@ -318,18 +324,25 @@ const handleLocalRepositories = async repositories => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({})
           })
+          if (!deleteRepo.ok) {
+            if (deleteRepo.headers.get('content-type') === 'application/json') {
+              throw await deleteRepo.json()
+            } else {
+              throw deleteRepo.body
+            }
+          }
           const response = await deleteRepo.json()
           formatter({ event: 'repo.destroyed', repoId, path, response })
-          watcher.off('change', changeHandler)
-          watcher.off('delete', deleteHandler)
+          watcher.removeAllListeners()
+          return response
         } catch (error) {
           formatter({ event: 'repo.destroy.error', repoId, error, path })
+          throw error
         }
       }
       watcher.on('change', changeHandler)
       watcher.on('delete', deleteHandler)
     }
-    const { repoId, path } = watcher
     await watcher.start()
   }))
   return true
