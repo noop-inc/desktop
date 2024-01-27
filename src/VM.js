@@ -4,7 +4,6 @@ import { stringify } from '@noop-inc/foundation/lib/Yaml.js'
 import { readdir } from 'node:fs/promises'
 import { EventEmitter } from 'node:events'
 import { inspect } from 'node:util'
-import { app } from 'electron'
 
 const {
   resourcesPath,
@@ -37,9 +36,7 @@ export default class VM extends EventEmitter {
   #projectsDir
   #restarting
   #lastCmd
-  #status = ((!MAIN_WINDOW_VITE_DEV_SERVER_URL && app.isPackaged) || (npmLifecycleEvent === 'serve')) // eslint-disable-line no-undef
-    ? 'PENDING'
-    : 'RUNNING'
+  #status = 'PENDING'
 
   constructor ({ name = 'workshop-vm' } = {}) {
     super()

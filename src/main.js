@@ -21,9 +21,13 @@ const {
   npm_lifecycle_event: npmLifecycleEvent
 } = process.env
 
-const managingVm = ((!MAIN_WINDOW_VITE_DEV_SERVER_URL && app.isPackaged) || (npmLifecycleEvent === 'serve')) // eslint-disable-line no-undef
+const mainWindowViteDevServerURL = MAIN_WINDOW_VITE_DEV_SERVER_URL // eslint-disable-line no-undef
+const mainWindowViteName = MAIN_WINDOW_VITE_NAME // eslint-disable-line no-undef
 
-const vm = managingVm ? new VM() : null
+const packaged = (!mainWindowViteDevServerURL && app.isPackaged)
+const managingVm = (packaged || (npmLifecycleEvent === 'serve'))
+
+const vm = managingVm ? new VM() : { status: 'RUNNING' }
 
 const formatter = (...messages) =>
   console[messages[0].event.includes('.error') ? 'error' : 'log'](
@@ -35,9 +39,9 @@ const formatter = (...messages) =>
     )
   )
 
-const loadURL = (MAIN_WINDOW_VITE_DEV_SERVER_URL && !app.isPackaged) // eslint-disable-line no-undef
-  ? null
-  : serve({ directory: `./.vite/renderer/${MAIN_WINDOW_VITE_NAME}` }) // eslint-disable-line no-undef
+const loadURL = packaged
+  ? serve({ directory: `./.vite/renderer/${mainWindowViteName}` })
+  : null
 
 const workshopApiBase = 'https://inspector.local.noop.app:1234'
 const noopProtocal = 'noop'
@@ -84,8 +88,8 @@ const createMainWindow = async () => {
   })
 
   // and load the index.html of the app.
-  if (MAIN_WINDOW_VITE_DEV_SERVER_URL && !app.isPackaged) { // eslint-disable-line no-undef
-    mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL) // eslint-disable-line no-undef
+  if (!packaged) {
+    mainWindow.loadURL(mainWindowViteDevServerURL)
     // Open the DevTools.
     mainWindow.webContents.openDevTools()
   } else {
@@ -143,8 +147,8 @@ const handleUpdateRoute = async url => {
 
 const handleWorkshopVmStatus = async status => {
   if (status === 'DELETED') localRepositories = []
-  mainWindow?.webContents.send('workshop-vm-status', vm?.status || 'RUNNING')
-  return vm?.status || 'RUNNING'
+  mainWindow?.webContents.send('workshop-vm-status', vm.status)
+  return vm.status
 }
 
 ipcMain.handle('workshop-vm-status', async () => await handleWorkshopVmStatus())
@@ -483,7 +487,7 @@ app.on('before-quit', async event => {
 
   const version = app.getVersion()
 
-  if (!MAIN_WINDOW_VITE_DEV_SERVER_URL && app.isPackaged && !version.includes('-')) { // eslint-disable-line no-undef
+  if (packaged && !version.includes('-')) {
     const server = 'https://update.electronjs.org'
     const repo = 'noop-inc/desktop'
     const platform = process.platform
