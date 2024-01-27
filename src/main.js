@@ -313,7 +313,7 @@ const handleLocalRepositories = async repositories => {
           return response
         } catch (error) {
           formatter({ event: 'repo.update.error', repoId, error, path })
-          throw error
+          // throw error
         }
       }
       const deleteHandler = async files => {
@@ -337,7 +337,7 @@ const handleLocalRepositories = async repositories => {
           return response
         } catch (error) {
           formatter({ event: 'repo.destroy.error', repoId, error, path })
-          throw error
+          // throw error
         }
       }
       watcher.on('change', changeHandler)
