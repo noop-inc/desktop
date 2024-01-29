@@ -13,7 +13,12 @@ module.exports = {
       }
     ],
     ignore: file =>
-      !(!file || file.startsWith('/.vite') || file.startsWith('/node_modules') || (file === '/package.json')),
+      !(
+        !file ||
+        file.startsWith('/.vite') ||
+        (file.startsWith('/node_modules') && !file.split('/').at(-1).startsWith('.')) ||
+        (file === '/package.json')
+      ),
     ...(
       ['dev', 'serve'].includes(process.env.npm_lifecycle_event)
         ? {}
