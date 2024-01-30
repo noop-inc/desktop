@@ -46,7 +46,7 @@
     "@noop-inc/console": "^3.0.11",
     "@noop-inc/desktop-lima": "0.0.61",
     "@noop-inc/discovery": "^2.0.53",
-    "@noop-inc/foundation": "2.0.169-pr658.0",
+    "@noop-inc/foundation": "2.0.169-pr658.1",
     "concurrently": "^8.2.2",
     "dotenv": "^16.4.1",
     "electron": "^27.3.0",
@@ -66,7 +66,7 @@
     "vite": "$vite"
   },
   "@noop-inc": {
-    "workshop-vm": "0.2.2"
+    "workshop-vm": "0.3.0"
   },
   "eslintConfig": {
     "root": true,

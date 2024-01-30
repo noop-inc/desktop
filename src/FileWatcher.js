@@ -7,13 +7,17 @@ import { EventEmitter } from 'node:events'
 import { Discovery } from '@noop-inc/discovery'
 import { minimatch } from 'minimatch'
 import { inspect } from 'node:util'
+import { app } from 'electron'
+
+const mainWindowViteDevServerURL = MAIN_WINDOW_VITE_DEV_SERVER_URL // eslint-disable-line no-undef
+const packaged = (!mainWindowViteDevServerURL && app.isPackaged)
 
 const formatter = (...messages) =>
   console[messages[0].event.includes('.error') ? 'error' : 'log'](
     ...messages.map(message =>
       inspect(
         message,
-        { breakLength: 10000, colors: true, compact: true, depth: null }
+        { breakLength: 10000, colors: !packaged, compact: true, depth: null }
       )
     )
   )

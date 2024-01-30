@@ -4,6 +4,7 @@ import { stringify } from '@noop-inc/foundation/lib/Yaml.js'
 import { readdir } from 'node:fs/promises'
 import { EventEmitter } from 'node:events'
 import { inspect } from 'node:util'
+import { app } from 'electron'
 
 const {
   resourcesPath,
@@ -13,6 +14,9 @@ const {
     npm_config_local_prefix: npmConfigLocalPrefix
   }
 } = process
+
+const mainWindowViteDevServerURL = MAIN_WINDOW_VITE_DEV_SERVER_URL // eslint-disable-line no-undef
+const packaged = (!mainWindowViteDevServerURL && app.isPackaged)
 
 const logHandler = ({ message, ...log }) => {
   if ((typeof message) === 'string') message = message.trim()
@@ -25,7 +29,7 @@ const formatter = (...messages) =>
     ...messages.map(message =>
       inspect(
         message,
-        { breakLength: 10000, colors: true, compact: true, depth: null }
+        { breakLength: 10000, colors: !packaged, compact: true, depth: null }
       )
     )
   )
@@ -171,7 +175,8 @@ export default class VM extends EventEmitter {
         hosts: {
           'registry.workshop': '127.0.0.1'
         }
-      }
+      },
+      firmware: { legacyBIOS: true }
     }
 
     const cmdLogHandler = message => {
