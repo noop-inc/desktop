@@ -184,7 +184,7 @@ export default class FileWatcher extends EventEmitter {
           if (componentRoot.startsWith(`${absolutePath}/`) || (`${absolutePath}/` === componentRoot)) return false
           if (absolutePath.startsWith(componentRoot)) {
             const relativePath = absolutePath.replace(componentRoot, '')
-            if (patterns.some(pattern => minimatch(relativePath, pattern, { partial: true }))) return false
+            if (patterns.some(pattern => minimatch(relativePath, `${pattern}${pattern.endsWith('/') ? '**/*' : ''}`, { partial: true }))) return false
           }
         }
         return true
