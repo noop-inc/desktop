@@ -19,9 +19,22 @@ const mainWindowViteDevServerURL = MAIN_WINDOW_VITE_DEV_SERVER_URL // eslint-dis
 const packaged = (!mainWindowViteDevServerURL && app.isPackaged)
 
 const logHandler = ({ message, ...log }) => {
-  if ((typeof message) === 'string') message = message.trim()
-  if (message) log.message = message
-  formatter(log)
+  let messages = [message]
+  if ((typeof message) === 'string') {
+    const trimmed = message.trim()
+    messages = [trimmed]
+    if (trimmed.startsWith('time="')) {
+      messages = trimmed
+        .split('"\ntime="')
+        .map(message => {
+          const trimmed = message.trim()
+          return trimmed.startsWith('time="') ? trimmed : `time="${trimmed}`
+        })
+    }
+  }
+  for (const message of messages) {
+    formatter({ ...log, ...((message !== undefined) ? { message } : {}) })
+  }
 }
 
 const formatter = (...messages) =>

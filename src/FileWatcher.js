@@ -108,7 +108,7 @@ export default class FileWatcher extends EventEmitter {
         const root = join(this.path, component.root || '.', '/')
         const filePatterns = await Promise.all(component.filePatterns.map(async pattern => {
           try {
-            const stats = await stat(join(this.path, pattern))
+            const stats = await stat(join(root, pattern))
             if (!stats.isDirectory()) return pattern
             if (pattern.endsWith('/')) pattern = pattern.substring(0, pattern.length - 1)
             return [pattern, join(pattern, '/'), join(pattern, '**')]
@@ -118,6 +118,7 @@ export default class FileWatcher extends EventEmitter {
         }))
         patterns[root] = [...(new Set([...(patterns[root] || []), ...filePatterns.flat()]))].sort()
       }
+      formatter({ event: 'watcher.patterns', path: this.path, patterns })
       this.patterns = patterns
     } catch (error) {
       formatter({ event: 'watcher.patterns.error', path: this.path, error })
@@ -169,10 +170,22 @@ export default class FileWatcher extends EventEmitter {
       ignored: (absolutePath, stats) => {
         const split = absolutePath.split('/')
         const name = split.pop()
-        if ((absolutePath === this.path) || (absolutePath === `${this.path}/.noop`) || absolutePath.startsWith(`${this.path}/.noop/`)) {
+        if (
+          (absolutePath === this.path) ||
+          (absolutePath === `${this.path}/.noop`) ||
+          absolutePath.startsWith(`${this.path}/.noop/`)
+        ) {
           return false
         }
-        if ((name === '.git') || absolutePath.includes('/.git/') || (name === 'Dockerfile')) return true
+        if (
+          (name === '.git') ||
+          absolutePath.includes('/.git/') ||
+          (name === 'node_modules') ||
+          absolutePath.includes('/node_modules/') ||
+          (name === 'Dockerfile')
+        ) {
+          return true
+        }
         for (const ignorerPath in this.ignorers) {
           if (!absolutePath.startsWith(`${ignorerPath}/`)) continue
           const ignorer = this.ignorers[ignorerPath]
@@ -181,10 +194,17 @@ export default class FileWatcher extends EventEmitter {
           if (ignorer.ignores(relativePath)) return true
         }
         for (const [componentRoot, patterns] of Object.entries(this.patterns)) {
-          if (componentRoot.startsWith(`${absolutePath}/`) || (`${absolutePath}/` === componentRoot)) return false
+          if (
+            componentRoot.startsWith(`${absolutePath}/`) ||
+            (`${absolutePath}/` === componentRoot)
+          ) {
+            return false
+          }
           if (absolutePath.startsWith(componentRoot)) {
             const relativePath = absolutePath.replace(componentRoot, '')
-            if (patterns.some(pattern => minimatch(relativePath, `${pattern}${pattern.endsWith('/') ? '**/*' : ''}`, { partial: true }))) return false
+            if (patterns.some(pattern => minimatch(relativePath, pattern, { partial: true, dot: true }))) {
+              return false
+            }
           }
         }
         return true
