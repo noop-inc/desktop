@@ -8,6 +8,8 @@ import { app, dialog } from 'electron'
 import { homedir, cpus, totalmem } from 'node:os'
 import { setTimeout as wait } from 'timers/promises'
 
+const arch = process.arch.includes('arm') ? 'aarch64' : 'x86_64'
+
 const {
   resourcesPath,
   env: {
@@ -78,8 +80,8 @@ export default class VM extends EventEmitter {
   async create () {
     if (!this.#lima) {
       const binPath = (npmLifecycleEvent === 'serve')
-        ? join(npmConfigLocalPrefix, 'node_modules/@noop-inc/desktop-lima/dist/lima-and-qemu.macos-aarch64/bin')
-        : join(resourcesPath, 'lima-and-qemu.macos-aarch64', 'bin')
+        ? join(npmConfigLocalPrefix, `node_modules/@noop-inc/desktop-lima/dist/lima-and-qemu.macos-${arch}/bin`)
+        : join(resourcesPath, `lima-and-qemu.macos-${arch}`, 'bin')
 
       this.#lima = new Lima({ binPath })
     }
@@ -305,14 +307,17 @@ export default class VM extends EventEmitter {
 
   async #createVm () {
     const location = (npmLifecycleEvent === 'serve')
-      ? join(npmConfigLocalPrefix, `noop-workshop-vm-${workshopVmVersion}.aarch64.qcow2`)
-      : join(resourcesPath, (await readdir(resourcesPath)).find(file => file.startsWith('noop-workshop-vm') && file.endsWith('.aarch64.qcow2')))
+      ? join(npmConfigLocalPrefix, `noop-workshop-vm-${workshopVmVersion}.${arch}.qcow2`)
+      : join(resourcesPath, (await readdir(resourcesPath)).find(file => file.startsWith('noop-workshop-vm') && file.endsWith(`.${arch}.qcow2`)))
+
+    const totalCpu = cpus().length
+    const totalMemory = Math.round(totalmem() / (1024 ** 3))
 
     const template = {
-      cpus: Math.min(cpus().length, Math.max(4, Math.round(cpus().length / 2))),
-      memory: `${Math.min(Math.round(totalmem() / (1024 ** 3)), Math.max(4, Math.round((totalmem() / (1024 ** 3)) / 2)))}GiB`,
-      arch: 'aarch64',
-      images: [{ location, arch: 'aarch64' }],
+      cpus: Math.min(totalCpu, Math.max(8, totalCpu)),
+      memory: `${Math.min(totalMemory, Math.max(8, Math.round(totalMemory / 2)))}GiB`,
+      arch,
+      images: [{ location, arch }],
       provision: [],
       containerd: {
         system: true,

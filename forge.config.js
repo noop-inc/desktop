@@ -1,5 +1,7 @@
 require('dotenv').config()
 
+const arch = process.arch.includes('arm') ? 'aarch64' : 'x86_64'
+
 module.exports = {
   packagerConfig: {
     asar: true,
@@ -24,8 +26,8 @@ module.exports = {
         ? {}
         : {
             extraResource: [
-              'node_modules/@noop-inc/desktop-lima/dist/lima-and-qemu.macos-aarch64',
-              `noop-workshop-vm-${process.env.WORKSHOP_VM_VERSION}.aarch64.qcow2`
+              `node_modules/@noop-inc/desktop-lima/dist/lima-and-qemu.macos-${arch}`,
+              `noop-workshop-vm-${process.env.WORKSHOP_VM_VERSION}.${arch}.qcow2`
             ]
           }
     ),
