@@ -46,7 +46,7 @@
     "@noop-inc/console": "^3.0.15",
     "@noop-inc/desktop-lima": "0.0.66",
     "@noop-inc/discovery": "^2.0.53",
-    "@noop-inc/foundation": "2.0.170-pr658.4",
+    "@noop-inc/foundation": "2.0.170-pr658.5",
     "concurrently": "^8.2.2",
     "dotenv": "^16.4.1",
     "electron": "^27.3.2",
@@ -59,7 +59,7 @@
     "prettier": "^3.2.5",
     "tar-fs": "^3.0.4",
     "tar-stream": "^3.1.7",
-    "vite": "^5.0.12"
+    "vite": "^5.1.0"
   },
   "overrides": {
     "@noop-inc/foundation": "$@noop-inc/foundation",
