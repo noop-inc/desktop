@@ -10,7 +10,12 @@ on:
 jobs:
   Publish:
     name: Publish Desktop Release
-    runs-on: macos-13-xlarge
+    runs-on: ${{matrix.runner}}
+    strategy:
+      matrix:
+        include:
+          - runner: macos-14-xlarge
+          - runner: macos-14-large
 
     steps:
       - name: Code Checkout
