@@ -27,7 +27,7 @@ const mainWindowViteName = MAIN_WINDOW_VITE_NAME // eslint-disable-line no-undef
 const packaged = (!mainWindowViteDevServerURL && app.isPackaged)
 const managingVm = (packaged || (npmLifecycleEvent === 'serve'))
 
-const vm = managingVm ? new VM() : { status: 'RUNNING' }
+const vm = managingVm ? new VM() : { status: 'RUNNING', projectsDir: homedir() }
 
 const formatter = (...messages) =>
   console[messages[0].event.includes('.error') ? 'error' : 'log'](
@@ -49,7 +49,6 @@ let githubLoginUrl
 let mainWindow
 let authWindow
 let updaterInterval
-let projectsDir
 let appIsQuitting = false
 let localRepositories = []
 const fileWatchers = {}
@@ -68,6 +67,8 @@ const createMainWindow = async () => {
       preload: join(__dirname, 'preload.js')
     }
   })
+
+  vm.mainWindow = mainWindow
 
   mainWindow.on('will-resize', (event, newBounds) => {
     if (authWindow) {
@@ -172,7 +173,7 @@ const handleSubdirectoryInput = async () => {
     const returnValue = await dialog.showOpenDialog(mainWindow, {
       title: 'Directory',
       message: 'Select Directory',
-      defaultPath: projectsDir,
+      defaultPath: vm.projectsDir,
       buttonLabel: 'Select',
       properties: ['openDirectory', 'createDirectory']
     })
@@ -181,7 +182,7 @@ const handleSubdirectoryInput = async () => {
       break
     }
     const selected = returnValue?.filePaths?.[0] || null
-    if ((selected === projectsDir) || selected?.startsWith(`${projectsDir}/`)) {
+    if ((selected === vm.projectsDir) || selected?.startsWith(`${vm.projectsDir}/`)) {
       subdirectory = selected
       break
     }
@@ -199,7 +200,7 @@ const handleSubdirectoryInput = async () => {
 ipcMain.handle('subdirectory-input', handleSubdirectoryInput)
 
 const handleCloneRepository = async (_event, { repositoryUrl, subdirectory }) => {
-  if (!((subdirectory === projectsDir) || subdirectory?.startsWith(`${projectsDir}/`))) {
+  if (!((subdirectory === vm.projectsDir) || subdirectory?.startsWith(`${vm.projectsDir}/`))) {
     throw Error('Selected directory must be scoped within the current Projects Directory.')
   }
   await ensureMainWindow()
@@ -226,7 +227,7 @@ const handleCloneRepository = async (_event, { repositoryUrl, subdirectory }) =>
   const tarStream = Readable.fromWeb(cloneResponse.body)
   const tarExtractor = extract(foundDirectory)
   await finished(tarStream.pipe(tarExtractor))
-  const url = pathToFileURL(foundDirectory.replace(projectsDir, '/noop/projects')).href
+  const url = pathToFileURL(foundDirectory.replace(vm.projectsDir, '/noop/projects')).href
   const repoResponse = await fetch(`${workshopApiBase}/local/repos`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -246,7 +247,7 @@ ipcMain.handle('clone-repository', handleCloneRepository)
 
 const handleOpenPath = async (_event, url) => {
   if ((url === 'file:///noop/projects') || url?.startsWith('file:///noop/projects/')) {
-    url = url.replace('/noop/projects', projectsDir)
+    url = url.replace('/noop/projects', vm.projectsDir)
   }
   shell.openPath(fileURLToPath(url))
   return true
@@ -254,14 +255,16 @@ const handleOpenPath = async (_event, url) => {
 
 ipcMain.handle('open-path', handleOpenPath)
 
-const handleRestartWorkshopVm = async () => {
+const handleRestartWorkshopVm = async (_event, reset) => {
   if (managingVm) {
     await ensureMainWindow()
     const returnValue = await dialog.showMessageBox(mainWindow, {
       type: 'info',
-      buttons: ['Restart', 'Cancel'],
-      title: 'Restart Workshop VM',
-      detail: 'Restarting Workshop will erase Workshop\'s existing state.'
+      buttons: [reset ? 'Reset' : 'Restart', 'Cancel'],
+      title: `${reset ? 'Reset' : 'Restart'} Workshop VM`,
+      detail: reset
+        ? 'Resetting Workshop VM will erase the entirety of Workshop\'s contents and settings.'
+        : 'Restarting Workshop VM will stop all existing Workshop\'s processes.'
     })
     if (returnValue.response === 0) {
       await Promise.all(Object.entries(fileWatchers).map(async ([repoId, watcher]) => {
@@ -269,7 +272,7 @@ const handleRestartWorkshopVm = async () => {
         watcher.removeAllListeners()
         delete fileWatchers[repoId]
       }))
-      await vm.restart()
+      await vm.restart(reset)
       return true
     }
   }
@@ -293,7 +296,7 @@ const handleLocalRepositories = async repositories => {
   }))
 
   await Promise.all(localRepositories.map(async ({ id: repoId, url }) => {
-    const watcher = fileWatchers[repoId] || new FileWatcher({ repoId, url, projectsDir })
+    const watcher = fileWatchers[repoId] || new FileWatcher({ repoId, url, projectsDir: vm.projectsDir })
     if (!(repoId in fileWatchers)) {
       fileWatchers[repoId] = watcher
       const { path } = watcher
@@ -437,8 +440,7 @@ app.on('before-quit', async event => {
       watcher.removeAllListeners()
       delete fileWatchers[repoId]
     }))
-    await vm.stop()
-    await vm.delete()
+    await vm.quit()
     app.quit()
   }
 });
@@ -448,41 +450,8 @@ app.on('before-quit', async event => {
   await createMainWindow()
 
   if (managingVm) {
-    await dialog.showMessageBox(mainWindow, {
-      title: 'Projects Directory',
-      message: 'Configuration Needed',
-      detail: 'Noop Workshop will automatically discover compatiable projects on your machine. Select the root-level Projects Directory to use for this session.',
-      buttons: ['Next'],
-      type: 'info'
-    })
-
-    while (!projectsDir) {
-      const returnValue = await dialog.showOpenDialog(mainWindow, {
-        title: 'Projects Directory',
-        message: 'Select Projects Directory',
-        defaultPath: homedir(),
-        buttonLabel: 'Select',
-        properties: ['openDirectory', 'createDirectory']
-      })
-      if (!returnValue.canceled && returnValue.filePaths.length) {
-        projectsDir = returnValue.filePaths[0]
-      } else {
-        await dialog.showMessageBox(mainWindow, {
-          title: 'Projects Directory',
-          message: 'Configuration Needed',
-          detail: 'Selecting a Projects Directory is required. Please try again.',
-          buttons: ['Next'],
-          type: 'warning'
-        })
-      }
-    }
-
-    console.log('Project Directory', projectsDir)
     vm.on('status', handleWorkshopVmStatus)
-    await vm.create({ projectsDir })
-    await vm.start()
-  } else {
-    projectsDir = homedir()
+    await vm.open()
   }
 
   const version = app.getVersion()
@@ -534,8 +503,7 @@ app.on('before-quit', async event => {
           delete fileWatchers[repoId]
         }))
 
-        await vm.stop()
-        await vm.delete()
+        await vm.quit()
 
         autoUpdater.quitAndInstall()
       }

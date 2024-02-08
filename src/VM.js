@@ -1,10 +1,12 @@
 import { join } from 'node:path'
 import Lima from '@noop-inc/foundation/lib/Lima.js'
-import { stringify } from '@noop-inc/foundation/lib/Yaml.js'
-import { readdir } from 'node:fs/promises'
+import { parse, stringify } from '@noop-inc/foundation/lib/Yaml.js'
+import { readdir, readFile, writeFile, rm, mkdir } from 'node:fs/promises'
 import { EventEmitter } from 'node:events'
 import { inspect } from 'node:util'
-import { app } from 'electron'
+import { app, dialog } from 'electron'
+import { homedir, cpus, totalmem } from 'node:os'
+import { setTimeout as wait } from 'timers/promises'
 
 const {
   resourcesPath,
@@ -14,6 +16,10 @@ const {
     npm_config_local_prefix: npmConfigLocalPrefix
   }
 } = process
+
+const userData = app.getPath('userData')
+const noopDir = join(userData, '.noop')
+const settingsFile = join(noopDir, 'settings.yaml')
 
 const mainWindowViteDevServerURL = MAIN_WINDOW_VITE_DEV_SERVER_URL // eslint-disable-line no-undef
 const packaged = (!mainWindowViteDevServerURL && app.isPackaged)
@@ -50,10 +56,11 @@ const formatter = (...messages) =>
 export default class VM extends EventEmitter {
   #name
   #lima
-  #projectsDir
   #restarting
   #lastCmd
   #status = 'PENDING'
+  #currentSettings
+  #mainWindow
 
   constructor ({ name = 'workshop-vm' } = {}) {
     super()
@@ -68,12 +75,22 @@ export default class VM extends EventEmitter {
     this.emit('status', this.status)
   }
 
-  async create ({ projectsDir = this.projectsDir } = {}) {
+  async create () {
+    if (!this.#lima) {
+      const binPath = (npmLifecycleEvent === 'serve')
+        ? join(npmConfigLocalPrefix, 'node_modules/@noop-inc/desktop-lima/dist/lima-and-qemu.macos-aarch64/bin')
+        : join(resourcesPath, 'lima-and-qemu.macos-aarch64', 'bin')
+
+      this.#lima = new Lima({ binPath })
+    }
+
     const now = Date.now()
     this.#lastCmd = now
     this.handleStatus(this.#restarting ? 'RESTARTING' : 'CREATING')
     try {
-      this.#projectsDir = projectsDir
+      await this.#createDisk()
+      await this.#unlockDisk()
+      await this.#settings()
       await this.#createVm()
     } catch (error) {
       if (now === this.#lastCmd) {
@@ -96,15 +113,16 @@ export default class VM extends EventEmitter {
         throw error
       }
     }
+    if (now === this.#lastCmd) await wait(2000)
     if (now === this.#lastCmd) this.handleStatus('RUNNING')
   }
 
-  async stop () {
+  async stop (force) {
     const now = Date.now()
     this.#lastCmd = now
     this.handleStatus('STOPPING')
     try {
-      await this.#stopVm()
+      await this.#stopVm(force)
     } catch (error) {
       if (now === this.#lastCmd) {
         this.handleStatus('STOP_FAILED')
@@ -114,12 +132,12 @@ export default class VM extends EventEmitter {
     if (now === this.#lastCmd) this.handleStatus('STOPPED')
   }
 
-  async delete () {
+  async delete (force) {
     const now = Date.now()
     this.#lastCmd = now
     this.handleStatus('DELETING')
     try {
-      await this.#deleteVm()
+      await this.#deleteVm(force)
     } catch (error) {
       if (now === this.#lastCmd) {
         this.handleStatus('DELETE_FAILED')
@@ -129,12 +147,25 @@ export default class VM extends EventEmitter {
     if (now === this.#lastCmd) this.handleStatus('DELETED')
   }
 
-  async restart () {
+  async open () {
+    await this.create()
+    await this.start()
+  }
+
+  async quit () {
+    const force = this.status !== 'RUNNING'
+    await this.stop(force)
+    await this.delete(force)
+  }
+
+  async restart (reset) {
+    const force = !!(reset || (this.status !== 'RUNNING'))
     const now = Date.now()
     this.#restarting = now
     try {
-      await this.stop()
-      await this.delete()
+      await this.stop(force)
+      await this.delete(force)
+      if (reset) await this.#deleteDisk()
       await this.create()
       await this.start()
     } catch (error) {
@@ -145,20 +176,141 @@ export default class VM extends EventEmitter {
     }
   }
 
-  async #createVm () {
-    if (!this.#lima) {
-      const binPath = (npmLifecycleEvent === 'serve')
-        ? join(npmConfigLocalPrefix, 'node_modules/@noop-inc/desktop-lima/dist/lima-and-qemu.macos-aarch64/bin')
-        : join(resourcesPath, 'lima-and-qemu.macos-aarch64', 'bin')
-
-      this.#lima = new Lima({ binPath })
+  async #createDisk () {
+    const cmdLogHandler = message => {
+      logHandler({ event: 'vm.disk.create.log', message })
     }
 
+    logHandler({ event: 'vm.disk.create.started' })
+
+    let cmd
+    try {
+      cmd = this.#lima.limactl(['disk', 'create', 'ws-vm-d', '--size', '128GiB'])
+      cmd.on('log', cmdLogHandler)
+      await cmd.done()
+      cmd.off('log', cmdLogHandler)
+      this.#currentSettings = undefined
+      try {
+        await rm(settingsFile, { recursive: true, force: true })
+      } catch (error) {}
+    } catch (error) {
+      cmd?.off('log', cmdLogHandler)
+      if (!error.message.includes('already exists') && !error.context.output.includes('already exists')) {
+        logHandler({ event: 'vm.disk.create.error', error })
+        throw error
+      }
+    }
+    logHandler({ event: 'vm.disk.create.ended' })
+  }
+
+  async #unlockDisk () {
+    const cmdLogHandler = message => {
+      logHandler({ event: 'vm.disk.unlock.log', message })
+    }
+
+    logHandler({ event: 'vm.disk.unlock.started' })
+
+    let cmd
+    try {
+      cmd = this.#lima.limactl(['disk', 'unlock', 'ws-vm-d'])
+      cmd.on('log', cmdLogHandler)
+      await cmd.done()
+      cmd.off('log', cmdLogHandler)
+      this.#currentSettings = undefined
+    } catch (error) {
+      cmd?.off('log', cmdLogHandler)
+      logHandler({ event: 'vm.disk.unlock.error', error })
+      throw error
+    }
+    logHandler({ event: 'vm.disk.unlock.ended' })
+  }
+
+  async #deleteDisk () {
+    const cmdLogHandler = message => {
+      logHandler({ event: 'vm.disk.delete.log', message })
+    }
+
+    logHandler({ event: 'vm.disk.delete.started' })
+
+    let cmd
+    try {
+      cmd = this.#lima.limactl(['disk', 'delete', 'ws-vm-d', '-f'])
+      cmd.on('log', cmdLogHandler)
+      await cmd.done()
+      cmd.off('log', cmdLogHandler)
+      this.#currentSettings = undefined
+      // try {
+      //   await rm(settingsFile, { recursive: true, force: true })
+      // } catch (error) {}
+    } catch (error) {
+      cmd?.off('log', cmdLogHandler)
+      logHandler({ event: 'vm.disk.delete.error', error })
+      throw error
+    }
+
+    logHandler({ event: 'vm.disk.delete.ended' })
+  }
+
+  async #settings () {
+    let settings
+    try {
+      settings = parse((await readFile(settingsFile)).toString())
+    } catch (error) {
+      // assume existing settings file does not exist
+      settings = {}
+    }
+
+    let projectsDir = settings?.Workshop?.ProjectsDirectory
+    if (!projectsDir) {
+      await dialog.showMessageBox(this.mainWindow, {
+        title: 'Projects Directory',
+        message: 'Configuration Needed',
+        detail: 'Noop Workshop will automatically discover compatiable projects on your machine. Select the root-level Projects Directory to use for this session.',
+        buttons: ['Next'],
+        type: 'info'
+      })
+
+      while (!projectsDir) {
+        const returnValue = await dialog.showOpenDialog(this.mainWindow, {
+          title: 'Projects Directory',
+          message: 'Select Projects Directory',
+          defaultPath: settings?.Workshop?.ProjectsDirectory || homedir(),
+          buttonLabel: 'Select',
+          properties: ['openDirectory', 'createDirectory']
+        })
+        if (!returnValue.canceled && returnValue.filePaths.length) {
+          projectsDir = returnValue.filePaths[0]
+        } else {
+          await dialog.showMessageBox(this.mainWindow, {
+            title: 'Projects Directory',
+            message: 'Configuration Needed',
+            detail: 'Selecting a Projects Directory is required. Please try again.',
+            buttons: ['Next'],
+            type: 'warning'
+          })
+        }
+      }
+    }
+
+    settings = { ...settings, Workshop: { ProjectsDirectory: projectsDir } }
+
+    logHandler({ event: 'workshop.settings', settings, file: settingsFile })
+
+    const yaml = stringify(settings)
+    await mkdir(noopDir, { recursive: true })
+    await writeFile(settingsFile, yaml)
+    this.#currentSettings = settings
+    return this.#currentSettings
+  }
+
+  async #createVm () {
     const location = (npmLifecycleEvent === 'serve')
       ? join(npmConfigLocalPrefix, `noop-workshop-vm-${workshopVmVersion}.aarch64.qcow2`)
       : join(resourcesPath, (await readdir(resourcesPath)).find(file => file.startsWith('noop-workshop-vm') && file.endsWith('.aarch64.qcow2')))
 
     const template = {
+      cpus: Math.min(cpus().length, Math.max(4, Math.round(cpus().length / 2))),
+      memory: `${Math.min(Math.round(totalmem() / (1024 ** 3)), Math.max(4, Math.round((totalmem() / (1024 ** 3)) / 2)))}GiB`,
       arch: 'aarch64',
       images: [{ location, arch: 'aarch64' }],
       provision: [],
@@ -169,16 +321,13 @@ export default class VM extends EventEmitter {
       ssh: { loadDotSSHPubKeys: false },
       mounts: [
         {
-          location: this.projectsDir,
+          location: this.#currentSettings.Workshop.ProjectsDirectory,
           mountPoint: '/noop/projects',
           sshfs: { cache: false }
         }
-        // {
-        //   location: userData,
-        //   mountPoint: '/noop/data',
-        //   sshfs: { cache: false },
-        //   write: true
-        // }
+      ],
+      additionalDisks: [
+        { name: 'ws-vm-d' }
       ],
       portForwards: [
         { guestPort: 1234, hostIP: '0.0.0.0' },
@@ -238,7 +387,7 @@ export default class VM extends EventEmitter {
     logHandler({ event: 'vm.start.ended' })
   }
 
-  #stopVm = async () => {
+  #stopVm = async force => {
     const cmdLogHandler = message => {
       logHandler({ event: 'vm.stop.log', message })
     }
@@ -247,20 +396,20 @@ export default class VM extends EventEmitter {
 
     let cmd
     try {
-      cmd = this.#lima.limactl(['stop', 'workshop-vm', '-f'])
+      cmd = this.#lima.limactl(['stop', 'workshop-vm', force ? '-f' : null].filter(Boolean))
       cmd.on('log', cmdLogHandler)
       await cmd.done()
       cmd.off('log', cmdLogHandler)
     } catch (error) {
       cmd?.off('log', cmdLogHandler)
       logHandler({ event: 'vm.stop.error', error })
-      throw error
+      if (!force) throw error
     }
 
     logHandler({ event: 'vm.stop.ended' })
   }
 
-  #deleteVm = async () => {
+  #deleteVm = async force => {
     const cmdLogHandler = message => {
       logHandler({ event: 'vm.delete.log', message })
     }
@@ -269,14 +418,14 @@ export default class VM extends EventEmitter {
 
     let cmd
     try {
-      cmd = this.#lima.limactl(['delete', 'workshop-vm', '-f'])
+      cmd = this.#lima.limactl(['delete', 'workshop-vm', force ? '-f' : null].filter(Boolean))
       cmd.on('log', cmdLogHandler)
       await cmd.done()
       cmd.off('log', cmdLogHandler)
     } catch (error) {
       cmd?.off('log', cmdLogHandler)
       logHandler({ event: 'vm.delete.error', error })
-      throw error
+      if (!force) throw error
     }
 
     logHandler({ event: 'vm.delete.ended' })
@@ -286,11 +435,19 @@ export default class VM extends EventEmitter {
     return this.#name
   }
 
-  get projectsDir () {
-    return this.#projectsDir
-  }
-
   get status () {
     return this.#status
+  }
+
+  get mainWindow () {
+    return this.#mainWindow
+  }
+
+  set mainWindow (mainWindow) {
+    this.#mainWindow = mainWindow
+  }
+
+  get projectsDir () {
+    return this.#currentSettings?.Workshop?.ProjectsDirectory
   }
 }
