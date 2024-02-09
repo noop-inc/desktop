@@ -1,7 +1,11 @@
+---
+layout: '../../layouts/Legal.astro'
+title: 'End User License Agreement'
+---
+
 Last modified: January 26, 2024
 
-
-This End User License Agreement (this “<span style="text-decoration:underline;">Agreement</span>”) is a binding agreement between you (“<span style="text-decoration:underline;">End User</span>” or “<span style="text-decoration:underline;">you</span>”) and Noop Inc., a Delaware corporation (“<span style="text-decoration:underline;">Company</span>”). This Agreement governs your use of the Noop App and the Noop website (collectively, the “<span style="text-decoration:underline;">Platform</span>”) (including all related documentation, the “<span style="text-decoration:underline;">Application</span>”). The Application is licensed, not sold, to you.
+This End User License Agreement (this “Agreement”) is a binding agreement between you (“End User” or “you”) and Noop Inc., a Delaware corporation (“Company”). This Agreement governs your use of the Noop App and the Noop website (collectively, the “Platform”) (including all related documentation, the “Application”). The Application is licensed, not sold, to you.
 
 BY CLICKING THE “AGREE” BUTTON OR DOWNLOADING, INSTALLING AND USING THE APPLICATION, YOU (A) ACKNOWLEDGE THAT YOU HAVE READ AND UNDERSTAND THIS AGREEMENT; (B) REPRESENT THAT YOU ARE OF LEGAL AGE TO ENTER INTO A BINDING AGREEMENT; AND (C) ACCEPT THIS AGREEMENT AND AGREE THAT YOU ARE LEGALLY BOUND BY ITS TERMS. IF YOU DO NOT AGREE TO THESE TERMS, DO NOT DOWNLOAD, INSTALL, OR USE THE APPLICATION AND DELETE IT FROM YOUR MOBILE DEVICE AND DESKTOP.
 
@@ -12,7 +16,7 @@ BY CLICKING THE “AGREE” BUTTON OR DOWNLOADING, INSTALLING AND USING THE APPL
 Subject to the terms of this Agreement, Company grants you a limited, non-exclusive, and nontransferable license to:
 
 
-1. download, install, and use the Application for your personal, non-commercial use on a single mobile device owned or otherwise controlled by you (“<span style="text-decoration:underline;">Mobile Device</span>”) an on a desktop or laptop (“<span style="text-decoration:underline;">Desktop</span>”) strictly in accordance with the Application’s documentation; and
+1. download, install, and use the Application for your personal, non-commercial use on a single mobile device owned or otherwise controlled by you (“Mobile Device”) an on a desktop or laptop (“Desktop”) strictly in accordance with the Application’s documentation; and
 2. access, stream, download, and use on such Mobile Device and/ or Desktop the Content and Services (as defined in Section 5) made available in or otherwise accessible through the Application, strictly in accordance with this Agreement and the [Terms of Service](/legal/terms-of-service/) applicable to such Content and Services as set forth in Section 5.
 
 2. **License Restrictions**
@@ -41,8 +45,7 @@ You acknowledge and agree that the Application is provided under license, and no
 
 4. **Prices and Payment**
 
-Certain services provided under the Application are paid services.  In order to avail of them, you shall be required to pay applicable usage fees on a timely basis. These fees and/or charges are calculated based on usage unless otherwise indicated by the Company in writing at the time of availing the services.  Payment for the Application or the services referenced above can be made via credit card, Pay Pal, ShopNow, Venmo, Apple Pay or similar service available under the Application or via wire transfer or Stripe.  Click here to learn more about paid services, and applicable usage and other fees and charges. 
-
+Certain services provided under the Application are paid services.  In order to avail of them, you shall be required to pay applicable usage fees on a timely basis. These fees and/or charges are calculated based on usage unless otherwise indicated by the Company in writing at the time of availing the services.  Payment for the Application or the services referenced above can be made via credit card, Pay Pal, ShopNow, Venmo, Apple Pay or similar service available under the Application or via wire transfer or Stripe. Click here to learn more about paid services, and applicable usage and other fees and charges.
 
 
 5. **Collection and Use of Your Information**
@@ -53,7 +56,7 @@ You acknowledge that when you download, install, or use the Application, Company
 
 6. **Content and Services**
 
-The Application may provide you with access to Company’s website located at [www.noop.dev](http://www.noop.dev) (the “<span style="text-decoration:underline;">Website</span>”) and products and services accessible thereon, and certain features, functionality, and content accessible on or through the Application may be hosted on the Website (collectively, “<span style="text-decoration:underline;">Content and Services</span>”). Your access to and use of such Content and Services are governed by the Platform’s [Terms of Service](/legal/terms-of-service/) and [Privacy Policy](/legal/privacy-policy/), which are incorporated herein by this reference. Your access to and use of such Content and Services may require you to acknowledge your acceptance of such Terms of Service and [Privacy Policy](/legal/privacy-policy/) and/or to register with the Platform, and your failure to do so may restrict you from accessing or using certain of the Application’s features and functionality. Any violation of the [Privacy Policy](/legal/privacy-policy/) or of the [Terms of Service](/legal/terms-of-service/) will also be deemed a violation of this Agreement.
+The Application may provide you with access to Company’s website located at [noop.dev](https://noop.dev) (the “Website”) and products and services accessible thereon, and certain features, functionality, and content accessible on or through the Application may be hosted on the Website (collectively, “Content and Services”). Your access to and use of such Content and Services are governed by the Platform’s [Terms of Service](/legal/terms-of-service/) and [Privacy Policy](/legal/privacy-policy/), which are incorporated herein by this reference. Your access to and use of such Content and Services may require you to acknowledge your acceptance of such Terms of Service and [Privacy Policy](/legal/privacy-policy/) and/or to register with the Platform, and your failure to do so may restrict you from accessing or using certain of the Application’s features and functionality. Any violation of the [Privacy Policy](/legal/privacy-policy/) or of the [Terms of Service](/legal/terms-of-service/) will also be deemed a violation of this Agreement.
 
 
 
@@ -65,13 +68,13 @@ The Content and Services are based in the state of New York in the United States
 
 8. **Updates**
 
-Company may from time to time in its sole discretion develop and provide Application updates, which may include upgrades, bug fixes, patches, other error corrections, and/or new features (collectively, including related documentation, “<span style="text-decoration:underline;">Updates</span>”). Updates may also modify or delete in their entirety certain features and functionality. You agree that Company has no obligation to provide any Updates or to continue to provide or enable any particular features or functionality. Based on your device settings, when your device is connected to the internet, either: (a) the Application will automatically download and install all available Updates; or (b) you may receive notice of or be prompted to download and install available Updates. You agree to promptly download and install all Updates and acknowledge and agree that the Application or portions thereof may not properly operate or be subject to known vulnerabilities should you fail to do so. You further agree that all Updates will be deemed part of the Application and be subject to all terms and conditions of this Agreement.
+Company may from time to time in its sole discretion develop and provide Application updates, which may include upgrades, bug fixes, patches, other error corrections, and/or new features (collectively, including related documentation, “Updates”). Updates may also modify or delete in their entirety certain features and functionality. You agree that Company has no obligation to provide any Updates or to continue to provide or enable any particular features or functionality. Based on your device settings, when your device is connected to the internet, either: (a) the Application will automatically download and install all available Updates; or (b) you may receive notice of or be prompted to download and install available Updates. You agree to promptly download and install all Updates and acknowledge and agree that the Application or portions thereof may not properly operate or be subject to known vulnerabilities should you fail to do so. You further agree that all Updates will be deemed part of the Application and be subject to all terms and conditions of this Agreement.
 
 
 
 9. **Third-Party Materials**
 
-The Application may display, include, or make available certain third-party content (including data, information, applications, and other products, services, and/or materials) or provide links to third-party websites or services (“<span style="text-decoration:underline;">Third-Party Materials</span>”). You acknowledge and agree that Company is not responsible for Third-Party Materials, including their accuracy, completeness, timeliness, validity, copyright compliance, legality, decency, quality, or any other aspect thereof. Company does not assume and will not have any liability or responsibility to you or any other person or entity for any Third-Party Materials. Third-Party Materials and links thereto are provided solely as a convenience to you, and you access and use them entirely at your own risk and subject to such third parties’ terms and conditions.
+The Application may display, include, or make available certain third-party content (including data, information, applications, and other products, services, and/or materials) or provide links to third-party websites or services (“Third-Party Materials”). You acknowledge and agree that Company is not responsible for Third-Party Materials, including their accuracy, completeness, timeliness, validity, copyright compliance, legality, decency, quality, or any other aspect thereof. Company does not assume and will not have any liability or responsibility to you or any other person or entity for any Third-Party Materials. Third-Party Materials and links thereto are provided solely as a convenience to you, and you access and use them entirely at your own risk and subject to such third parties’ terms and conditions.
 
 
 
