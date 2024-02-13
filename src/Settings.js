@@ -33,7 +33,7 @@ class Settings {
     } catch (error) {
       await this.#write()
     }
-    formatter({ event: 'workshop.settings.start', settings: this.settings, file })
+    formatter({ event: 'workshop.settings.start', settings: this.#settings, file })
     this.#started = true
   }
 
@@ -49,21 +49,29 @@ class Settings {
 
   async set (path, value) {
     await this.start()
-    formatter({ event: 'workshop.settings.set', path, value, file })
-    setProperty(this.#settings, path, value)
-    await this.#write()
+    const has = await this.has(path)
+    const get = await this.get(path)
+    if (!has || (get !== value)) {
+      formatter({ event: 'workshop.settings.set', path, value, file })
+      setProperty(this.#settings, path, value)
+      await this.#write()
+    }
   }
 
   async delete (path) {
     await this.start()
-    formatter({ event: 'workshop.settings.delete', path, file })
-    deleteProperty(this.#settings, path)
-    await this.#write()
+    const has = await this.has(path)
+    if (has) {
+      formatter({ event: 'workshop.settings.delete', path, file })
+      deleteProperty(this.#settings, path)
+      await this.#write()
+    }
   }
 
   async #write () {
+    this.#settings = JSON.parse(JSON.stringify(this.#settings))
     const yaml = stringify(this.#settings)
-    formatter({ event: 'workshop.settings.update', settings: this.settings, file })
+    formatter({ event: 'workshop.settings.update', settings: this.#settings, file })
     await mkdir(noopDir, { recursive: true })
     await writeFile(file, yaml)
   }

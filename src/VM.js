@@ -20,10 +20,6 @@ const {
   }
 } = process
 
-// const userData = app.getPath('userData')
-// const noopDir = join(userData, '.noop')
-// const settingsFile = join(noopDir, 'settings.yaml')
-
 const mainWindowViteDevServerURL = MAIN_WINDOW_VITE_DEV_SERVER_URL // eslint-disable-line no-undef
 const packaged = (!mainWindowViteDevServerURL && app.isPackaged)
 
@@ -92,7 +88,7 @@ export default class VM extends EventEmitter {
     try {
       await this.#createDisk()
       await this.#unlockDisk()
-      await this.#settings()
+      await this.#setProjectsDirectory()
       await this.#createVm()
     } catch (error) {
       if (now === this.#lastCmd) {
@@ -215,7 +211,6 @@ export default class VM extends EventEmitter {
       cmd.on('log', cmdLogHandler)
       await cmd.done()
       cmd.off('log', cmdLogHandler)
-      // await settings.delete('Workshop.ProjectsDirectory')
     } catch (error) {
       cmd?.off('log', cmdLogHandler)
       logHandler({ event: 'vm.disk.unlock.error', error })
@@ -238,9 +233,6 @@ export default class VM extends EventEmitter {
       await cmd.done()
       cmd.off('log', cmdLogHandler)
       await settings.delete('Workshop.ProjectsDirectory')
-      // try {
-      //   await rm(settingsFile, { recursive: true, force: true })
-      // } catch (error) {}
     } catch (error) {
       cmd?.off('log', cmdLogHandler)
       logHandler({ event: 'vm.disk.delete.error', error })
@@ -250,15 +242,7 @@ export default class VM extends EventEmitter {
     logHandler({ event: 'vm.disk.delete.ended' })
   }
 
-  async #settings () {
-    // let settings
-    // try {
-    //   settings = parse((await readFile(settingsFile)).toString())
-    // } catch (error) {
-    //   // assume existing settings file does not exist
-    //   settings = {}
-    // }
-
+  async #setProjectsDirectory () {
     const projectsDirectory = await settings.get('Workshop.ProjectsDirectory')
 
     let projectsDir = projectsDirectory
@@ -294,14 +278,6 @@ export default class VM extends EventEmitter {
     }
 
     await settings.set('Workshop.ProjectsDirectory', projectsDir)
-
-    // logHandler({ event: 'workshop.settings', settings, file: settingsFile })
-
-    // const yaml = stringify(settings)
-    // await mkdir(noopDir, { recursive: true })
-    // await writeFile(settingsFile, yaml)
-    // this.#currentSettings = settings
-    // return this.#currentSettings
   }
 
   async #createVm () {

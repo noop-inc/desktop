@@ -38,16 +38,3 @@ const setupDecline = element => {
 
 setupAccept(document.getElementById('accept'))
 setupDecline(document.getElementById('decline'))
-
-// const setupScroll = element => {
-//   const setScroll = () => {
-//     if (element.scrollHeight - element.scrollTop - element.clientHeight < 1) {
-//       document.getElementById('accept').disabled = false
-//       document.getElementById('decline').disabled = false
-//     }
-//   }
-
-//   element.addEventListener('scroll', setScroll)
-// }
-
-// setupScroll(document.getElementById('eula'))
