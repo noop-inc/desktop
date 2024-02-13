@@ -4,9 +4,16 @@ import { readFile, writeFile } from 'node:fs/promises'
 import { parse, stringify } from '@noop-inc/foundation/lib/Yaml.js'
 import { getProperty, setProperty, hasProperty, deleteProperty } from 'dot-prop'
 import { inspect } from 'node:util'
+import { homedir } from 'node:os'
+
+const {
+  npm_lifecycle_event: npmLifecycleEvent
+} = process.env
 
 const mainWindowViteDevServerURL = MAIN_WINDOW_VITE_DEV_SERVER_URL // eslint-disable-line no-undef
 const packaged = (!mainWindowViteDevServerURL && app.isPackaged)
+
+const managingVm = (packaged || (npmLifecycleEvent === 'serve'))
 
 const userData = app.getPath('userData')
 const file = join(userData, 'settings.yaml')
@@ -37,6 +44,7 @@ class Settings {
   }
 
   async get (path) {
+    if (!managingVm && (path = 'Workshop.ProjectsDirectory')) return homedir()
     await this.start()
     return getProperty(this.#settings, path)
   }

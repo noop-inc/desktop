@@ -31,7 +31,7 @@ const eulaWindowViteName = EULA_WINDOW_VITE_NAME // eslint-disable-line no-undef
 const packaged = (!mainWindowViteDevServerURL && app.isPackaged)
 const managingVm = (packaged || (npmLifecycleEvent === 'serve'))
 
-const vm = managingVm ? new VM() : { status: 'RUNNING', projectsDir: homedir() }
+const vm = managingVm ? new VM() : { status: 'RUNNING' }
 
 const formatter = (...messages) =>
   console[messages[0].event.includes('.error') ? 'error' : 'log'](
