@@ -81,6 +81,10 @@ module.exports = {
           {
             name: 'main_window',
             config: 'node_modules/@noop-inc/console/vite.config.mjs'
+          },
+          {
+            name: 'eula_window',
+            config: 'renderers/eula/vite.config.mjs'
           }
         ]
       }

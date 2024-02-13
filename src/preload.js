@@ -21,7 +21,10 @@ contextBridge.exposeInMainWorld(
     setBadgeCount: async num =>
       await ipcRenderer.invoke('set-badge-count', num),
     localRepositories: async repos =>
-      await ipcRenderer.invoke('local-repositories', repos || [])
+      await ipcRenderer.invoke('local-repositories', repos || []),
+    eula: async accept => {
+      await ipcRenderer.invoke('eula', accept)
+    }
   }
 )
 

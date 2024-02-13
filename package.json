@@ -20,13 +20,16 @@
     "common-eslint": "eslint . --ext .js,.cjs,.mjs --cache --cache-location node_modules/.cache/.eslintcache --ignore-path .gitignore",
     "common-prettier": "prettier \"**/*.{htm,html,json,md,markdown,yml,yaml}\" --cache --ignore-path .gitignore",
     "common-sequential": "concurrently --raw --max-processes 1",
+    "common-stylelint": "stylelint \"**/*.{scss,css}\" --cache --cache-location node_modules/.cache/.stylelintcache",
     "dev": "electron-forge start",
     "fix": "npm run common-sequential -- npm:fix-*",
     "fix-eslint": "npm run common-eslint -- --fix",
     "fix-prettier": "npm run common-prettier -- --write",
+    "fix-stylelint": "npm run common-stylelint -- --fix",
     "lint": "npm run common-sequential -- npm:lint-*",
     "lint-eslint": "npm run common-eslint",
     "lint-prettier": "npm run common-prettier -- --check",
+    "lint-stylelint": "npm run common-stylelint",
     "make": "npm run postinstall && electron-forge make",
     "noop-link": "npm link @noop-inc/console",
     "package": "npm run postinstall && electron-forge package",
@@ -47,19 +50,24 @@
     "@noop-inc/desktop-lima": "0.0.66",
     "@noop-inc/discovery": "^2.0.53",
     "@noop-inc/foundation": "2.0.170-pr658.5",
+    "autoprefixer": "^10.4.17",
     "concurrently": "^8.2.2",
-    "dotenv": "^16.4.1",
+    "dot-prop": "^8.0.2",
+    "dotenv": "^16.4.3",
     "electron": "^27.3.2",
     "electron-log": "^5.1.1",
     "electron-serve": "^1.3.0",
     "eslint": "^8.56.0",
     "eslint-config-standard": "^17.1.0",
     "ignore": "^5.3.1",
+    "marked": "^12.0.0",
     "minimatch": "^9.0.3",
     "prettier": "^3.2.5",
-    "tar-fs": "^3.0.4",
+    "stylelint": "^16.2.1",
+    "stylelint-config-standard": "^36.0.0",
+    "tar-fs": "^3.0.5",
     "tar-stream": "^3.1.7",
-    "vite": "^5.1.0"
+    "vite": "^5.1.1"
   },
   "overrides": {
     "@noop-inc/foundation": "$@noop-inc/foundation",
@@ -92,5 +100,14 @@
     "singleQuote": true,
     "trailingComma": "none",
     "arrowParens": "avoid"
+  },
+  "stylelint": {
+    "extends": [
+      "stylelint-config-standard"
+    ],
+    "rules": {
+      "alpha-value-notation": "number",
+      "value-no-vendor-prefix": null
+    }
   }
 }

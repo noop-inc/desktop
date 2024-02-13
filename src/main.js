@@ -11,6 +11,7 @@ import { readdir, mkdir } from 'node:fs/promises'
 import { pathToFileURL, fileURLToPath } from 'node:url'
 import FileWatcher from './FileWatcher.js'
 import { inspect } from 'node:util'
+import settings from './Settings.js'
 
 log.initialize()
 log.errorHandler.startCatching()
@@ -23,6 +24,9 @@ const {
 
 const mainWindowViteDevServerURL = MAIN_WINDOW_VITE_DEV_SERVER_URL // eslint-disable-line no-undef
 const mainWindowViteName = MAIN_WINDOW_VITE_NAME // eslint-disable-line no-undef
+
+const eulaWindowViteDevServerURL = EULA_WINDOW_VITE_DEV_SERVER_URL // eslint-disable-line no-undef
+const eulaWindowViteName = EULA_WINDOW_VITE_NAME // eslint-disable-line no-undef
 
 const packaged = (!mainWindowViteDevServerURL && app.isPackaged)
 const managingVm = (packaged || (npmLifecycleEvent === 'serve'))
@@ -47,6 +51,7 @@ const workshopApiBase = 'https://inspector.local.noop.app:1234'
 const noopProtocal = 'noop'
 let githubLoginUrl
 let mainWindow
+let eulaWindow
 let authWindow
 let updaterInterval
 let appIsQuitting = false
@@ -55,58 +60,161 @@ const fileWatchers = {}
 
 const createMainWindow = async () => {
   await app.whenReady()
-  const { width, height } = screen.getPrimaryDisplay().workAreaSize
-  // Create the browser window.
-  mainWindow = new BrowserWindow({
-    width: width < 1280 ? width : 1280,
-    height: height < 720 ? height : 720,
-    minWidth: 640,
-    minHeight: 360,
-    backgroundColor: '#212121',
-    webPreferences: {
-      preload: join(__dirname, 'preload.js')
+  if (mainWindow) return
+  const eula = !!(await settings.get('Desktop.EULA'))
+  if (eula) {
+    if (eulaWindow) eulaWindow.close()
+    const { width, height } = screen.getPrimaryDisplay().workAreaSize
+    // Create the browser window.
+    mainWindow = new BrowserWindow({
+      width: width < 1280 ? width : 1280,
+      height: height < 720 ? height : 720,
+      minWidth: 640,
+      minHeight: 360,
+      backgroundColor: '#212121',
+      webPreferences: {
+        preload: join(__dirname, 'preload.js')
+      }
+    })
+
+    vm.mainWindow = mainWindow
+
+    mainWindow.on('will-resize', (event, newBounds) => {
+      if (authWindow) {
+        const { width, height } = newBounds
+        authWindow.setBounds({ width: Math.floor(Math.min(width - 32, 460)), height: Math.floor(Math.min(height - 64, 900)) })
+      }
+    })
+
+    mainWindow.on('close', event => {
+      if (!appIsQuitting) {
+        event.preventDefault()
+        mainWindow.hide()
+      }
+    })
+
+    mainWindow.once('closed', () => {
+      mainWindow = null
+    })
+
+    // and load the index.html of the app.
+    if (!packaged) {
+      mainWindow.loadURL(mainWindowViteDevServerURL)
+      // Open the DevTools.
+      mainWindow.webContents.openDevTools()
+    } else {
+      await loadURL(mainWindow)
     }
-  })
 
-  vm.mainWindow = mainWindow
+    if (managingVm) await handleWorkshopVmStatus()
 
-  mainWindow.on('will-resize', (event, newBounds) => {
-    if (authWindow) {
-      const { width, height } = newBounds
-      authWindow.setBounds({ width: Math.floor(Math.min(width - 32, 460)), height: Math.floor(Math.min(height - 64, 900)) })
+    if (managingVm) {
+      vm.on('status', handleWorkshopVmStatus)
+      await vm.open()
     }
-  })
 
-  mainWindow.on('close', event => {
-    if (!appIsQuitting) {
-      event.preventDefault()
-      mainWindow.hide()
+    const version = app.getVersion()
+
+    if (packaged && !version.includes('-')) {
+      const server = 'https://update.electronjs.org'
+      const repo = 'noop-inc/desktop'
+      const platform = process.platform
+      const arch = process.arch
+      const url = `${server}/${repo}/${platform}-${arch}/${version}`
+
+      console.log('Auto Updater Feed URL', url)
+
+      autoUpdater.setFeedURL({ url })
+
+      autoUpdater.on('error', error => {
+        console.log('updater error')
+        console.error(error)
+      })
+      autoUpdater.on('checking-for-update', () => {
+        console.log('checking-for-update')
+      })
+      autoUpdater.on('update-available', () => {
+        console.log('update-available; downloading...')
+      })
+      autoUpdater.on('update-not-available', () => {
+        console.log('update-not-available')
+      })
+      autoUpdater.on('before-quit-for-update', () => {
+        appIsQuitting = true
+        console.log('before-quit-for-update')
+      })
+
+      autoUpdater.on('update-downloaded', async (event, releaseNotes, releaseName, releaseDate, updateURL) => {
+        console.log('update-downloaded', [event, releaseNotes, releaseName, releaseDate, updateURL])
+        await ensureMainWindow()
+        const returnValue = await dialog.showMessageBox(mainWindow, {
+          type: 'info',
+          buttons: ['Restart', 'Later'],
+          title: 'Application Update',
+          message: process.platform === 'win32' ? releaseNotes : releaseName,
+          detail: 'A new version has been downloaded. Restart the application to apply the updates.'
+        })
+        if (returnValue.response === 0) {
+          clearInterval(updaterInterval)
+          await Promise.all(Object.entries(fileWatchers).map(async ([repoId, watcher]) => {
+            await watcher.stop()
+            watcher.removeAllListeners()
+            delete fileWatchers[repoId]
+          }))
+
+          await vm.quit()
+
+          autoUpdater.quitAndInstall()
+        }
+      })
+
+      autoUpdater.checkForUpdates()
+      updaterInterval = setInterval(() => {
+        autoUpdater.checkForUpdates()
+      }, 1000 * 60 * 10)
     }
-  })
-
-  mainWindow.once('closed', () => {
-    mainWindow = null
-  })
-
-  // and load the index.html of the app.
-  if (!packaged) {
-    mainWindow.loadURL(mainWindowViteDevServerURL)
-    // Open the DevTools.
-    mainWindow.webContents.openDevTools()
-  } else {
-    await loadURL(mainWindow)
-  }
-
-  if (managingVm) {
-    await handleWorkshopVmStatus()
   }
 }
 
 const ensureMainWindow = async () => {
   if (!app.isReady()) return
-  if (!mainWindow) await createMainWindow()
-  mainWindow.show()
-  return mainWindow
+  const eula = !!(await settings.get('Desktop.EULA'))
+  if (!eula) {
+    if (!eulaWindow) await ensureEulaWindow()
+  } else {
+    if (!mainWindow) await createMainWindow()
+    mainWindow.show()
+    return mainWindow
+  }
+}
+
+const createEulaWindow = async () => {
+  await app.whenReady()
+  eulaWindow = new BrowserWindow({
+    width: 640,
+    height: 480,
+    resizable: false,
+    frame: false,
+    backgroundColor: '#212529',
+    webPreferences: {
+      preload: join(__dirname, 'preload.js')
+    }
+  })
+  eulaWindow.once('closed', () => {
+    eulaWindow = null
+  })
+  if (!packaged) {
+    eulaWindow.loadURL(eulaWindowViteDevServerURL)
+    // Open the DevTools.
+    // eulaWindow.webContents.openDevTools()
+  } else {
+    eulaWindow.loadFile(join(__dirname, `../renderer/${eulaWindowViteName}/index.html`))
+  }
+}
+
+const ensureEulaWindow = async () => {
+  await app.whenReady()
+  if (!eulaWindow) await createEulaWindow()
 }
 
 const createAuthWindow = async () => {
@@ -146,6 +254,17 @@ const handleUpdateRoute = async url => {
   if (authWindow) authWindow.close()
 }
 
+const handleEula = async (_event, agree) => {
+  await settings.set('Desktop.EULA', !!agree)
+  if (!agree) {
+    app.quit()
+  } else {
+    ensureMainWindow()
+  }
+}
+
+ipcMain.handle('eula', handleEula)
+
 const handleWorkshopVmStatus = async status => {
   if (status === 'DELETED') localRepositories = []
   mainWindow?.webContents.send('workshop-vm-status', vm.status)
@@ -164,16 +283,17 @@ const handleLogout = async () => {
   return true
 }
 
-ipcMain.handle('logout', handleLogout)
+ipcMain.handle('logout', async () => await handleLogout())
 
 const handleSubdirectoryInput = async () => {
   await ensureMainWindow()
+  const projectsDirectory = await settings.get('Workshop.ProjectsDirectory')
   let subdirectory = null
   while (!subdirectory) {
     const returnValue = await dialog.showOpenDialog(mainWindow, {
       title: 'Directory',
       message: 'Select Directory',
-      defaultPath: vm.projectsDir,
+      defaultPath: projectsDirectory,
       buttonLabel: 'Select',
       properties: ['openDirectory', 'createDirectory']
     })
@@ -182,7 +302,7 @@ const handleSubdirectoryInput = async () => {
       break
     }
     const selected = returnValue?.filePaths?.[0] || null
-    if ((selected === vm.projectsDir) || selected?.startsWith(`${vm.projectsDir}/`)) {
+    if ((selected === projectsDirectory) || selected?.startsWith(`${projectsDirectory}/`)) {
       subdirectory = selected
       break
     }
@@ -197,10 +317,12 @@ const handleSubdirectoryInput = async () => {
   return subdirectory
 }
 
-ipcMain.handle('subdirectory-input', handleSubdirectoryInput)
+ipcMain.handle('subdirectory-input', async () => await handleSubdirectoryInput())
 
 const handleCloneRepository = async (_event, { repositoryUrl, subdirectory }) => {
-  if (!((subdirectory === vm.projectsDir) || subdirectory?.startsWith(`${vm.projectsDir}/`))) {
+  await ensureMainWindow()
+  const projectsDirectory = await settings.get('Workshop.ProjectsDirectory')
+  if (!((subdirectory === projectsDirectory) || subdirectory?.startsWith(`${projectsDirectory}/`))) {
     throw Error('Selected directory must be scoped within the current Projects Directory.')
   }
   await ensureMainWindow()
@@ -227,7 +349,7 @@ const handleCloneRepository = async (_event, { repositoryUrl, subdirectory }) =>
   const tarStream = Readable.fromWeb(cloneResponse.body)
   const tarExtractor = extract(foundDirectory)
   await finished(tarStream.pipe(tarExtractor))
-  const url = pathToFileURL(foundDirectory.replace(vm.projectsDir, '/noop/projects')).href
+  const url = pathToFileURL(foundDirectory.replace(projectsDirectory, '/noop/projects')).href
   const repoResponse = await fetch(`${workshopApiBase}/local/repos`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -246,8 +368,10 @@ const handleCloneRepository = async (_event, { repositoryUrl, subdirectory }) =>
 ipcMain.handle('clone-repository', handleCloneRepository)
 
 const handleOpenPath = async (_event, url) => {
+  await ensureMainWindow()
+  const projectsDirectory = await settings.get('Workshop.ProjectsDirectory')
   if ((url === 'file:///noop/projects') || url?.startsWith('file:///noop/projects/')) {
-    url = url.replace('/noop/projects', vm.projectsDir)
+    url = url.replace('/noop/projects', projectsDirectory)
   }
   shell.openPath(fileURLToPath(url))
   return true
@@ -296,7 +420,9 @@ const handleLocalRepositories = async repositories => {
   }))
 
   await Promise.all(localRepositories.map(async ({ id: repoId, url }) => {
-    const watcher = fileWatchers[repoId] || new FileWatcher({ repoId, url, projectsDir: vm.projectsDir })
+    await ensureMainWindow()
+    const projectsDirectory = await settings.get('Workshop.ProjectsDirectory')
+    const watcher = fileWatchers[repoId] || new FileWatcher({ repoId, url, projectsDir: projectsDirectory })
     if (!(repoId in fileWatchers)) {
       fileWatchers[repoId] = watcher
       const { path } = watcher
@@ -406,7 +532,6 @@ app.on('web-contents-created', async (event, contents) => {
       if (url.startsWith(githubLoginUrl)) {
         if (authWindow) {
           authWindow.loadURL(url)
-          authWindow.show()
         } else {
           await ensureAuthWindow()
           authWindow.loadURL(url)
@@ -447,71 +572,5 @@ app.on('before-quit', async event => {
 
 (async () => {
   await app.whenReady()
-  await createMainWindow()
-
-  if (managingVm) {
-    vm.on('status', handleWorkshopVmStatus)
-    await vm.open()
-  }
-
-  const version = app.getVersion()
-
-  if (packaged && !version.includes('-')) {
-    const server = 'https://update.electronjs.org'
-    const repo = 'noop-inc/desktop'
-    const platform = process.platform
-    const arch = process.arch
-    const url = `${server}/${repo}/${platform}-${arch}/${version}`
-
-    console.log('Auto Updater Feed URL', url)
-
-    autoUpdater.setFeedURL({ url })
-
-    autoUpdater.on('error', error => {
-      console.log('updater error')
-      console.error(error)
-    })
-    autoUpdater.on('checking-for-update', () => {
-      console.log('checking-for-update')
-    })
-    autoUpdater.on('update-available', () => {
-      console.log('update-available; downloading...')
-    })
-    autoUpdater.on('update-not-available', () => {
-      console.log('update-not-available')
-    })
-    autoUpdater.on('before-quit-for-update', () => {
-      appIsQuitting = true
-      console.log('before-quit-for-update')
-    })
-
-    autoUpdater.on('update-downloaded', async (event, releaseNotes, releaseName, releaseDate, updateURL) => {
-      console.log('update-downloaded', [event, releaseNotes, releaseName, releaseDate, updateURL])
-      await ensureMainWindow()
-      const returnValue = await dialog.showMessageBox(mainWindow, {
-        type: 'info',
-        buttons: ['Restart', 'Later'],
-        title: 'Application Update',
-        message: process.platform === 'win32' ? releaseNotes : releaseName,
-        detail: 'A new version has been downloaded. Restart the application to apply the updates.'
-      })
-      if (returnValue.response === 0) {
-        clearInterval(updaterInterval)
-        await Promise.all(Object.entries(fileWatchers).map(async ([repoId, watcher]) => {
-          await watcher.stop()
-          watcher.removeAllListeners()
-          delete fileWatchers[repoId]
-        }))
-
-        await vm.quit()
-
-        autoUpdater.quitAndInstall()
-      }
-    })
-
-    autoUpdater.checkForUpdates()
-    updaterInterval = setInterval(() => {
-      autoUpdater.checkForUpdates()
-    }, 1000 * 60 * 10)
-  }
+  await ensureMainWindow()
 })()

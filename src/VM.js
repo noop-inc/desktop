@@ -1,12 +1,13 @@
 import { join } from 'node:path'
 import Lima from '@noop-inc/foundation/lib/Lima.js'
-import { parse, stringify } from '@noop-inc/foundation/lib/Yaml.js'
-import { readdir, readFile, writeFile, rm, mkdir } from 'node:fs/promises'
+import { stringify } from '@noop-inc/foundation/lib/Yaml.js'
+import { readdir } from 'node:fs/promises'
 import { EventEmitter } from 'node:events'
 import { inspect } from 'node:util'
 import { app, dialog } from 'electron'
 import { homedir, cpus, totalmem } from 'node:os'
 import { setTimeout as wait } from 'timers/promises'
+import settings from './Settings.js'
 
 const arch = process.arch.includes('arm') ? 'aarch64' : 'x86_64'
 
@@ -19,9 +20,9 @@ const {
   }
 } = process
 
-const userData = app.getPath('userData')
-const noopDir = join(userData, '.noop')
-const settingsFile = join(noopDir, 'settings.yaml')
+// const userData = app.getPath('userData')
+// const noopDir = join(userData, '.noop')
+// const settingsFile = join(noopDir, 'settings.yaml')
 
 const mainWindowViteDevServerURL = MAIN_WINDOW_VITE_DEV_SERVER_URL // eslint-disable-line no-undef
 const packaged = (!mainWindowViteDevServerURL && app.isPackaged)
@@ -61,7 +62,6 @@ export default class VM extends EventEmitter {
   #restarting
   #lastCmd
   #status = 'PENDING'
-  #currentSettings
   #mainWindow
 
   constructor ({ name = 'workshop-vm' } = {}) {
@@ -191,10 +191,7 @@ export default class VM extends EventEmitter {
       cmd.on('log', cmdLogHandler)
       await cmd.done()
       cmd.off('log', cmdLogHandler)
-      this.#currentSettings = undefined
-      try {
-        await rm(settingsFile, { recursive: true, force: true })
-      } catch (error) {}
+      await settings.delete('Workshop.ProjectsDirectory')
     } catch (error) {
       cmd?.off('log', cmdLogHandler)
       if (!error.message.includes('already exists') && !error.context.output.includes('already exists')) {
@@ -218,7 +215,7 @@ export default class VM extends EventEmitter {
       cmd.on('log', cmdLogHandler)
       await cmd.done()
       cmd.off('log', cmdLogHandler)
-      this.#currentSettings = undefined
+      // await settings.delete('Workshop.ProjectsDirectory')
     } catch (error) {
       cmd?.off('log', cmdLogHandler)
       logHandler({ event: 'vm.disk.unlock.error', error })
@@ -240,7 +237,7 @@ export default class VM extends EventEmitter {
       cmd.on('log', cmdLogHandler)
       await cmd.done()
       cmd.off('log', cmdLogHandler)
-      this.#currentSettings = undefined
+      await settings.delete('Workshop.ProjectsDirectory')
       // try {
       //   await rm(settingsFile, { recursive: true, force: true })
       // } catch (error) {}
@@ -254,15 +251,17 @@ export default class VM extends EventEmitter {
   }
 
   async #settings () {
-    let settings
-    try {
-      settings = parse((await readFile(settingsFile)).toString())
-    } catch (error) {
-      // assume existing settings file does not exist
-      settings = {}
-    }
+    // let settings
+    // try {
+    //   settings = parse((await readFile(settingsFile)).toString())
+    // } catch (error) {
+    //   // assume existing settings file does not exist
+    //   settings = {}
+    // }
 
-    let projectsDir = settings?.Workshop?.ProjectsDirectory
+    const projectsDirectory = await settings.get('Workshop.ProjectsDirectory')
+
+    let projectsDir = projectsDirectory
     if (!projectsDir) {
       await dialog.showMessageBox(this.mainWindow, {
         title: 'Projects Directory',
@@ -276,7 +275,7 @@ export default class VM extends EventEmitter {
         const returnValue = await dialog.showOpenDialog(this.mainWindow, {
           title: 'Projects Directory',
           message: 'Select Projects Directory',
-          defaultPath: settings?.Workshop?.ProjectsDirectory || homedir(),
+          defaultPath: projectsDirectory || homedir(),
           buttonLabel: 'Select',
           properties: ['openDirectory', 'createDirectory']
         })
@@ -294,15 +293,15 @@ export default class VM extends EventEmitter {
       }
     }
 
-    settings = { ...settings, Workshop: { ProjectsDirectory: projectsDir } }
+    await settings.set('Workshop.ProjectsDirectory', projectsDir)
 
-    logHandler({ event: 'workshop.settings', settings, file: settingsFile })
+    // logHandler({ event: 'workshop.settings', settings, file: settingsFile })
 
-    const yaml = stringify(settings)
-    await mkdir(noopDir, { recursive: true })
-    await writeFile(settingsFile, yaml)
-    this.#currentSettings = settings
-    return this.#currentSettings
+    // const yaml = stringify(settings)
+    // await mkdir(noopDir, { recursive: true })
+    // await writeFile(settingsFile, yaml)
+    // this.#currentSettings = settings
+    // return this.#currentSettings
   }
 
   async #createVm () {
@@ -312,6 +311,8 @@ export default class VM extends EventEmitter {
 
     const totalCpu = cpus().length
     const totalMemory = Math.round(totalmem() / (1024 ** 3))
+
+    const projectsDirectory = await settings.get('Workshop.ProjectsDirectory')
 
     const template = {
       cpus: Math.min(totalCpu, Math.max(8, totalCpu)),
@@ -326,7 +327,7 @@ export default class VM extends EventEmitter {
       ssh: { loadDotSSHPubKeys: false },
       mounts: [
         {
-          location: this.#currentSettings.Workshop.ProjectsDirectory,
+          location: projectsDirectory,
           mountPoint: '/noop/projects',
           sshfs: { cache: false }
         }
@@ -450,9 +451,5 @@ export default class VM extends EventEmitter {
 
   set mainWindow (mainWindow) {
     this.#mainWindow = mainWindow
-  }
-
-  get projectsDir () {
-    return this.#currentSettings?.Workshop?.ProjectsDirectory
   }
 }
