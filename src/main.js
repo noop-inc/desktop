@@ -72,6 +72,8 @@ const createMainWindow = async () => {
       minWidth: 640,
       minHeight: 360,
       backgroundColor: '#212121',
+      // titleBarStyle: 'hidden',
+      // trafficLightPosition: { x: 13, y: 10 },
       webPreferences: {
         preload: join(__dirname, 'preload.js')
       }

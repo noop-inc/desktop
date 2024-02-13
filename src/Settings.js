@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 import { app } from 'electron'
-import { readFile, writeFile, mkdir } from 'node:fs/promises'
+import { readFile, writeFile } from 'node:fs/promises'
 import { parse, stringify } from '@noop-inc/foundation/lib/Yaml.js'
 import { getProperty, setProperty, hasProperty, deleteProperty } from 'dot-prop'
 import { inspect } from 'node:util'
@@ -9,8 +9,7 @@ const mainWindowViteDevServerURL = MAIN_WINDOW_VITE_DEV_SERVER_URL // eslint-dis
 const packaged = (!mainWindowViteDevServerURL && app.isPackaged)
 
 const userData = app.getPath('userData')
-const noopDir = join(userData, '.noop')
-const file = join(noopDir, 'settings.yaml')
+const file = join(userData, 'settings.yaml')
 
 const formatter = (...messages) =>
   console[messages[0].event.includes('.error') ? 'error' : 'log'](
@@ -72,7 +71,6 @@ class Settings {
     this.#settings = JSON.parse(JSON.stringify(this.#settings))
     const yaml = stringify(this.#settings)
     formatter({ event: 'workshop.settings.update', settings: this.#settings, file })
-    await mkdir(noopDir, { recursive: true })
     await writeFile(file, yaml)
   }
 
