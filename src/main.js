@@ -111,7 +111,7 @@ const createMainWindow = async () => {
 
     if (managingVm) {
       vm.on('status', handleWorkshopVmStatus)
-      await vm.open()
+      await vm.start()
     }
 
     const version = app.getVersion()
@@ -163,7 +163,7 @@ const createMainWindow = async () => {
             delete fileWatchers[repoId]
           }))
 
-          await vm.quit()
+          await vm.stop()
 
           autoUpdater.quitAndInstall()
         }
@@ -566,7 +566,7 @@ app.on('before-quit', async event => {
       watcher.removeAllListeners()
       delete fileWatchers[repoId]
     }))
-    await vm.quit()
+    await vm.stop()
     app.quit()
   }
 });

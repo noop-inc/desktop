@@ -1,15 +1,18 @@
 import { join } from 'node:path'
-import Lima from '@noop-inc/foundation/lib/Lima.js'
-import { stringify } from '@noop-inc/foundation/lib/Yaml.js'
-import { readdir } from 'node:fs/promises'
+import { QemuVirtualMachine } from '@noop-inc/foundation/lib/VirtualMachine.js'
+import { readdir, stat, mkdir, rm } from 'node:fs/promises'
 import { EventEmitter } from 'node:events'
 import { inspect } from 'node:util'
 import { app, dialog } from 'electron'
 import { homedir, cpus, totalmem } from 'node:os'
-import { setTimeout as wait } from 'timers/promises'
 import settings from './Settings.js'
 
 const arch = process.arch.includes('arm') ? 'aarch64' : 'x86_64'
+
+const userData = app.getPath('userData')
+const workdir = join(userData, 'Workshop/')
+const dataDisk = join(workdir, 'data')
+const systemDisk = join(workdir, 'system')
 
 const {
   resourcesPath,
@@ -19,6 +22,10 @@ const {
     npm_config_local_prefix: npmConfigLocalPrefix
   }
 } = process
+
+QemuVirtualMachine.path = (npmLifecycleEvent === 'serve')
+  ? join(npmConfigLocalPrefix, `node_modules/@noop-inc/desktop-lima/dist/lima-and-qemu.macos-${arch}`)
+  : join(resourcesPath, `lima-and-qemu.macos-${arch}`)
 
 const mainWindowViteDevServerURL = MAIN_WINDOW_VITE_DEV_SERVER_URL // eslint-disable-line no-undef
 const packaged = (!mainWindowViteDevServerURL && app.isPackaged)
@@ -54,11 +61,10 @@ const formatter = (...messages) =>
 
 export default class VM extends EventEmitter {
   #name
-  #lima
   #restarting
-  #lastCmd
   #status = 'PENDING'
   #mainWindow
+  #vm
 
   constructor ({ name = 'workshop-vm' } = {}) {
     super()
@@ -73,98 +79,88 @@ export default class VM extends EventEmitter {
     this.emit('status', this.status)
   }
 
-  async create () {
-    if (!this.#lima) {
-      const binPath = (npmLifecycleEvent === 'serve')
-        ? join(npmConfigLocalPrefix, `node_modules/@noop-inc/desktop-lima/dist/lima-and-qemu.macos-${arch}/bin`)
-        : join(resourcesPath, `lima-and-qemu.macos-${arch}`, 'bin')
-
-      this.#lima = new Lima({ binPath })
-    }
-
-    const now = Date.now()
-    this.#lastCmd = now
+  async start () {
+    if (this.#vm) throw new Error('Workshop VM already running')
     this.handleStatus(this.#restarting ? 'RESTARTING' : 'CREATING')
     try {
-      await this.#createDisk()
-      await this.#unlockDisk()
-      await this.#setProjectsDirectory()
-      await this.#createVm()
-    } catch (error) {
-      if (now === this.#lastCmd) {
-        this.handleStatus('CREATE_FAILED')
-        throw error
+      await mkdir(workdir, { recursive: true })
+      const baseImage = await this.workshopImage()
+      try {
+        await stat(baseImage)
+      } catch (cause) {
+        throw new Error('Workshop base image not found', { cause })
       }
-    }
-    if (now === this.#lastCmd) this.handleStatus(this.#restarting ? 'RESTARTING' : 'CREATED')
-  }
+      try {
+        await stat(dataDisk)
+      } catch (error) {
+        console.warn({ event: 'workshop.initialize', disk: dataDisk })
+        await QemuVirtualMachine.createDiskImage(dataDisk, 100)
+      }
+      try {
+        await stat(systemDisk)
+      } catch (error) {
+        console.warn({ event: 'workshop.initialize', disk: systemDisk, baseImage })
+        await QemuVirtualMachine.createDiskImage(systemDisk, 100, baseImage)
+      }
+      await this.#setProjectsDirectory()
 
-  async start () {
-    const now = Date.now()
-    this.#lastCmd = now
+      const cpu = this.defaultCpu
+      const memory = this.defaultMemory
+      const ports = [
+        '127.0.0.1:44450-:22',
+        '127.0.0.1:44451-:441',
+        '127.0.0.1:44452-:442'
+      ]
+      const disks = [systemDisk, dataDisk]
+      const mounts = {
+        Projects: await this.projectsDirectory()
+      }
+      const params = { workdir, cpu, memory, ports, disks, mounts }
+      console.log(params)
+      this.#vm = new QemuVirtualMachine(params)
+      this.#vm.once('close', (code) => {
+        // TODO probably something else to do here
+        this.handleStatus('STOPPED')
+        this.#vm = null
+      })
+      this.#vm.log.on('data', event => {
+        console.log(event)
+      })
+    } catch (error) {
+      this.handleStatus('CREATE_FAILED')
+      throw error
+    }
     this.handleStatus(this.#restarting ? 'RESTARTING' : 'STARTING')
     try {
-      await this.#startVm()
+      await this.#vm.start()
     } catch (error) {
-      if (now === this.#lastCmd) {
-        this.handleStatus('START_FAILED')
-        throw error
-      }
+      this.handleStatus('START_FAILED')
+      throw error
     }
-    if (now === this.#lastCmd) await wait(2000)
-    if (now === this.#lastCmd) this.handleStatus('RUNNING')
+    this.handleStatus('RUNNING')
   }
 
-  async stop (force) {
-    const now = Date.now()
-    this.#lastCmd = now
+  async stop () {
+    if (!this.#vm) return true
     this.handleStatus('STOPPING')
     try {
-      await this.#stopVm(force)
+      await this.#vm.stop()
+      this.#vm = null
     } catch (error) {
-      if (now === this.#lastCmd) {
-        this.handleStatus('STOP_FAILED')
-        throw error
-      }
+      this.handleStatus('STOP_FAILED')
+      throw error
     }
-    if (now === this.#lastCmd) this.handleStatus('STOPPED')
-  }
-
-  async delete (force) {
-    const now = Date.now()
-    this.#lastCmd = now
-    this.handleStatus('DELETING')
-    try {
-      await this.#deleteVm(force)
-    } catch (error) {
-      if (now === this.#lastCmd) {
-        this.handleStatus('DELETE_FAILED')
-        throw error
-      }
-    }
-    if (now === this.#lastCmd) this.handleStatus('DELETED')
-  }
-
-  async open () {
-    await this.create()
-    await this.start()
-  }
-
-  async quit () {
-    const force = this.status !== 'RUNNING'
-    await this.stop(force)
-    await this.delete(force)
+    this.handleStatus('STOPPED')
   }
 
   async restart (reset) {
-    const force = !!(reset || (this.status !== 'RUNNING'))
     const now = Date.now()
     this.#restarting = now
     try {
-      await this.stop(force)
-      await this.delete(force)
-      if (reset) await this.#deleteDisk()
-      await this.create()
+      await this.stop()
+      if (reset) {
+        await rm(dataDisk)
+      }
       await this.start()
     } catch (error) {
       if (now === this.#restarting) {
@@ -172,74 +168,6 @@ export default class VM extends EventEmitter {
         throw error
       }
     }
-  }
-
-  async #createDisk () {
-    const cmdLogHandler = message => {
-      logHandler({ event: 'vm.disk.create.log', message })
-    }
-
-    logHandler({ event: 'vm.disk.create.started' })
-
-    let cmd
-    try {
-      cmd = this.#lima.limactl(['disk', 'create', 'ws-vm-d', '--size', '128GiB'])
-      cmd.on('log', cmdLogHandler)
-      await cmd.done()
-      cmd.off('log', cmdLogHandler)
-      await settings.delete('Workshop.ProjectsDirectory')
-    } catch (error) {
-      cmd?.off('log', cmdLogHandler)
-      if (!error.message.includes('already exists') && !error.context.output.includes('already exists')) {
-        logHandler({ event: 'vm.disk.create.error', error })
-        throw error
-      }
-    }
-    logHandler({ event: 'vm.disk.create.ended' })
-  }
-
-  async #unlockDisk () {
-    const cmdLogHandler = message => {
-      logHandler({ event: 'vm.disk.unlock.log', message })
-    }
-
-    logHandler({ event: 'vm.disk.unlock.started' })
-
-    let cmd
-    try {
-      cmd = this.#lima.limactl(['disk', 'unlock', 'ws-vm-d'])
-      cmd.on('log', cmdLogHandler)
-      await cmd.done()
-      cmd.off('log', cmdLogHandler)
-    } catch (error) {
-      cmd?.off('log', cmdLogHandler)
-      logHandler({ event: 'vm.disk.unlock.error', error })
-      throw error
-    }
-    logHandler({ event: 'vm.disk.unlock.ended' })
-  }
-
-  async #deleteDisk () {
-    const cmdLogHandler = message => {
-      logHandler({ event: 'vm.disk.delete.log', message })
-    }
-
-    logHandler({ event: 'vm.disk.delete.started' })
-
-    let cmd
-    try {
-      cmd = this.#lima.limactl(['disk', 'delete', 'ws-vm-d', '-f'])
-      cmd.on('log', cmdLogHandler)
-      await cmd.done()
-      cmd.off('log', cmdLogHandler)
-      await settings.delete('Workshop.ProjectsDirectory')
-    } catch (error) {
-      cmd?.off('log', cmdLogHandler)
-      logHandler({ event: 'vm.disk.delete.error', error })
-      throw error
-    }
-
-    logHandler({ event: 'vm.disk.delete.ended' })
   }
 
   async #setProjectsDirectory () {
@@ -280,137 +208,32 @@ export default class VM extends EventEmitter {
     await settings.set('Workshop.ProjectsDirectory', projectsDir)
   }
 
-  async #createVm () {
-    const location = (npmLifecycleEvent === 'serve')
-      ? join(npmConfigLocalPrefix, `noop-workshop-vm-${workshopVmVersion}.${arch}.qcow2`)
+  async workshopImage () {
+    return (npmLifecycleEvent === 'serve')
+      ? join(npmConfigLocalPrefix, '../workshop-vm/limaless/prep/disks/build')
       : join(resourcesPath, (await readdir(resourcesPath)).find(file => file.startsWith('noop-workshop-vm') && file.endsWith(`.${arch}.qcow2`)))
-
-    const totalCpu = cpus().length
-    const totalMemory = Math.round(totalmem() / (1024 ** 3))
-
-    const projectsDirectory = await settings.get('Workshop.ProjectsDirectory')
-
-    const template = {
-      cpus: Math.min(totalCpu, Math.max(8, totalCpu)),
-      memory: `${Math.min(totalMemory, Math.max(8, Math.round(totalMemory / 2)))}GiB`,
-      arch,
-      images: [{ location, arch }],
-      provision: [],
-      containerd: {
-        system: true,
-        user: false
-      },
-      ssh: { loadDotSSHPubKeys: false },
-      mounts: [
-        {
-          location: projectsDirectory,
-          mountPoint: '/noop/projects',
-          sshfs: { cache: false }
-        }
-      ],
-      additionalDisks: [
-        { name: 'ws-vm-d' }
-      ],
-      portForwards: [
-        { guestPort: 1234, hostIP: '0.0.0.0' },
-        { guestPort: 443, hostIP: '127.0.0.1' }
-      ],
-      hostResolver: {
-        hosts: {
-          'registry.workshop': '127.0.0.1'
-        }
-      },
-      firmware: { legacyBIOS: true }
-    }
-
-    const cmdLogHandler = message => {
-      logHandler({ event: 'vm.create.log', message })
-    }
-
-    logHandler({ event: 'vm.create.started' })
-
-    let cmd
-    try {
-      const stdin = stringify(template)
-      const env = { LIMA_CIDATA_NAME: 'noop', LIMA_CIDATA_USER: 'noop' }
-      const cmd = this.#lima.limactl(['create', `--name=${this.name}`, '-'], { stdin, env })
-      cmd.on('log', cmdLogHandler)
-      await cmd.done()
-      await this.#lima.get(this.name)
-      cmd.off('log', cmdLogHandler)
-    } catch (error) {
-      cmd?.off('log', cmdLogHandler)
-      logHandler({ event: 'vm.create.error', error })
-      throw error
-    }
-
-    logHandler({ event: 'vm.create.ended' })
   }
 
-  #startVm = async () => {
-    const cmdLogHandler = message => {
-      logHandler({ event: 'vm.start.log', message })
-    }
-
-    logHandler({ event: 'vm.start.started' })
-
-    let cmd
-    try {
-      cmd = this.#lima.limactl(['start', 'workshop-vm'])
-      cmd.on('log', cmdLogHandler)
-      await cmd.done()
-      cmd.off('log', cmdLogHandler)
-    } catch (error) {
-      cmd?.off('log', cmdLogHandler)
-      logHandler({ event: 'vm.start.error', error })
-      throw error
-    }
-
-    logHandler({ event: 'vm.start.ended' })
+  async projectsDirectory () {
+    return await settings.get('Workshop.ProjectsDirectory')
   }
 
-  #stopVm = async force => {
-    const cmdLogHandler = message => {
-      logHandler({ event: 'vm.stop.log', message })
-    }
-
-    logHandler({ event: 'vm.stop.started' })
-
-    let cmd
-    try {
-      cmd = this.#lima.limactl(['stop', 'workshop-vm', force ? '-f' : null].filter(Boolean))
-      cmd.on('log', cmdLogHandler)
-      await cmd.done()
-      cmd.off('log', cmdLogHandler)
-    } catch (error) {
-      cmd?.off('log', cmdLogHandler)
-      logHandler({ event: 'vm.stop.error', error })
-      if (!force) throw error
-    }
-
-    logHandler({ event: 'vm.stop.ended' })
+  get totalCpu () {
+    return cpus().length
   }
 
-  #deleteVm = async force => {
-    const cmdLogHandler = message => {
-      logHandler({ event: 'vm.delete.log', message })
-    }
+  get totalMemory () {
+    return Math.round(totalmem() / (1024 ** 2))
+  }
 
-    logHandler({ event: 'vm.delete.started' })
+  get defaultCpu () {
+    const { totalCpu } = this
+    return Math.min(totalCpu, Math.max(8, totalCpu))
+  }
 
-    let cmd
-    try {
-      cmd = this.#lima.limactl(['delete', 'workshop-vm', force ? '-f' : null].filter(Boolean))
-      cmd.on('log', cmdLogHandler)
-      await cmd.done()
-      cmd.off('log', cmdLogHandler)
-    } catch (error) {
-      cmd?.off('log', cmdLogHandler)
-      logHandler({ event: 'vm.delete.error', error })
-      if (!force) throw error
-    }
-
-    logHandler({ event: 'vm.delete.ended' })
+  get defaultMemory () {
+    const { totalMemory } = this
+    return Math.round(totalMemory / 2)
   }
 
   get name () {
