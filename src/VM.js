@@ -94,13 +94,13 @@ export default class VM extends EventEmitter {
         await stat(dataDisk)
       } catch (error) {
         console.warn({ event: 'workshop.initialize', disk: dataDisk })
-        await QemuVirtualMachine.createDiskImage(dataDisk, 100)
+        await QemuVirtualMachine.createDiskImage(dataDisk, { size: 100 })
       }
       try {
         await stat(systemDisk)
       } catch (error) {
         console.warn({ event: 'workshop.initialize', disk: systemDisk, baseImage })
-        await QemuVirtualMachine.createDiskImage(systemDisk, 100, baseImage)
+        await QemuVirtualMachine.createDiskImage(systemDisk, { base: baseImage })
       }
       await this.#setProjectsDirectory()
 
@@ -118,11 +118,11 @@ export default class VM extends EventEmitter {
       const params = { workdir, cpu, memory, ports, disks, mounts }
       console.log(params)
       this.#vm = new QemuVirtualMachine(params)
-      this.#vm.once('close', (code) => {
-        // TODO probably something else to do here
-        this.handleStatus('STOPPED')
-        this.#vm = null
-      })
+      // this.#vm.once('close', (code) => {
+      //   // TODO probably something else to do here
+      //   this.handleStatus('STOPPED')
+      //   this.#vm = null
+      // })
       this.#vm.log.on('data', event => {
         console.log(event)
       })
@@ -178,7 +178,7 @@ export default class VM extends EventEmitter {
       await dialog.showMessageBox(this.mainWindow, {
         title: 'Projects Directory',
         message: 'Configuration Needed',
-        detail: 'Noop Workshop will automatically discover compatiable projects on your machine. Select the root-level Projects Directory to use for this session.',
+        detail: 'Noop Workshop will automatically discover compatiable projects on your machine. Select the root-level Projects Directory to use.',
         buttons: ['Next'],
         type: 'info'
       })

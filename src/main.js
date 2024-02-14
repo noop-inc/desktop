@@ -267,7 +267,7 @@ const handleEula = async (_event, agree) => {
 ipcMain.handle('eula', handleEula)
 
 const handleWorkshopVmStatus = async status => {
-  if (status === 'DELETED') localRepositories = []
+  if (status === 'STOPPED') localRepositories = []
   mainWindow?.webContents.send('workshop-vm-status', vm.status)
   return vm.status
 }
@@ -558,7 +558,7 @@ app.on('web-contents-created', async (event, contents) => {
 
 app.on('before-quit', async event => {
   appIsQuitting = true
-  if (managingVm && !['PENDING', 'DELETED'].includes(vm.status)) {
+  if (managingVm && !['PENDING', 'STOPPED'].includes(vm.status)) {
     event.preventDefault()
     clearInterval(updaterInterval)
     await Promise.all(Object.entries(fileWatchers).map(async ([repoId, watcher]) => {
