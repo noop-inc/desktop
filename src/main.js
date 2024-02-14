@@ -1,6 +1,5 @@
 import { app, shell, BrowserWindow, screen, ipcMain, nativeTheme, dialog, autoUpdater } from 'electron'
 import { join, resolve } from 'node:path'
-import { homedir } from 'node:os'
 import serve from 'electron-serve'
 import VM from './VM.js'
 import log from 'electron-log/main'
