@@ -46,7 +46,7 @@ const loadURL = packaged
   ? serve({ directory: `./.vite/renderer/${mainWindowViteName}` })
   : null
 
-const workshopApiBase = 'https://inspector.local.noop.app:1234'
+const workshopApiBase = 'https://workshop.local.noop.app:44452'
 const noopProtocal = 'noop'
 let githubLoginUrl
 let mainWindow
