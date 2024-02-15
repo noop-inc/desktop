@@ -31,7 +31,7 @@
     "lint-prettier": "npm run common-prettier -- --check",
     "lint-stylelint": "npm run common-stylelint",
     "make": "npm run postinstall && electron-forge make",
-    "noop-link": "npm link @noop-inc/console",
+    "noop-link": "npm link @noop-inc/console @noop-inc/foundation",
     "package": "npm run postinstall && electron-forge package",
     "postinstall": "sh -c 'if [ -f ./node_modules/@noop-inc/desktop-lima/bin/postinstall.js ]; then cd node_modules/@noop-inc/desktop-lima && npm run postinstall; fi'",
     "publish": "npm run postinstall && electron-forge publish",
