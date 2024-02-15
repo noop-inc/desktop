@@ -2,17 +2,18 @@ import { join } from 'node:path'
 import { QemuVirtualMachine } from '@noop-inc/foundation/lib/VirtualMachine.js'
 import { readdir, stat, mkdir, rm } from 'node:fs/promises'
 import { EventEmitter } from 'node:events'
-import { inspect } from 'node:util'
+import { inspect, promisify } from 'node:util'
 import { app, dialog } from 'electron'
 import { homedir, cpus, totalmem } from 'node:os'
 import settings from './Settings.js'
+import { createServer, createConnection } from 'node:net'
 
 const arch = process.arch.includes('arm') ? 'aarch64' : 'x86_64'
 
 const userData = app.getPath('userData')
 const workdir = join(userData, 'Workshop/')
-const dataDisk = join(workdir, 'data')
-const systemDisk = join(workdir, 'system')
+const dataDisk = join(workdir, 'data.disk')
+const systemDisk = join(workdir, 'system.disk')
 
 const {
   resourcesPath,
@@ -65,6 +66,9 @@ export default class VM extends EventEmitter {
   #status = 'PENDING'
   #mainWindow
   #vm
+  #traffic
+
+  static signalPattern = /"workshop.signal:(\w+)"/
 
   constructor ({ name = 'workshop-vm' } = {}) {
     super()
@@ -81,6 +85,10 @@ export default class VM extends EventEmitter {
 
   async start () {
     if (this.#vm) throw new Error('Workshop VM already running')
+    if (!this.#traffic) {
+      this.#traffic = createServer(socket => this.handleTrafficSocket(socket))
+      await promisify(this.#traffic.listen.bind(this.#traffic))(443)
+    }
     this.handleStatus(this.#restarting ? 'RESTARTING' : 'CREATING')
     try {
       await mkdir(workdir, { recursive: true })
@@ -97,11 +105,10 @@ export default class VM extends EventEmitter {
         await QemuVirtualMachine.createDiskImage(dataDisk, { size: 100 })
       }
       try {
-        await stat(systemDisk)
-      } catch (error) {
-        console.warn({ event: 'workshop.initialize', disk: systemDisk, baseImage })
-        await QemuVirtualMachine.createDiskImage(systemDisk, { base: baseImage })
-      }
+        await rm(systemDisk)
+      } catch (error) {}
+      console.warn({ event: 'workshop.initialize', disk: systemDisk, baseImage })
+      await QemuVirtualMachine.createDiskImage(systemDisk, { base: baseImage })
       await this.#setProjectsDirectory()
 
       const cpu = this.defaultCpu
@@ -124,7 +131,13 @@ export default class VM extends EventEmitter {
       //   this.#vm = null
       // })
       this.#vm.log.on('data', event => {
-        console.log(event)
+        if (event.context.message) {
+          if (VM.signalPattern.test(event.context.message)) {
+            const [, signal] = VM.signalPattern.exec(event.context.message)
+            this.handleStatus(signal)
+          }
+        }
+        console.log(event.context)
       })
     } catch (error) {
       this.handleStatus('CREATE_FAILED')
@@ -137,12 +150,15 @@ export default class VM extends EventEmitter {
       this.handleStatus('START_FAILED')
       throw error
     }
-    this.handleStatus('RUNNING')
   }
 
   async stop () {
     if (!this.#vm) return true
     this.handleStatus('STOPPING')
+    if (this.#traffic) {
+      this.#traffic.close()
+      this.#traffic = null
+    }
     try {
       await this.#vm.stop()
       this.#vm = null
@@ -216,6 +232,19 @@ export default class VM extends EventEmitter {
 
   async projectsDirectory () {
     return await settings.get('Workshop.ProjectsDirectory')
+  }
+
+  handleTrafficSocket (incoming) {
+    const host = '127.0.0.1'
+    const port = 44451
+    try {
+      const outgoing = createConnection({ host, port }, () => {
+        incoming.pipe(outgoing)
+        outgoing.pipe(incoming)
+      })
+    } catch (error) {
+      incoming.close()
+    }
   }
 
   get totalCpu () {
