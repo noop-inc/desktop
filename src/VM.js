@@ -152,7 +152,7 @@ export default class VM extends EventEmitter {
     }
   }
 
-  async stop () {
+  async stop (timeout = 10) {
     if (!this.#vm) return true
     this.handleStatus('STOPPING')
     if (this.#traffic) {
@@ -160,7 +160,7 @@ export default class VM extends EventEmitter {
       this.#traffic = null
     }
     try {
-      await this.#vm.stop(10)
+      await this.#vm.stop(timeout)
       this.#vm = null
     } catch (error) {
       this.handleStatus('STOP_FAILED')
@@ -173,7 +173,7 @@ export default class VM extends EventEmitter {
     const now = Date.now()
     this.#restarting = now
     try {
-      await this.stop()
+      await this.stop(0)
       if (reset) {
         await rm(dataDisk)
       }
