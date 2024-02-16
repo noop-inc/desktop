@@ -1,4 +1,4 @@
-import { join, resolve } from 'node:path'
+import { join } from 'node:path'
 import { QemuVirtualMachine } from '@noop-inc/foundation/lib/VirtualMachine.js'
 import { readdir, stat, mkdir, rm } from 'node:fs/promises'
 import { EventEmitter } from 'node:events'
@@ -114,9 +114,9 @@ export default class VM extends EventEmitter {
       const cpu = this.defaultCpu
       const memory = this.defaultMemory
       const ports = [
-        '127.0.0.1:44450-:22',
-        '127.0.0.1:44451-:441',
-        '127.0.0.1:44452-:442'
+        '127.0.0.1:44450-:22', // SSH
+        '127.0.0.1:44451-:441', // Workshop Traffic
+        '127.0.0.1:44452-:442' // Workshop API
       ]
       const disks = [systemDisk, dataDisk]
       const mounts = {
@@ -137,7 +137,7 @@ export default class VM extends EventEmitter {
             this.handleStatus(signal)
           }
         }
-        console.log(event.context)
+        console.log(event.context?.message || event.context)
       })
     } catch (error) {
       this.handleStatus('CREATE_FAILED')
@@ -160,7 +160,7 @@ export default class VM extends EventEmitter {
       this.#traffic = null
     }
     try {
-      await this.#vm.stop()
+      await this.#vm.stop(10)
       this.#vm = null
     } catch (error) {
       this.handleStatus('STOP_FAILED')
@@ -242,6 +242,7 @@ export default class VM extends EventEmitter {
         incoming.pipe(outgoing)
         outgoing.pipe(incoming)
       })
+      outgoing.on('error', () => incoming.close())
     } catch (error) {
       incoming.close()
     }
