@@ -242,9 +242,9 @@ export default class VM extends EventEmitter {
         incoming.pipe(outgoing)
         outgoing.pipe(incoming)
       })
-      outgoing.on('error', () => incoming.close())
+      outgoing.on('error', () => incoming.end())
     } catch (error) {
-      incoming.close()
+      incoming.end()
     }
   }
 
