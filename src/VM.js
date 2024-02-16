@@ -1,4 +1,4 @@
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { QemuVirtualMachine } from '@noop-inc/foundation/lib/VirtualMachine.js'
 import { readdir, stat, mkdir, rm } from 'node:fs/promises'
 import { EventEmitter } from 'node:events'
@@ -19,7 +19,7 @@ const {
   resourcesPath,
   env: {
     npm_lifecycle_event: npmLifecycleEvent,
-    WORKSHOP_VM_VERSION: workshopVmVersion,
+    // WORKSHOP_VM_VERSION: workshopVmVersion,
     npm_config_local_prefix: npmConfigLocalPrefix
   }
 } = process
@@ -226,8 +226,8 @@ export default class VM extends EventEmitter {
 
   async workshopImage () {
     return (npmLifecycleEvent === 'serve')
-      ? join(npmConfigLocalPrefix, '../workshop-vm/limaless/prep/disks/build')
-      : join(resourcesPath, (await readdir(resourcesPath)).find(file => file.startsWith('noop-workshop-vm') && file.endsWith(`.${arch}.qcow2`)))
+      ? join(npmConfigLocalPrefix, '../workshop-vm/limaless/prep/disks/noop-workshop-vm-0.0.0-automated.aarch64.disk')
+      : join(resourcesPath, (await readdir(resourcesPath)).find(file => file.startsWith('noop-workshop-vm') && file.endsWith(`.${arch}.disk`)))
   }
 
   async projectsDirectory () {
@@ -262,7 +262,7 @@ export default class VM extends EventEmitter {
 
   get defaultMemory () {
     const { totalMemory } = this
-    return Math.round(totalMemory / 2)
+    return Math.min(totalMemory, Math.max(Math.round(8 * 1024), Math.round(totalMemory / 2)))
   }
 
   get name () {
