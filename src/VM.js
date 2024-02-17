@@ -124,12 +124,15 @@ export default class VM extends EventEmitter {
       }
       const params = { workdir, cpu, memory, ports, disks, mounts }
       console.log(params)
-      this.#vm = new QemuVirtualMachine(params)
-      // this.#vm.once('close', (code) => {
-      //   // TODO probably something else to do here
-      //   this.handleStatus('STOPPED')
-      //   this.#vm = null
-      // })
+      const vm = new QemuVirtualMachine(params)
+      this.#vm = vm
+      this.#vm.once('close', code => {
+        if (vm === this.#vm) {
+          // TODO probably something else to do here
+          this.handleStatus('STOPPED')
+          this.#vm = null
+        }
+      })
       this.#vm.log.on('data', event => {
         if (event.context.message) {
           if (VM.signalPattern.test(event.context.message)) {
@@ -159,12 +162,16 @@ export default class VM extends EventEmitter {
       this.#traffic.close()
       this.#traffic = null
     }
+    const vm = this.#vm
     try {
-      await this.#vm.stop(timeout)
-      this.#vm = null
+      await vm.stop(timeout)
     } catch (error) {
       this.handleStatus('STOP_FAILED')
       throw error
+    }
+    if (this.#vm === vm) {
+      await this.#vm.promise('close')
+      this.#vm = null
     }
     this.handleStatus('STOPPED')
   }
@@ -173,7 +180,7 @@ export default class VM extends EventEmitter {
     const now = Date.now()
     this.#restarting = now
     try {
-      await this.stop(0)
+      await this.stop(reset ? 0 : 10)
       if (reset) {
         await rm(dataDisk)
       }
