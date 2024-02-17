@@ -102,6 +102,7 @@ export default class VM extends EventEmitter {
         await stat(dataDisk)
       } catch (error) {
         console.warn({ event: 'workshop.initialize', disk: dataDisk })
+        await settings.delete('Workshop.ProjectsDirectory')
         await QemuVirtualMachine.createDiskImage(dataDisk, { size: 100 })
       }
       try {
@@ -126,13 +127,13 @@ export default class VM extends EventEmitter {
       console.log(params)
       const vm = new QemuVirtualMachine(params)
       this.#vm = vm
-      this.#vm.once('close', code => {
-        if (vm === this.#vm) {
-          // TODO probably something else to do here
-          this.handleStatus('STOPPED')
-          this.#vm = null
-        }
-      })
+      // this.#vm.once('close', code => {
+      //   if (vm === this.#vm) {
+      //     // TODO probably something else to do here
+      //     this.handleStatus('STOPPED')
+      //     this.#vm = null
+      //   }
+      // })
       this.#vm.log.on('data', event => {
         if (event.context.message) {
           if (VM.signalPattern.test(event.context.message)) {
@@ -183,6 +184,7 @@ export default class VM extends EventEmitter {
       await this.stop(reset ? 0 : 10)
       if (reset) {
         await rm(dataDisk)
+        await settings.delete('Workshop.ProjectsDirectory')
       }
       await this.start()
     } catch (error) {
