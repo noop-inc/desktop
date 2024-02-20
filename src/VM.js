@@ -61,7 +61,6 @@ const formatter = (...messages) =>
   )
 
 export default class VM extends EventEmitter {
-  #name
   #restarting
   #status = 'PENDING'
   #mainWindow
@@ -69,11 +68,6 @@ export default class VM extends EventEmitter {
   #traffic
 
   static signalPattern = /"workshop.signal:(\w+)"/
-
-  constructor ({ name = 'workshop-vm' } = {}) {
-    super()
-    this.#name = name
-  }
 
   handleStatus (status) {
     if (this.#status !== status) {
@@ -156,12 +150,13 @@ export default class VM extends EventEmitter {
     }
   }
 
-  async stop (timeout = 10) {
+  async stop (timeout = 60) {
     if (!this.#vm) return true
     this.handleStatus('STOPPING')
     if (this.#traffic) {
-      this.#traffic.close()
-      this.#traffic = null
+      const traffic = this.#traffic
+      await promisify(this.#traffic.close.bind(this.#traffic))()
+      if (this.#traffic === traffic) this.#traffic = null
     }
     const vm = this.#vm
     try {
@@ -170,10 +165,8 @@ export default class VM extends EventEmitter {
       this.handleStatus('STOP_FAILED')
       throw error
     }
-    if (this.#vm === vm) {
-      await this.#vm.promise('close')
-      this.#vm = null
-    }
+    await vm.promise('close')
+    if (this.#vm === vm) this.#vm = null
     this.handleStatus('STOPPED')
   }
 
@@ -181,7 +174,7 @@ export default class VM extends EventEmitter {
     const now = Date.now()
     this.#restarting = now
     try {
-      await this.stop(reset ? 0 : 10)
+      await this.stop(reset ? 0 : 60)
       if (reset) {
         await rm(dataDisk)
         await settings.delete('Workshop.ProjectsDirectory')
@@ -273,10 +266,6 @@ export default class VM extends EventEmitter {
   get defaultMemory () {
     const { totalMemory } = this
     return Math.min(totalMemory, Math.max(Math.round(8 * 1024), Math.round(totalMemory / 2)))
-  }
-
-  get name () {
-    return this.#name
   }
 
   get status () {

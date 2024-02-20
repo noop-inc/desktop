@@ -22,9 +22,10 @@ contextBridge.exposeInMainWorld(
       await ipcRenderer.invoke('set-badge-count', num),
     localRepositories: async repos =>
       await ipcRenderer.invoke('local-repositories', repos || []),
-    eula: async accept => {
-      await ipcRenderer.invoke('eula', accept)
-    }
+    eula: async accept =>
+      await ipcRenderer.invoke('eula', accept),
+    intercomDesktopLogin: async () =>
+      await ipcRenderer.invoke('intercom-desktop-login')
   }
 )
 
