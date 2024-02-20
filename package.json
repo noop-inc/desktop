@@ -49,7 +49,7 @@
     "@noop-inc/console": "^3.0.19",
     "@noop-inc/desktop-lima": "0.0.69",
     "@noop-inc/discovery": "^2.0.53",
-    "@noop-inc/foundation": "2.0.171-pr658.0",
+    "@noop-inc/foundation": "2.1.1-pr658.0",
     "autoprefixer": "^10.4.17",
     "concurrently": "^8.2.2",
     "dot-prop": "^8.0.2",
