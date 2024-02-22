@@ -32,26 +32,35 @@ const mainWindowViteDevServerURL = MAIN_WINDOW_VITE_DEV_SERVER_URL // eslint-dis
 const packaged = (!mainWindowViteDevServerURL && app.isPackaged)
 
 const logHandler = ({ message, ...log }) => {
-  let messages = [message]
-  if ((typeof message) === 'string') {
-    const trimmed = message.trim()
-    messages = [trimmed]
-    if (trimmed.startsWith('time="')) {
-      messages = trimmed
-        .split('"\ntime="')
-        .map(message => {
-          const trimmed = message.trim()
-          return trimmed.startsWith('time="') ? trimmed : `time="${trimmed}`
-        })
+  if (typeof message === 'string') {
+    const ansiColors = /[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g // eslint-disable-line no-control-regex
+    const workshopMessage = /^\[[\s\d.]+\][\s]+(node)\[[\d]+\]:[\s]+/
+    const vmMessage = /^\[[\s\d.]+\][\s]+/
+
+    message = message.trim()
+      .replace(ansiColors, '')
+      .trim()
+
+    if (message.includes(']: {"timestamp":')) {
+      message = message
+        .replace(workshopMessage, '')
+        .trim()
     }
+
+    message = message
+      .replace(vmMessage, '')
+      .trim()
+
+    try {
+      message = JSON.parse(message)
+    } catch {}
   }
-  for (const message of messages) {
-    formatter({ ...log, ...((message !== undefined) ? { message } : {}) })
-  }
+
+  formatter({ ...log, ...((message !== undefined) ? { message } : {}) })
 }
 
 const formatter = (...messages) =>
-  console[messages[0].event.includes('.error') ? 'error' : 'log'](
+  console[messages[0].event.includes('.error') ? 'error' : (messages[0].event.includes('.initialize') ? 'warn' : 'log')](
     ...messages.map(message =>
       inspect(
         message,
@@ -95,14 +104,14 @@ export default class VM extends EventEmitter {
       try {
         await stat(dataDisk)
       } catch (error) {
-        console.warn({ event: 'workshop.initialize', disk: dataDisk })
+        logHandler({ event: 'workshop.initialize', disk: dataDisk })
         await settings.delete('Workshop.ProjectsDirectory')
         await QemuVirtualMachine.createDiskImage(dataDisk, { size: 100 })
       }
       try {
         await rm(systemDisk)
       } catch (error) {}
-      console.warn({ event: 'workshop.initialize', disk: systemDisk, baseImage })
+      logHandler({ event: 'workshop.initialize', disk: systemDisk, baseImage })
       await QemuVirtualMachine.createDiskImage(systemDisk, { base: baseImage })
       await this.#setProjectsDirectory()
 
@@ -118,7 +127,7 @@ export default class VM extends EventEmitter {
         Projects: await this.projectsDirectory()
       }
       const params = { workdir, cpu, memory, ports, disks, mounts }
-      console.log(params)
+      logHandler({ event: 'vm.params', ...params })
       const vm = new QemuVirtualMachine(params)
       this.#vm = vm
       // this.#vm.once('close', code => {
@@ -135,7 +144,7 @@ export default class VM extends EventEmitter {
             this.handleStatus(signal)
           }
         }
-        console.log(event.context?.message || event.context)
+        logHandler({ event: 'vm.output', message: event.context?.message || event.context })
       })
     } catch (error) {
       this.handleStatus('CREATE_FAILED')
