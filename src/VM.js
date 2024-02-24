@@ -7,6 +7,7 @@ import { app, dialog } from 'electron'
 import { homedir, cpus, totalmem } from 'node:os'
 import settings from './Settings.js'
 import { createServer, createConnection } from 'node:net'
+import stripAnsi from 'strip-ansi'
 
 const arch = process.arch.includes('arm') ? 'aarch64' : 'x86_64'
 
@@ -33,13 +34,10 @@ const packaged = (!mainWindowViteDevServerURL && app.isPackaged)
 
 const logHandler = ({ message, ...log }) => {
   if (typeof message === 'string') {
-    const ansiColors = /[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g // eslint-disable-line no-control-regex
     const workshopMessage = /^\[[\s\d.]+\][\s]+(node)\[[\d]+\]:[\s]+/
     const vmMessage = /^\[[\s\d.]+\][\s]+/
 
-    message = message.trim()
-      .replace(ansiColors, '')
-      .trim()
+    message = stripAnsi(message).trim()
 
     if (message.includes(']: {"timestamp":')) {
       message = message
@@ -75,6 +73,7 @@ export default class VM extends EventEmitter {
   #mainWindow
   #vm
   #traffic
+  #sockets
 
   static signalPattern = /"workshop.signal:(\w+)"/
 
@@ -89,6 +88,7 @@ export default class VM extends EventEmitter {
   async start () {
     if (this.#vm) throw new Error('Workshop VM already running')
     if (!this.#traffic) {
+      this.#sockets = new Set()
       this.#traffic = createServer(socket => this.handleTrafficSocket(socket))
       await promisify(this.#traffic.listen.bind(this.#traffic))(443)
     }
@@ -130,13 +130,6 @@ export default class VM extends EventEmitter {
       logHandler({ event: 'vm.params', ...params })
       const vm = new QemuVirtualMachine(params)
       this.#vm = vm
-      // this.#vm.once('close', code => {
-      //   if (vm === this.#vm) {
-      //     // TODO probably something else to do here
-      //     this.handleStatus('STOPPED')
-      //     this.#vm = null
-      //   }
-      // })
       this.#vm.log.on('data', event => {
         if (event.context.message) {
           if (VM.signalPattern.test(event.context.message)) {
@@ -159,13 +152,24 @@ export default class VM extends EventEmitter {
     }
   }
 
-  async stop (timeout = 60) {
+  async stop (timeout = 30) {
     if (!this.#vm) return true
     this.handleStatus('STOPPING')
     if (this.#traffic) {
+      logHandler({ event: 'vm.traffic.close', sockets: this.#sockets.size })
       const traffic = this.#traffic
-      await promisify(this.#traffic.close.bind(this.#traffic))()
-      if (this.#traffic === traffic) this.#traffic = null
+      await Promise.all([
+        ...[...this.#sockets]
+          .map(async socket => {
+            await promisify(socket.end.bind(socket))()
+            this.#sockets?.delete(socket)
+          }),
+        promisify(this.#traffic.close.bind(this.#traffic))()
+      ])
+      if (this.#traffic === traffic) {
+        this.#sockets = null
+        this.#traffic = null
+      }
     }
     const vm = this.#vm
     try {
@@ -183,7 +187,7 @@ export default class VM extends EventEmitter {
     const now = Date.now()
     this.#restarting = now
     try {
-      await this.stop(reset ? 0 : 60)
+      await this.stop(reset ? 0 : 30)
       if (reset) {
         await rm(dataDisk)
         await settings.delete('Workshop.ProjectsDirectory')
@@ -246,6 +250,7 @@ export default class VM extends EventEmitter {
   }
 
   handleTrafficSocket (incoming) {
+    this.#sockets.add(incoming)
     const host = '127.0.0.1'
     const port = 44451
     try {
@@ -253,10 +258,11 @@ export default class VM extends EventEmitter {
         incoming.pipe(outgoing)
         outgoing.pipe(incoming)
       })
-      outgoing.once('error', () => incoming.end())
-      incoming.once('error', () => outgoing.end())
+      this.#sockets.add(outgoing)
+      outgoing.once('error', () => incoming.end(() => this.#sockets?.delete(incoming)))
+      incoming.once('error', () => outgoing.end(() => this.#sockets?.delete(outgoing)))
     } catch (error) {
-      incoming.end()
+      incoming.end(() => this.#sockets?.delete(incoming))
     }
   }
 
