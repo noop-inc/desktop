@@ -161,10 +161,21 @@ export default class VM extends EventEmitter {
       await Promise.all([
         ...[...this.#sockets]
           .map(async socket => {
-            await promisify(socket.end.bind(socket))()
+            try {
+              await promisify(socket.end.bind(socket))()
+              this.#sockets?.delete(socket)
+            } catch (error) {
+              if (error.code !== 'ERR_STREAM_ALREADY_FINISHED') throw error
+            }
             this.#sockets?.delete(socket)
           }),
-        promisify(this.#traffic.close.bind(this.#traffic))()
+        async () => {
+          try {
+            await promisify(traffic.close.bind(traffic))()
+          } catch (error) {
+            if (error.code !== 'ERR_SERVER_NOT_RUNNING') throw error
+          }
+        }
       ])
       if (this.#traffic === traffic) {
         this.#sockets = null
@@ -259,8 +270,14 @@ export default class VM extends EventEmitter {
         outgoing.pipe(incoming)
       })
       this.#sockets.add(outgoing)
-      outgoing.once('error', () => incoming.end(() => this.#sockets?.delete(incoming)))
-      incoming.once('error', () => outgoing.end(() => this.#sockets?.delete(outgoing)))
+      outgoing.once('error', () => {
+        this.#sockets?.delete(outgoing)
+        incoming.end(() => this.#sockets?.delete(incoming))
+      })
+      incoming.once('error', () => {
+        this.#sockets?.delete(incoming)
+        outgoing.end(() => this.#sockets?.delete(outgoing))
+      })
     } catch (error) {
       incoming.end(() => this.#sockets?.delete(incoming))
     }
