@@ -68,6 +68,7 @@ const formatter = (...messages) =>
   )
 
 export default class VM extends EventEmitter {
+  #lastCmd
   #restarting
   #status = 'PENDING'
   #mainWindow
@@ -86,6 +87,8 @@ export default class VM extends EventEmitter {
   }
 
   async start () {
+    let now = Date.now()
+    this.#lastCmd = now
     if (this.#vm) throw new Error('Workshop VM already running')
     if (!this.#traffic) {
       this.#sockets = new Set()
@@ -140,57 +143,83 @@ export default class VM extends EventEmitter {
         logHandler({ event: 'vm.output', message: event.context?.message || event.context })
       })
     } catch (error) {
-      this.handleStatus('CREATE_FAILED')
-      throw error
+      logHandler({ event: 'vm.create.error', error })
+      if (now === this.#lastCmd) {
+        this.handleStatus('CREATE_FAILED')
+        throw error
+      }
     }
     this.handleStatus(this.#restarting ? 'RESTARTING' : 'STARTING')
+    now = Date.now()
+    this.#lastCmd = now
     try {
       await this.#vm.start()
     } catch (error) {
-      this.handleStatus('START_FAILED')
-      throw error
+      logHandler({ event: 'vm.start.error', error })
+      if (now === this.#lastCmd) {
+        this.handleStatus('START_FAILED')
+        throw error
+      }
     }
   }
 
   async stop (timeout = 30) {
-    if (!this.#vm) return true
-    this.handleStatus('STOPPING')
+    if (!this.#vm && !this.#traffic) return true
+    this.handleStatus(this.#restarting ? 'RESTARTING' : 'STOPPING')
+
     if (this.#traffic) {
-      logHandler({ event: 'vm.traffic.close', sockets: this.#sockets.size })
-      const traffic = this.#traffic
-      await Promise.all([
-        ...[...this.#sockets]
-          .map(async socket => {
-            try {
-              await promisify(socket.end.bind(socket))()
+      const now = Date.now()
+      this.#lastCmd = now
+      try {
+        logHandler({ event: 'vm.traffic.close', sockets: this.#sockets.size })
+        const traffic = this.#traffic
+        await Promise.all([
+          ...[...this.#sockets]
+            .map(async socket => {
+              try {
+                await promisify(socket.end.bind(socket))()
+                this.#sockets?.delete(socket)
+              } catch (error) {
+                if (error.code !== 'ERR_STREAM_ALREADY_FINISHED') throw error
+              }
               this.#sockets?.delete(socket)
+            }),
+          (async () => {
+            try {
+              await promisify(traffic.close.bind(traffic))()
             } catch (error) {
-              if (error.code !== 'ERR_STREAM_ALREADY_FINISHED') throw error
+              if (error.code !== 'ERR_SERVER_NOT_RUNNING') throw error
             }
-            this.#sockets?.delete(socket)
-          }),
-        async () => {
-          try {
-            await promisify(traffic.close.bind(traffic))()
-          } catch (error) {
-            if (error.code !== 'ERR_SERVER_NOT_RUNNING') throw error
-          }
+          })()
+        ])
+        if (this.#traffic === traffic) {
+          this.#sockets = null
+          this.#traffic = null
         }
-      ])
-      if (this.#traffic === traffic) {
-        this.#sockets = null
-        this.#traffic = null
+      } catch (error) {
+        logHandler({ event: 'vm.stop.error', error })
+        if (now === this.#lastCmd) {
+          this.handleStatus('STOP_FAILED')
+          throw error
+        }
       }
     }
-    const vm = this.#vm
-    try {
-      await vm.stop(timeout)
-    } catch (error) {
-      this.handleStatus('STOP_FAILED')
-      throw error
+    if (this.#vm) {
+      const now = Date.now()
+      this.#lastCmd = now
+      try {
+        const vm = this.#vm
+        await vm.stop(timeout)
+        await vm.promise('close')
+        if (this.#vm === vm) this.#vm = null
+      } catch (error) {
+        logHandler({ event: 'vm.stop.error', error })
+        if (now === this.#lastCmd) {
+          this.handleStatus('STOP_FAILED')
+          throw error
+        }
+      }
     }
-    await vm.promise('close')
-    if (this.#vm === vm) this.#vm = null
     this.handleStatus('STOPPED')
   }
 
@@ -210,6 +239,7 @@ export default class VM extends EventEmitter {
         throw error
       }
     }
+    if (now === this.#restarting) this.#restarting = null
   }
 
   async #setProjectsDirectory () {
@@ -220,7 +250,7 @@ export default class VM extends EventEmitter {
       await dialog.showMessageBox(this.mainWindow, {
         title: 'Projects Directory',
         message: 'Configuration Needed',
-        detail: 'Noop Workshop will automatically discover compatiable projects on your machine. Select the root-level Projects Directory to use.',
+        detail: 'Noop Workshop will automatically discover compatiable projects on your machine. Select the root-level directory to use for project discovery.',
         buttons: ['Next'],
         type: 'info'
       })

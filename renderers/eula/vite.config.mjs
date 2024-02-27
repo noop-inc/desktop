@@ -18,6 +18,7 @@ export default defineConfig((env) => {
     base: './',
     build: {
       target: 'esnext',
+      minify: 'terser',
       outDir: fileURLToPath(new URL(`../../.vite/renderer/${name}`, import.meta.url))
     },
     plugins: [

@@ -14,6 +14,8 @@ export default defineConfig((env) => {
   const define = getBuildDefine(forgeEnv)
   const config = {
     build: {
+      target: 'esnext',
+      minify: 'terser',
       lib: {
         entry: forgeConfigSelf.entry,
         fileName: () => '[name].js',
@@ -25,6 +27,7 @@ export default defineConfig((env) => {
           'better-sqlite3',
           'node-pty',
           'chokidar'
+          // 'node-cron'
         ]
       }
     },

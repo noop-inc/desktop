@@ -16,6 +16,8 @@ contextBridge.exposeInMainWorld(
       await ipcRenderer.invoke('workshop-vm-status'),
     openPath: async url =>
       await ipcRenderer.invoke('open-path', url),
+    showLogFiles: async () =>
+      await ipcRenderer.invoke('show-log-files'),
     restartWorkshopVm: async reset =>
       await ipcRenderer.invoke('restart-workshop-vm', reset),
     setBadgeCount: async num =>

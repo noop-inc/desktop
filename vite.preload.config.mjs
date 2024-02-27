@@ -13,6 +13,8 @@ export default defineConfig((env) => {
   /** @type {import('vite').UserConfig} */
   const config = {
     build: {
+      target: 'esnext',
+      minify: 'terser',
       rollupOptions: {
         external,
         // Preload scripts may contain Web assets, so use the `build.rollupOptions.input` instead `build.lib.entry`.

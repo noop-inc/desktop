@@ -13,7 +13,7 @@ import { inspect } from 'node:util'
 import settings from './Settings.js'
 import { arch, cpus, platform, release, totalmem } from 'node:os'
 
-log.initialize()
+// log.initialize()
 log.errorHandler.startCatching()
 log.eventLogger.startLogging()
 Object.assign(console, log.functions)
@@ -185,7 +185,7 @@ const ensureMainWindow = async () => {
     if (!eulaWindow) await ensureEulaWindow()
   } else {
     if (!mainWindow) await createMainWindow()
-    mainWindow.show()
+    // mainWindow.show()
     return mainWindow
   }
 }
@@ -381,6 +381,14 @@ const handleOpenPath = async (_event, url) => {
 
 ipcMain.handle('open-path', handleOpenPath)
 
+const handleShowLogFiles = async () => {
+  await ensureMainWindow()
+  shell.openPath(app.getPath('logs'))
+  return true
+}
+
+ipcMain.handle('show-log-files', handleShowLogFiles)
+
 const handleRestartWorkshopVm = async (_event, reset) => {
   if (managingVm) {
     await ensureMainWindow()
@@ -537,6 +545,7 @@ app.on('activate', async () => {
   // On OS X it's common to re-create a window in the app when the
   // dock icon is clicked and there are no other windows open.
   await ensureMainWindow()
+  mainWindow.show()
 })
 
 // In this file you can include the rest of your app's specific main process
