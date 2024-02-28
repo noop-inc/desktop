@@ -168,10 +168,10 @@ export default class VM extends EventEmitter {
     this.handleStatus(this.#restarting ? 'RESTARTING' : 'STOPPING')
 
     if (this.#traffic) {
+      logHandler({ event: 'vm.traffic.close.start', sockets: this.#sockets?.size })
       const now = Date.now()
       this.#lastCmd = now
       try {
-        logHandler({ event: 'vm.traffic.close', sockets: this.#sockets.size })
         const traffic = this.#traffic
         await Promise.all([
           ...[...this.#sockets]
@@ -192,6 +192,7 @@ export default class VM extends EventEmitter {
             }
           })()
         ])
+        logHandler({ event: 'vm.traffic.close.end', sockets: this.#sockets?.size })
         if (this.#traffic === traffic) {
           this.#sockets = null
           this.#traffic = null
@@ -203,14 +204,22 @@ export default class VM extends EventEmitter {
           throw error
         }
       }
+    } else {
+      logHandler({ event: 'vm.traffic.close.skip', sockets: this.#sockets?.size })
     }
+
     if (this.#vm) {
+      logHandler({ event: 'vm.stop.start' })
       const now = Date.now()
       this.#lastCmd = now
       try {
         const vm = this.#vm
-        await vm.stop(timeout)
-        await vm.promise('close')
+        if (timeout) {
+          await vm.stop(timeout)
+        } else {
+          vm.kill()
+        }
+        logHandler({ event: 'vm.stop.end' })
         if (this.#vm === vm) this.#vm = null
       } catch (error) {
         logHandler({ event: 'vm.stop.error', error })
@@ -219,6 +228,8 @@ export default class VM extends EventEmitter {
           throw error
         }
       }
+    } else {
+      logHandler({ event: 'vm.stop.skip' })
     }
     this.handleStatus('STOPPED')
   }
