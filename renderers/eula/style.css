@@ -1,0 +1,143 @@
+:root {
+  color-scheme: dark;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue" "Noto Sans", "Liberation Sans", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+}
+
+div.content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  height: 100vh;
+  width: 100vw;
+}
+
+h1.header {
+  flex-shrink: 0;
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+  margin: 0;
+  line-height: 1.25;
+  background-color: rgb(255 255 255 / 0.1);
+  -webkit-app-region: drag;
+
+  /* box-shadow: 0 0.5rem 1rem #212529;
+  z-index: 5; */
+}
+
+section.eula {
+  flex: 1;
+  overflow-y: scroll;
+  padding: 1rem 0.5rem 1rem 1.5rem;
+  font-size: 0.75rem;
+}
+
+section.eula::-webkit-scrollbar {
+  width: 0.75rem;
+}
+
+section.eula::-webkit-scrollbar-thumb {
+  background-color: rgb(222 226 230 / 0.5);
+  transition: background-color 0.15s ease-in-out;
+}
+
+section.eula::-webkit-scrollbar-thumb:hover {
+  background-color: rgb(222 226 230);
+}
+
+section.eula > * {
+  margin-bottom: 0.75rem;
+}
+
+section.eula > *:last-child {
+  margin: 0;
+}
+
+section.buttons {
+  flex-shrink: 0;
+  padding: 0.75rem;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  background-color: rgb(255 255 255 / 0.1);
+
+  /* box-shadow: 0 -0.5rem 1rem #212529; */
+}
+
+section.buttons > button {
+  color: #fff;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25em;
+  font-size: 0.875rem;
+  transition: color 0.15s ease-in-out,
+    background-color 0.15s ease-in-out,
+    border-color 0.15s ease-in-out,
+    box-shadow 0.15s ease-in-out,
+    opacity 0.15s ease-in-out;
+}
+
+section.buttons > button:disabled {
+  color: #fff;
+  opacity: 0.65;
+  background-color: var(--bs-secondary);
+  border: 1px solid var(--bs-secondary);
+  cursor: not-allowed;
+}
+
+section.buttons > #accept:not(:disabled) {
+  color: #fff;
+  background-color: var(--bs-success);
+  border: 1px solid var(--bs-success);
+}
+
+section.buttons > #accept:hover:not(:disabled) {
+  background-color: #157347;
+  border: 1px solid #146c43;
+}
+
+section.buttons > #accept:focus:not(:disabled) {
+  background-color: #157347;
+  border: 1px solid #146c43;
+  outline: 0;
+  box-shadow: 0 0 0 0.25rem rgb(60 153 110 / 0.5);
+}
+
+section.buttons > #decline:not(:disabled) {
+  color: #fff;
+  background-color: var(--bs-danger);
+  border: 1px solid var(--bs-danger);
+}
+
+section.buttons > #decline:hover:not(:disabled) {
+  background-color: #bb2d3b;
+  border: 1px solid #b02a37;
+}
+
+section.buttons > #decline:focus:not(:disabled) {
+  background-color: #bb2d3b;
+  border: 1px solid #b02a37;
+  outline: 0;
+  box-shadow: 0 0 0 0.25rem rgb(225 83 97 / 0.5);
+}
+
+a {
+  text-decoration: inherit;
+  transition: color 0.15s ease-in-out;
+}
+
+h6 {
+  font-size: inherit;
+  line-height: 1.25;
+}
+
+ul, ol {
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+}

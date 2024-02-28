@@ -13,4 +13,3 @@ Please use our community forum to [submit bug reports](https://github.com/orgs/n
 - For support using Workshop, visit our [community forum](https://noop.dev/community).
 - To learn more about the Noop platform check out [the docs](https://noop.dev/docs/).
 - To keep up to date with product developments across the Noop platform subscribe to our [changelog](https://noop.dev/changelog/).
-

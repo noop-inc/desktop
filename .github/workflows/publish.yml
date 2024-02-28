@@ -6,32 +6,38 @@ on:
       DesktopVersion:
         description: Deskstop Version
         required: true
-      WorkshopVmVersion:
-        description: Workshop VM Version
-        required: true
 
 jobs:
   Publish:
     name: Publish Desktop Release
-    runs-on: macos-13-xlarge
+    runs-on: ${{matrix.runner}}
+    strategy:
+      matrix:
+        include:
+          - runner: macos-14-xlarge
+          - runner: macos-14-large
 
     steps:
       - name: Code Checkout
+        id: code-checkout
         uses: actions/checkout@v4
 
-      - name: Install NodeJS
+      - name: Setup NodeJS
+        id: setup-nodejs
         uses: actions/setup-node@v4
         with:
           node-version: 20
           registry-url: 'https://npm.pkg.github.com'
           scope: '@noop-inc'
 
-      - name: Install Python
+      - name: Setup Python
+        id: setup-python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Install the Apple certificate
+      - name: Install Apple certificate
+        id: install-apple-certificate
         env:
           BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
           P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
@@ -56,46 +62,38 @@ jobs:
 
           security find-identity -p codesigning -v
 
-      - name: Bump Version
-        run: node .github/workflows/bump.mjs
-        env:
-          VERSION_INPUT: ${{ github.event.inputs.DesktopVersion }}
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      # - name: Cache NPM
-      #   id: cache-npm
-      #   uses: actions/cache@v3
-      #   with:
-      #     path: |
-      #       ~/.npm
-      #       ./node_modules
-      #     key: ${{ runner.os }}-npm-${{ hashFiles('package-lock.json') }}
-      #     restore-keys: ${{ runner.os }}-npm-
-
-      - name: Install Dependencies
-        # if: steps.cache-npm.outputs.cache-hit != 'true'
+      - name: Install Node Modules
+        id: install-node-modules
         run: npm ci
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN }}
 
       - name: Download Workshop VM
+        id: download-workshop-vm
         run: |
-          SHORT_VERSION=${WORKSHOP_VM_VERSION#v}
-          gh release download "${WORKSHOP_VM_VERSION}" -p "noop-workshop-vm-${SHORT_VERSION}.aarch64.qcow2.zip" -R "noop-inc/workshop-vm"
-          ditto -x -k "noop-workshop-vm-${SHORT_VERSION}.aarch64.qcow2.zip" .
-
+          WORKSHOP_VM_VERSION=$(cat package.json | jq -r '."@noop-inc"."workshop-vm"')
+          ARCH=`uname -m`
+          if [[ "$ARCH" == *"arm"* ]]
+          then
+            ARCH="aarch64"
+          else
+            ARCH="x86_64"
+          fi
+          gh release download "v${WORKSHOP_VM_VERSION}" -p "noop-workshop-vm-${WORKSHOP_VM_VERSION}.${ARCH}.disk.zip" -R "noop-inc/workshop-vm"
+          ditto -x -k "noop-workshop-vm-${WORKSHOP_VM_VERSION}.${ARCH}.disk.zip" .
+          echo "WORKSHOP_VM_VERSION=${WORKSHOP_VM_VERSION}" >> "$GITHUB_OUTPUT"
         env:
           GITHUB_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN }}
-          WORKSHOP_VM_VERSION: ${{ github.event.inputs.WorkshopVmVersion }}
 
-      # - name: Cache Build
-      #   id: cache-build
-      #   uses: actions/cache@v3
-      #   with:
-      #     path: ./node_modules/.cache/webpack
-      #     key: ${{ runner.os }}-webpack-cache-${{ github.sha }}
+      - name: Bump Version
+        id: bump-version
+        run: node .github/workflows/bump.mjs
+        env:
+          VERSION_INPUT: ${{ github.event.inputs.DesktopVersion }}
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and Publish Desktop
+        id: build-and-publish-desktop
         run: npm run publish
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -103,4 +101,4 @@ jobs:
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           TEAM_ID: ${{ secrets.TEAM_ID }}
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN }}
-          WORKSHOP_VM_VERSION: ${{ github.event.inputs.WorkshopVmVersion }}
+          WORKSHOP_VM_VERSION: ${{ steps.download-workshop-vm.outputs.WORKSHOP_VM_VERSION }}
