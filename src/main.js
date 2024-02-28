@@ -54,7 +54,7 @@ let mainWindow
 let eulaWindow
 let authWindow
 let updaterInterval
-let appIsQuitting = false
+// let vm.isQuitting = false
 let localRepositories = []
 const fileWatchers = {}
 
@@ -89,7 +89,7 @@ const createMainWindow = async () => {
     })
 
     mainWindow.on('close', event => {
-      if (!appIsQuitting) {
+      if (!vm.isQuitting) {
         event.preventDefault()
         mainWindow.hide()
       }
@@ -142,7 +142,7 @@ const createMainWindow = async () => {
         console.log('update-not-available')
       })
       autoUpdater.on('before-quit-for-update', () => {
-        appIsQuitting = true
+        vm.isQuitting = true
         console.log('before-quit-for-update')
       })
 
@@ -157,6 +157,7 @@ const createMainWindow = async () => {
           detail: 'A new version has been downloaded. Restart the application to apply the updates.'
         })
         if (returnValue.response === 0) {
+          vm.isQuitting = true
           clearInterval(updaterInterval)
           await Promise.all(Object.entries(fileWatchers).map(async ([repoId, watcher]) => {
             await watcher.stop()
@@ -401,12 +402,14 @@ const handleRestartWorkshopVm = async (_event, reset) => {
         : 'Restarting Workshop VM will stop all existing Workshop\'s processes.'
     })
     if (returnValue.response === 0) {
+      vm.isRestarting = true
       await Promise.all(Object.entries(fileWatchers).map(async ([repoId, watcher]) => {
         await watcher.stop()
         watcher.removeAllListeners()
         delete fileWatchers[repoId]
       }))
       await vm.restart(reset)
+      vm.isRestarting = false
       return true
     }
   }
@@ -581,7 +584,7 @@ app.on('web-contents-created', async (event, contents) => {
 })
 
 app.on('before-quit', async event => {
-  appIsQuitting = true
+  vm.isQuitting = true
   if (managingVm && !['PENDING', 'STOPPED'].includes(vm.status)) {
     event.preventDefault()
     clearInterval(updaterInterval)

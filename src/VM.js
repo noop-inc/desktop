@@ -70,6 +70,9 @@ const formatter = (...messages) =>
 export default class VM extends EventEmitter {
   #lastCmd
   #restarting
+  #quitting
+  #isRestarting
+  #isQuitting
   #status = 'PENDING'
   #mainWindow
   #vm
@@ -95,154 +98,189 @@ export default class VM extends EventEmitter {
       this.#traffic = createServer(socket => this.handleTrafficSocket(socket))
       await promisify(this.#traffic.listen.bind(this.#traffic))(443)
     }
-    this.handleStatus(this.#restarting ? 'RESTARTING' : 'CREATING')
-    try {
-      await mkdir(workdir, { recursive: true })
-      const baseImage = await this.workshopImage()
+    if (now === this.#lastCmd) {
+      this.handleStatus(this.#restarting ? 'RESTARTING' : 'CREATING')
+      now = Date.now()
+      this.#lastCmd = now
       try {
-        await stat(baseImage)
-      } catch (cause) {
-        throw new Error('Workshop base image not found', { cause })
-      }
-      try {
-        await stat(dataDisk)
-      } catch (error) {
-        logHandler({ event: 'workshop.initialize', disk: dataDisk })
-        await settings.delete('Workshop.ProjectsDirectory')
-        await QemuVirtualMachine.createDiskImage(dataDisk, { size: 100 })
-      }
-      try {
-        await rm(systemDisk)
-      } catch (error) {}
-      logHandler({ event: 'workshop.initialize', disk: systemDisk, baseImage })
-      await QemuVirtualMachine.createDiskImage(systemDisk, { base: baseImage })
-      await this.#setProjectsDirectory()
-
-      const cpu = this.defaultCpu
-      const memory = this.defaultMemory
-      const ports = [
-        '127.0.0.1:44450-:22', // SSH
-        '127.0.0.1:44451-:441', // Workshop Traffic
-        '127.0.0.1:44452-:442' // Workshop API
-      ]
-      const disks = [systemDisk, dataDisk]
-      const mounts = {
-        Projects: await this.projectsDirectory()
-      }
-      const params = { workdir, cpu, memory, ports, disks, mounts }
-      logHandler({ event: 'vm.params', ...params })
-      const vm = new QemuVirtualMachine(params)
-      this.#vm = vm
-      this.#vm.log.on('data', event => {
-        if (event.context.message) {
-          if (VM.signalPattern.test(event.context.message)) {
-            const [, signal] = VM.signalPattern.exec(event.context.message)
-            this.handleStatus(signal)
-          }
+        await mkdir(workdir, { recursive: true })
+        const baseImage = await this.workshopImage()
+        try {
+          await stat(baseImage)
+        } catch (cause) {
+          throw new Error('Workshop base image not found', { cause })
         }
-        logHandler({ event: 'vm.output', message: event.context?.message || event.context })
-      })
-    } catch (error) {
-      logHandler({ event: 'vm.create.error', error })
-      if (now === this.#lastCmd) {
-        this.handleStatus('CREATE_FAILED')
-        throw error
+        try {
+          await stat(dataDisk)
+        } catch (error) {
+          logHandler({ event: 'workshop.initialize', disk: dataDisk })
+          await settings.delete('Workshop.ProjectsDirectory')
+          await QemuVirtualMachine.createDiskImage(dataDisk, { size: 100 })
+        }
+        try {
+          await rm(systemDisk)
+        } catch (error) {}
+        logHandler({ event: 'workshop.initialize', disk: systemDisk, baseImage })
+        await QemuVirtualMachine.createDiskImage(systemDisk, { base: baseImage })
+        await this.#setProjectsDirectory()
+
+        const cpu = this.defaultCpu
+        const memory = this.defaultMemory
+        const ports = [
+          '127.0.0.1:44450-:22', // SSH
+          '127.0.0.1:44451-:441', // Workshop Traffic
+          '127.0.0.1:44452-:442' // Workshop API
+        ]
+        const disks = [systemDisk, dataDisk]
+        const mounts = {
+          Projects: await this.projectsDirectory()
+        }
+        const params = { workdir, cpu, memory, ports, disks, mounts }
+        logHandler({ event: 'vm.params', ...params })
+        const vm = new QemuVirtualMachine(params)
+        this.#vm = vm
+        this.#vm.log.on('data', event => {
+          if (event.context.message) {
+            if (VM.signalPattern.test(event.context.message)) {
+              const [, signal] = VM.signalPattern.exec(event.context.message)
+              if ((signal === 'RUNNING') && !this.isQuitting) {
+                this.handleStatus(signal)
+              }
+            }
+          }
+          logHandler({ event: 'vm.output', message: event.context?.message || event.context })
+        })
+      } catch (error) {
+        logHandler({ event: 'vm.create.error', error })
+        if (now === this.#lastCmd) {
+          this.handleStatus('CREATE_FAILED')
+          throw error
+        }
       }
     }
-    this.handleStatus(this.#restarting ? 'RESTARTING' : 'STARTING')
-    now = Date.now()
-    this.#lastCmd = now
-    try {
-      await this.#vm.start()
-    } catch (error) {
-      logHandler({ event: 'vm.start.error', error })
-      if (now === this.#lastCmd) {
-        this.handleStatus('START_FAILED')
-        throw error
+    if (now === this.#lastCmd) {
+      this.handleStatus(this.#restarting ? 'RESTARTING' : 'STARTING')
+      now = Date.now()
+      this.#lastCmd = now
+      try {
+        await this.#vm.start()
+      } catch (error) {
+        logHandler({ event: 'vm.start.error', error })
+        if (now === this.#lastCmd) {
+          this.handleStatus('START_FAILED')
+          throw error
+        }
       }
     }
   }
 
-  async stop (timeout = 30) {
+  async stop (timeout = 15) {
+    if (this.isQuitting && this.#restarting) {
+      this.#restarting = null
+      if (this.#quitting) return
+    }
     if (!this.#vm && !this.#traffic) return true
+    const now = Date.now()
+    this.#lastCmd = now
+    this.#quitting = now
+
     this.handleStatus(this.#restarting ? 'RESTARTING' : 'STOPPING')
 
-    if (this.#traffic) {
-      logHandler({ event: 'vm.traffic.close.start', sockets: this.#sockets?.size })
-      const now = Date.now()
-      this.#lastCmd = now
-      try {
-        const traffic = this.#traffic
-        await Promise.all([
-          ...[...this.#sockets]
-            .map(async socket => {
-              try {
-                await promisify(socket.end.bind(socket))()
-                this.#sockets?.delete(socket)
-              } catch (error) {
-                if (error.code !== 'ERR_STREAM_ALREADY_FINISHED') throw error
-              }
-              this.#sockets?.delete(socket)
-            }),
-          (async () => {
+    try {
+      await Promise.all([
+        (async () => {
+          if (this.#traffic) {
+            logHandler({ event: 'vm.traffic.close.start', sockets: this.#sockets?.size })
+            // const now = Date.now()
+            // this.#lastCmd = now
             try {
-              await promisify(traffic.close.bind(traffic))()
+              const traffic = this.#traffic
+              await Promise.all([
+                ...[...this.#sockets]
+                  .map(async socket => {
+                    try {
+                      await promisify(socket.end.bind(socket))()
+                      this.#sockets?.delete(socket)
+                    } catch (error) {
+                      if (error.code !== 'ERR_STREAM_ALREADY_FINISHED') throw error
+                    }
+                    this.#sockets?.delete(socket)
+                  }),
+                (async () => {
+                  try {
+                    await promisify(traffic.close.bind(traffic))()
+                  } catch (error) {
+                    if (error.code !== 'ERR_SERVER_NOT_RUNNING') throw error
+                  }
+                })()
+              ])
+              logHandler({ event: 'vm.traffic.close.end', sockets: this.#sockets?.size })
+              if (this.#traffic === traffic) {
+                this.#sockets = null
+                this.#traffic = null
+              }
             } catch (error) {
-              if (error.code !== 'ERR_SERVER_NOT_RUNNING') throw error
+              logHandler({ event: 'vm.stop.error', error })
+              if (now === this.#lastCmd) {
+                this.handleStatus('STOP_FAILED')
+                throw error
+              }
             }
-          })()
-        ])
-        logHandler({ event: 'vm.traffic.close.end', sockets: this.#sockets?.size })
-        if (this.#traffic === traffic) {
-          this.#sockets = null
-          this.#traffic = null
-        }
-      } catch (error) {
-        logHandler({ event: 'vm.stop.error', error })
-        if (now === this.#lastCmd) {
-          this.handleStatus('STOP_FAILED')
-          throw error
-        }
+          } else {
+            logHandler({ event: 'vm.traffic.close.skip', sockets: this.#sockets?.size })
+          }
+        })(),
+        (async () => {
+          if (this.#vm) {
+            logHandler({ event: 'vm.stop.start' })
+            // const now = Date.now()
+            // this.#lastCmd = now
+            try {
+              const vm = this.#vm
+              if (timeout) {
+                await vm.stop(timeout)
+              } else {
+                vm.kill()
+              }
+              logHandler({ event: 'vm.stop.end' })
+              if (this.#vm === vm) this.#vm = null
+            } catch (error) {
+              logHandler({ event: 'vm.stop.error', error })
+              if (now === this.#lastCmd) {
+                this.handleStatus('STOP_FAILED')
+                throw error
+              }
+            }
+          } else {
+            logHandler({ event: 'vm.stop.skip' })
+          }
+          this.#quitting = null
+          this.handleStatus('STOPPED')
+        })()
+      ])
+    } catch (error) {
+      logHandler({ event: 'vm.stop.error', error })
+      if (now === this.#lastCmd) {
+        this.handleStatus('STOP_FAILED')
+        throw error
       }
-    } else {
-      logHandler({ event: 'vm.traffic.close.skip', sockets: this.#sockets?.size })
     }
-
-    if (this.#vm) {
-      logHandler({ event: 'vm.stop.start' })
-      const now = Date.now()
-      this.#lastCmd = now
-      try {
-        const vm = this.#vm
-        if (timeout) {
-          await vm.stop(timeout)
-        } else {
-          vm.kill()
-        }
-        logHandler({ event: 'vm.stop.end' })
-        if (this.#vm === vm) this.#vm = null
-      } catch (error) {
-        logHandler({ event: 'vm.stop.error', error })
-        if (now === this.#lastCmd) {
-          this.handleStatus('STOP_FAILED')
-          throw error
-        }
-      }
-    } else {
-      logHandler({ event: 'vm.stop.skip' })
-    }
+    this.#quitting = null
     this.handleStatus('STOPPED')
   }
 
   async restart (reset) {
+    if (!this.isRestarting || this.#restarting || this.isQuitting || this.#quitting) return
     const now = Date.now()
     this.#restarting = now
     try {
-      await this.stop(reset ? 0 : 30)
+      await this.stop(reset ? 0 : 15)
+      if (this.isQuitting || this.#quitting) return
       if (reset) {
         await rm(dataDisk)
         await settings.delete('Workshop.ProjectsDirectory')
       }
+      if (this.isQuitting || this.#quitting) return
       await this.start()
     } catch (error) {
       if (now === this.#restarting) {
@@ -261,7 +299,7 @@ export default class VM extends EventEmitter {
       await dialog.showMessageBox(this.mainWindow, {
         title: 'Projects Directory',
         message: 'Configuration Needed',
-        detail: 'Noop Workshop will automatically discover compatiable projects on your machine. Select the root-level directory to use for project discovery.',
+        detail: 'Noop Workshop will automatically discover compatible projects on your machine. Select the root-level directory to use for project discovery.',
         buttons: ['Next'],
         type: 'info'
       })
@@ -352,5 +390,21 @@ export default class VM extends EventEmitter {
 
   set mainWindow (mainWindow) {
     this.#mainWindow = mainWindow
+  }
+
+  get isQuitting () {
+    return this.#isQuitting
+  }
+
+  set isQuitting (isQuitting) {
+    this.#isQuitting = isQuitting
+  }
+
+  get isRestarting () {
+    return this.#isRestarting
+  }
+
+  set isRestarting (isRestarting) {
+    this.#isRestarting = isRestarting
   }
 }
