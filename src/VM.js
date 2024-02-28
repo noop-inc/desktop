@@ -177,7 +177,7 @@ export default class VM extends EventEmitter {
           ...[...this.#sockets]
             .map(async socket => {
               try {
-                await promisify(socket.end.bind(socket))()
+                socket.destroy()
                 this.#sockets?.delete(socket)
               } catch (error) {
                 if (error.code !== 'ERR_STREAM_ALREADY_FINISHED') throw error
