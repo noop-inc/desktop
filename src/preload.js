@@ -16,15 +16,18 @@ contextBridge.exposeInMainWorld(
       await ipcRenderer.invoke('workshop-vm-status'),
     openPath: async url =>
       await ipcRenderer.invoke('open-path', url),
+    showLogFiles: async () =>
+      await ipcRenderer.invoke('show-log-files'),
     restartWorkshopVm: async reset =>
       await ipcRenderer.invoke('restart-workshop-vm', reset),
     setBadgeCount: async num =>
       await ipcRenderer.invoke('set-badge-count', num),
     localRepositories: async repos =>
       await ipcRenderer.invoke('local-repositories', repos || []),
-    eula: async accept => {
-      await ipcRenderer.invoke('eula', accept)
-    }
+    eula: async accept =>
+      await ipcRenderer.invoke('eula', accept),
+    intercomDesktopLogin: async () =>
+      await ipcRenderer.invoke('intercom-desktop-login')
   }
 )
 

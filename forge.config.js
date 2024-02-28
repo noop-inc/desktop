@@ -1,3 +1,6 @@
+const { FusesPlugin } = require('@electron-forge/plugin-fuses')
+const { FuseV1Options, FuseVersion } = require('@electron/fuses')
+
 require('dotenv').config()
 
 const arch = process.arch.includes('arm') ? 'aarch64' : 'x86_64'
@@ -27,7 +30,7 @@ module.exports = {
         : {
             extraResource: [
               `node_modules/@noop-inc/desktop-lima/dist/lima-and-qemu.macos-${arch}`,
-              `noop-workshop-vm-${process.env.WORKSHOP_VM_VERSION}.${arch}.qcow2`
+              `noop-workshop-vm-${process.env.WORKSHOP_VM_VERSION}.${arch}.disk`
             ]
           }
     ),
@@ -80,7 +83,7 @@ module.exports = {
         renderer: [
           {
             name: 'main_window',
-            config: 'node_modules/@noop-inc/console/vite.config.mjs'
+            config: 'vite.renderer.config.mjs'
           },
           {
             name: 'eula_window',
@@ -88,7 +91,18 @@ module.exports = {
           }
         ]
       }
-    }
+    },
+    // Fuses are used to enable/disable various Electron functionality
+    // at package time, before code signing the application
+    new FusesPlugin({
+      version: FuseVersion.V1,
+      [FuseV1Options.RunAsNode]: false,
+      [FuseV1Options.EnableCookieEncryption]: true,
+      [FuseV1Options.EnableNodeOptionsEnvironmentVariable]: false,
+      [FuseV1Options.EnableNodeCliInspectArguments]: false,
+      [FuseV1Options.EnableEmbeddedAsarIntegrityValidation]: true,
+      [FuseV1Options.OnlyLoadAppFromAsar]: true
+    })
   ],
   publishers: [
     {

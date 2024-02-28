@@ -11,8 +11,9 @@ import { pathToFileURL, fileURLToPath } from 'node:url'
 import FileWatcher from './FileWatcher.js'
 import { inspect } from 'node:util'
 import settings from './Settings.js'
+import { arch, cpus, platform, release, totalmem } from 'node:os'
 
-log.initialize()
+// log.initialize()
 log.errorHandler.startCatching()
 log.eventLogger.startLogging()
 Object.assign(console, log.functions)
@@ -46,7 +47,7 @@ const loadURL = packaged
   ? serve({ directory: `./.vite/renderer/${mainWindowViteName}` })
   : null
 
-const workshopApiBase = 'https://inspector.local.noop.app:1234'
+const workshopApiBase = 'https://workshop.local.noop.app:44452'
 const noopProtocal = 'noop'
 let githubLoginUrl
 let mainWindow
@@ -111,7 +112,7 @@ const createMainWindow = async () => {
 
     if (managingVm) {
       vm.on('status', handleWorkshopVmStatus)
-      await vm.open()
+      await vm.start()
     }
 
     const version = app.getVersion()
@@ -163,7 +164,7 @@ const createMainWindow = async () => {
             delete fileWatchers[repoId]
           }))
 
-          await vm.quit()
+          await vm.stop()
 
           autoUpdater.quitAndInstall()
         }
@@ -184,7 +185,7 @@ const ensureMainWindow = async () => {
     if (!eulaWindow) await ensureEulaWindow()
   } else {
     if (!mainWindow) await createMainWindow()
-    mainWindow.show()
+    // mainWindow.show()
     return mainWindow
   }
 }
@@ -267,7 +268,7 @@ const handleEula = async (_event, agree) => {
 ipcMain.handle('eula', handleEula)
 
 const handleWorkshopVmStatus = async status => {
-  if (status === 'DELETED') localRepositories = []
+  if (status === 'STOPPED') localRepositories = []
   mainWindow?.webContents.send('workshop-vm-status', vm.status)
   return vm.status
 }
@@ -380,6 +381,14 @@ const handleOpenPath = async (_event, url) => {
 
 ipcMain.handle('open-path', handleOpenPath)
 
+const handleShowLogFiles = async () => {
+  await ensureMainWindow()
+  shell.openPath(app.getPath('logs'))
+  return true
+}
+
+ipcMain.handle('show-log-files', handleShowLogFiles)
+
 const handleRestartWorkshopVm = async (_event, reset) => {
   if (managingVm) {
     await ensureMainWindow()
@@ -484,6 +493,20 @@ const handleLocalRepositories = async repositories => {
 
 ipcMain.handle('local-repositories', async (_event, repositories) => await handleLocalRepositories(repositories))
 
+const handleIntercomDesktopLogin = async () => {
+  const payload = {
+    app_version: app.getVersion(),
+    os_arch: arch(),
+    os_cpus: cpus().length,
+    os_platform: platform(),
+    os_release: release(),
+    os_totalmem: totalmem()
+  }
+  return payload
+}
+
+ipcMain.handle('intercom-desktop-login', async () => await handleIntercomDesktopLogin())
+
 if (process.defaultApp) {
   if (process.argv.length >= 2) {
     app.setAsDefaultProtocolClient(noopProtocal, process.execPath, [resolve(process.argv[1])])
@@ -522,6 +545,7 @@ app.on('activate', async () => {
   // On OS X it's common to re-create a window in the app when the
   // dock icon is clicked and there are no other windows open.
   await ensureMainWindow()
+  mainWindow.show()
 })
 
 // In this file you can include the rest of your app's specific main process
@@ -558,7 +582,7 @@ app.on('web-contents-created', async (event, contents) => {
 
 app.on('before-quit', async event => {
   appIsQuitting = true
-  if (managingVm && !['PENDING', 'DELETED'].includes(vm.status)) {
+  if (managingVm && !['PENDING', 'STOPPED'].includes(vm.status)) {
     event.preventDefault()
     clearInterval(updaterInterval)
     await Promise.all(Object.entries(fileWatchers).map(async ([repoId, watcher]) => {
@@ -566,7 +590,7 @@ app.on('before-quit', async event => {
       watcher.removeAllListeners()
       delete fileWatchers[repoId]
     }))
-    await vm.quit()
+    await vm.stop()
     app.quit()
   }
 });
