@@ -1,9 +1,21 @@
 const { FusesPlugin } = require('@electron-forge/plugin-fuses')
 const { FuseV1Options, FuseVersion } = require('@electron/fuses')
+// const { spawn: spawnCallback } = require('node:child_process')
+// const { rm, cp, rename } = require('node:fs/promises')
+// const { resolve } = require('node:path')
 
 require('dotenv').config()
 
 const arch = process.arch.includes('arm') ? 'aarch64' : 'x86_64'
+
+// const spawn = async (...args) => await new Promise((resolve, reject) => {
+//   const spawnArgs = [...args]
+//   spawnArgs[2] = { ...spawnArgs[2], stdio: [process.stdin, process.stdout, process.stderr] }
+//   const cp = spawnCallback(...spawnArgs)
+//   cp.on('close', code => {
+//     code ? reject(new Error('dekstop-lima install error', { code, args })) : resolve()
+//   })
+// })
 
 module.exports = {
   packagerConfig: {
@@ -118,4 +130,61 @@ module.exports = {
       }
     }
   ]
+  // hooks: {
+  //   prePackage: async (config, platform, arch) => {
+  //     if (['package', 'make'].includes(process.env.npm_lifecycle_event)) {
+  //       if (platform === 'darwin') {
+  //         const foundArch = ({
+  //           arm64: 'aarch64',
+  //           x64: 'x86_64'
+  //         })[arch]
+
+  //         const qemuDistDir = resolve(__dirname, 'node_modules/@noop-inc/desktop-lima/dist')
+
+  //         const qemuX86Zip = resolve(qemuDistDir, 'lima-and-qemu.macos-x86_64.zip')
+  //         const qemuArmZip = resolve(qemuDistDir, 'lima-and-qemu.macos-aarch64.zip')
+
+  //         const qemuX86Dir = resolve(qemuDistDir, 'lima-and-qemu.macos-x86_64')
+  //         const qemuArmDir = resolve(qemuDistDir, 'lima-and-qemu.macos-aarch64')
+
+  //         // const qemuArmZip = resolve(__dirname, 'node_modules/@noop-inc/desktop-lima/dist/lima-and-qemu.macos-aarch64.zip')
+
+  //         // const qemuX86Dir = resolve(__dirname, 'lima-and-qemu.macos-x86_64')
+  //         // const qemuArmDir = resolve(__dirname, 'lima-and-qemu.macos-aarch64')
+  //         // const qemuDir = resolve(__dirname, 'lima-and-qemu.macos')
+
+  //         const workshopVmImageX86 = resolve(__dirname, `noop-workshop-vm-${process.env.WORKSHOP_VM_VERSION}.x86_64.disk`)
+  //         const workshopVmImageArm = resolve(__dirname, `noop-workshop-vm-${process.env.WORKSHOP_VM_VERSION}.aarch64.disk`)
+  //         // const workshopVmImage = resolve(__dirname, `noop-workshop-vm-${process.env.WORKSHOP_VM_VERSION}.disk`)
+
+  //         // await rm(qemuDir, { recursive: true, force: true })
+  //         // await rm(workshopVmImage, { recursive: true, force: true })
+
+  //         if (foundArch === 'aarch64') {
+  //           await rm(qemuArmDir, { recursive: true, force: true })
+  //           await spawn('ditto', ['-x', '-k', qemuArmZip, qemuDistDir])
+  //           config.packagerConfig.extraResource = [
+  //             qemuArmDir,
+  //             workshopVmImageArm
+  //           ]
+
+  //           // await rename(qemuArmDir, qemuDir)
+  //           // await cp(workshopVmImageArm, workshopVmImage, { recursive: true, force: true })
+  //         }
+
+  //         if (foundArch === 'x86_64') {
+  //           await rm(qemuX86Dir, { recursive: true, force: true })
+  //           await spawn('ditto', ['-x', '-k', qemuX86Zip, qemuDistDir])
+  //           config.packagerConfig.extraResource = [
+  //             qemuX86Dir,
+  //             workshopVmImageX86
+  //           ]
+
+  //           // await rename(qemuX86Dir, qemuDir)
+  //           // await cp(workshopVmImageX86, workshopVmImage, { recursive: true, force: true })
+  //         }
+  //       }
+  //     }
+  //   }
+  // }
 }

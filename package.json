@@ -47,21 +47,21 @@
     "@electron-forge/plugin-fuses": "^7.3.0",
     "@electron-forge/plugin-vite": "^7.3.0",
     "@electron-forge/publisher-github": "^7.3.0",
-    "@noop-inc/console": "^3.0.26",
-    "@noop-inc/desktop-lima": "0.0.69",
+    "@noop-inc/console": "^3.0.28",
+    "@noop-inc/desktop-lima": "0.0.70",
     "@noop-inc/discovery": "^2.0.53",
-    "@noop-inc/foundation": "2.1.1-pr658.8",
-    "autoprefixer": "^10.4.17",
+    "@noop-inc/foundation": "2.1.1-pr658.14",
+    "autoprefixer": "^10.4.18",
     "concurrently": "^8.2.2",
     "dot-prop": "^8.0.2",
     "dotenv": "^16.4.5",
-    "electron": "^27.3.3",
+    "electron": "^29.1.1",
     "electron-log": "^5.1.1",
     "electron-serve": "^1.3.0",
     "eslint": "^8.57.0",
     "eslint-config-standard": "^17.1.0",
     "ignore": "^5.3.1",
-    "marked": "^12.0.0",
+    "marked": "^12.0.1",
     "minimatch": "^9.0.3",
     "prettier": "^3.2.5",
     "strip-ansi": "^7.1.0",
@@ -69,15 +69,18 @@
     "stylelint-config-standard": "^36.0.0",
     "tar-fs": "^3.0.5",
     "tar-stream": "^3.1.7",
-    "terser": "^5.28.1",
-    "vite": "^5.1.4"
+    "terser": "^5.29.1",
+    "vite": "^5.1.5"
   },
   "overrides": {
+    "@noop-inc/console": "$@noop-inc/console",
+    "@noop-inc/desktop-lima": "$@noop-inc/desktop-lima",
+    "@noop-inc/discovery": "$@noop-inc/discovery",
     "@noop-inc/foundation": "$@noop-inc/foundation",
     "vite": "$vite"
   },
   "@noop-inc": {
-    "workshop-vm": "0.7.2"
+    "workshop-vm": "0.8.0"
   },
   "eslintConfig": {
     "root": true,

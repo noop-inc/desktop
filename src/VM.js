@@ -174,7 +174,7 @@ export default class VM extends EventEmitter {
     }
   }
 
-  async stop (timeout = 15) {
+  async stop (timeout = 20) {
     if (this.isQuitting && this.#restarting) {
       this.#restarting = null
       if (this.#quitting) return
@@ -274,7 +274,7 @@ export default class VM extends EventEmitter {
     const now = Date.now()
     this.#restarting = now
     try {
-      await this.stop(reset ? 0 : 15)
+      await this.stop(reset ? 0 : 20)
       if (this.isQuitting || this.#quitting) return
       if (reset) {
         await rm(dataDisk)
