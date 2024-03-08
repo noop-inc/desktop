@@ -47,10 +47,10 @@
     "@electron-forge/plugin-fuses": "^7.3.0",
     "@electron-forge/plugin-vite": "^7.3.0",
     "@electron-forge/publisher-github": "^7.3.0",
-    "@noop-inc/console": "^3.0.27",
+    "@noop-inc/console": "^3.0.28",
     "@noop-inc/desktop-lima": "0.0.70",
     "@noop-inc/discovery": "^2.0.53",
-    "@noop-inc/foundation": "2.1.1-pr658.12",
+    "@noop-inc/foundation": "2.1.1-pr658.14",
     "autoprefixer": "^10.4.18",
     "concurrently": "^8.2.2",
     "dot-prop": "^8.0.2",
@@ -73,11 +73,14 @@
     "vite": "^5.1.5"
   },
   "overrides": {
+    "@noop-inc/console": "$@noop-inc/console",
+    "@noop-inc/desktop-lima": "$@noop-inc/desktop-lima",
+    "@noop-inc/discovery": "$@noop-inc/discovery",
     "@noop-inc/foundation": "$@noop-inc/foundation",
     "vite": "$vite"
   },
   "@noop-inc": {
-    "workshop-vm": "0.7.2-pr8.6"
+    "workshop-vm": "0.8.0"
   },
   "eslintConfig": {
     "root": true,
