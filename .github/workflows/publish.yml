@@ -80,6 +80,7 @@ jobs:
             ARCH="x86_64"
           fi
           gh release download "v${WORKSHOP_VM_VERSION}" -p "noop-workshop-vm-${WORKSHOP_VM_VERSION}.${ARCH}.disk" -R "noop-inc/workshop-vm"
+          echo "WORKSHOP_VM_VERSION=${WORKSHOP_VM_VERSION}" >> "$GITHUB_OUTPUT"
         env:
           GITHUB_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN }}
 
