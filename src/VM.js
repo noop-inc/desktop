@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 import { QemuVirtualMachine } from '@noop-inc/foundation/lib/VirtualMachine.js'
-import { readdir, stat, mkdir, rm } from 'node:fs/promises'
+import { readdir, stat, mkdir, rm, access, rename } from 'node:fs/promises'
 import { EventEmitter } from 'node:events'
 import { inspect, promisify } from 'node:util'
 import { app, dialog } from 'electron'
@@ -12,11 +12,15 @@ import stripAnsi from 'strip-ansi'
 const arch = process.arch.includes('arm') ? 'aarch64' : 'x86_64'
 
 const userData = app.getPath('userData')
-const noopDir = join(userData, 'Noop')
-const vmDir = join(noopDir, 'VM')
+const dataDir = join(userData, 'data')
+
+const vmDir = join(dataDir, 'VM')
 const systemDisk = join(vmDir, 'system.disk')
-const dataDir = join(noopDir, 'Data')
-const desktopDir = join(noopDir, 'Desktop')
+
+const workshopDir = join(dataDir, 'Workshop')
+const dataDisk = join(workshopDir, 'data.disk')
+
+const desktopDir = join(dataDir, 'Desktop')
 
 const {
   resourcesPath,
@@ -105,14 +109,38 @@ export default class VM extends EventEmitter {
       now = Date.now()
       this.#lastCmd = now
       try {
+        // migrate old data.disk
+        try {
+          const oldDataDisk = join(userData, 'Workshop', 'data.disk')
+          await access(oldDataDisk)
+          await mkdir(workshopDir, { recursive: true })
+          await rename(oldDataDisk, dataDisk)
+        } catch (error) {}
+
+        // migrate old vm files
+        try {
+          const oldWorkshop = join(userData, 'Workshop')
+          await access(oldWorkshop)
+          await mkdir(dataDir, { recursive: true })
+          await rename(oldWorkshop, vmDir)
+        } catch (error) {}
+
         await mkdir(vmDir, { recursive: true })
-        await mkdir(dataDir, { recursive: true })
+        await mkdir(workshopDir, { recursive: true })
         await mkdir(desktopDir, { recursive: true })
+
         const baseImage = await this.workshopImage()
         try {
           await stat(baseImage)
         } catch (cause) {
           throw new Error('Workshop base image not found', { cause })
+        }
+        try {
+          await stat(dataDisk)
+        } catch (error) {
+          logHandler({ event: 'workshop.initialize', disk: dataDisk })
+          await settings.delete('Workshop.ProjectsDirectory')
+          await QemuVirtualMachine.createDiskImage(dataDisk, { size: 100 })
         }
         try {
           await rm(systemDisk)
@@ -128,10 +156,9 @@ export default class VM extends EventEmitter {
           '127.0.0.1:44451-:441', // Workshop Traffic
           '127.0.0.1:44452-:442' // Workshop API
         ]
-        const disks = [systemDisk]
+        const disks = [systemDisk, dataDisk]
         const mounts = {
           Host: { path: '/' },
-          Data: { path: dataDir, readyOnly: false },
           Desktop: { path: desktopDir }
         }
         const params = { workdir: vmDir, cpu, memory, ports, disks, mounts }
@@ -272,7 +299,7 @@ export default class VM extends EventEmitter {
       await this.stop(reset ? 0 : 30)
       if (this.isQuitting || this.#quitting) return
       if (reset) {
-        await rm(dataDir, { recursive: true, force: true })
+        await rm(dataDisk)
         await settings.delete('Workshop.ProjectsDirectory')
       }
       if (this.isQuitting || this.#quitting) return

@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 import { app } from 'electron'
-import { readFile, writeFile, mkdir } from 'node:fs/promises'
+import { readFile, writeFile, mkdir, access, rename } from 'node:fs/promises'
 import { parse, stringify } from '@noop-inc/foundation/lib/Yaml.js'
 import { getProperty, setProperty, hasProperty, deleteProperty } from 'dot-prop'
 import { inspect } from 'node:util'
@@ -16,8 +16,8 @@ const packaged = (!mainWindowViteDevServerURL && app.isPackaged)
 const managingVm = (packaged || (npmLifecycleEvent === 'serve'))
 
 const userData = app.getPath('userData')
-const noopDir = join(userData, 'Noop')
-const desktopDir = join(noopDir, 'Desktop')
+const dataDir = join(userData, 'data')
+const desktopDir = join(dataDir, 'Desktop')
 const file = join(desktopDir, 'settings.yaml')
 
 const formatter = (...messages) =>
@@ -36,6 +36,15 @@ class Settings {
 
   async start () {
     if (this.#started) return
+
+    // migrate old settings file
+    try {
+      const oldFile = join(userData, 'settings.yaml')
+      await access(oldFile)
+      await mkdir(desktopDir, { recursive: true })
+      await rename(oldFile, file)
+    } catch (error) {}
+
     try {
       this.#settings = parse((await readFile(file)).toString())
     } catch (error) {

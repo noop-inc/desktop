@@ -13,6 +13,10 @@ import { inspect } from 'node:util'
 import settings from './Settings.js'
 import { arch, cpus, platform, release, totalmem } from 'node:os'
 
+if (require('electron-squirrel-startup')) {
+  app.quit()
+}
+
 // log.initialize()
 log.errorHandler.startCatching()
 log.eventLogger.startLogging()
@@ -524,7 +528,7 @@ if (!gotTheLock) {
       if (mainWindow.isMinimized()) mainWindow.restore()
       mainWindow.focus()
     }
-    await handleUpdateRoute(commandLine.pop().slice(0, -1))
+    await handleUpdateRoute(commandLine.pop())
   })
 
   app.on('open-url', async (event, url) => {
