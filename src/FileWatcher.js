@@ -25,7 +25,6 @@ const formatter = (...messages) =>
 export default class FileWatcher extends EventEmitter {
   repoId
   url
-  projectsDir
   path
   running = false
   shouldDelete = false
@@ -37,10 +36,10 @@ export default class FileWatcher extends EventEmitter {
   changeTimeout
   timeoutDuration = 2000
 
-  constructor ({ repoId, url, projectsDir }) {
+  constructor ({ repoId, url }) {
     super()
-    const path = fileURLToPath(url).replace('/noop/projects', projectsDir)
-    Object.assign(this, { repoId, url, projectsDir, path })
+    const path = fileURLToPath(url)
+    Object.assign(this, { repoId, url, path })
     formatter({ event: 'watcher.created', path: this.path })
   }
 

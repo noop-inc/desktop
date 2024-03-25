@@ -12,9 +12,11 @@ import stripAnsi from 'strip-ansi'
 const arch = process.arch.includes('arm') ? 'aarch64' : 'x86_64'
 
 const userData = app.getPath('userData')
-const workdir = join(userData, 'Workshop/')
-const dataDisk = join(workdir, 'data.disk')
-const systemDisk = join(workdir, 'system.disk')
+const noopDir = join(userData, 'Noop')
+const vmDir = join(noopDir, 'VM')
+const systemDisk = join(vmDir, 'system.disk')
+const dataDir = join(noopDir, 'Data')
+const desktopDir = join(noopDir, 'Desktop')
 
 const {
   resourcesPath,
@@ -103,19 +105,14 @@ export default class VM extends EventEmitter {
       now = Date.now()
       this.#lastCmd = now
       try {
-        await mkdir(workdir, { recursive: true })
+        await mkdir(vmDir, { recursive: true })
+        await mkdir(dataDir, { recursive: true })
+        await mkdir(desktopDir, { recursive: true })
         const baseImage = await this.workshopImage()
         try {
           await stat(baseImage)
         } catch (cause) {
           throw new Error('Workshop base image not found', { cause })
-        }
-        try {
-          await stat(dataDisk)
-        } catch (error) {
-          logHandler({ event: 'workshop.initialize', disk: dataDisk })
-          await settings.delete('Workshop.ProjectsDirectory')
-          await QemuVirtualMachine.createDiskImage(dataDisk, { size: 100 })
         }
         try {
           await rm(systemDisk)
@@ -131,11 +128,13 @@ export default class VM extends EventEmitter {
           '127.0.0.1:44451-:441', // Workshop Traffic
           '127.0.0.1:44452-:442' // Workshop API
         ]
-        const disks = [systemDisk, dataDisk]
+        const disks = [systemDisk]
         const mounts = {
-          Projects: await this.projectsDirectory()
+          Host: { path: '/' },
+          Data: { path: dataDir, readyOnly: false },
+          Desktop: { path: desktopDir }
         }
-        const params = { workdir, cpu, memory, ports, disks, mounts }
+        const params = { workdir: vmDir, cpu, memory, ports, disks, mounts }
         logHandler({ event: 'vm.params', ...params })
         const vm = new QemuVirtualMachine(params)
         this.#vm = vm
@@ -174,7 +173,7 @@ export default class VM extends EventEmitter {
     }
   }
 
-  async stop (timeout = 20) {
+  async stop (timeout = 30) {
     if (this.isQuitting && this.#restarting) {
       this.#restarting = null
       if (this.#quitting) return
@@ -191,8 +190,6 @@ export default class VM extends EventEmitter {
         (async () => {
           if (this.#traffic) {
             logHandler({ event: 'vm.traffic.close.start', sockets: this.#sockets?.size })
-            // const now = Date.now()
-            // this.#lastCmd = now
             try {
               const traffic = this.#traffic
               await Promise.all([
@@ -233,8 +230,6 @@ export default class VM extends EventEmitter {
         (async () => {
           if (this.#vm) {
             logHandler({ event: 'vm.stop.start' })
-            // const now = Date.now()
-            // this.#lastCmd = now
             try {
               const vm = this.#vm
               if (timeout) {
@@ -274,10 +269,10 @@ export default class VM extends EventEmitter {
     const now = Date.now()
     this.#restarting = now
     try {
-      await this.stop(reset ? 0 : 20)
+      await this.stop(reset ? 0 : 30)
       if (this.isQuitting || this.#quitting) return
       if (reset) {
-        await rm(dataDisk)
+        await rm(dataDir, { recursive: true, force: true })
         await settings.delete('Workshop.ProjectsDirectory')
       }
       if (this.isQuitting || this.#quitting) return

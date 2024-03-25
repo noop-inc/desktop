@@ -41,21 +41,21 @@
     "chokidar": "^3.6.0"
   },
   "devDependencies": {
-    "@electron-forge/cli": "^7.3.0",
-    "@electron-forge/maker-dmg": "^7.3.0",
-    "@electron-forge/maker-zip": "^7.3.0",
-    "@electron-forge/plugin-fuses": "^7.3.0",
-    "@electron-forge/plugin-vite": "^7.3.0",
-    "@electron-forge/publisher-github": "^7.3.0",
+    "@electron-forge/cli": "^7.3.1",
+    "@electron-forge/maker-dmg": "^7.3.1",
+    "@electron-forge/maker-zip": "^7.3.1",
+    "@electron-forge/plugin-fuses": "^7.3.1",
+    "@electron-forge/plugin-vite": "^7.3.1",
+    "@electron-forge/publisher-github": "^7.3.1",
     "@noop-inc/console": "^3.0.31",
     "@noop-inc/desktop-lima": "0.0.70",
     "@noop-inc/discovery": "^2.0.53",
-    "@noop-inc/foundation": "2.2.3-pr658.0",
-    "autoprefixer": "^10.4.18",
+    "@noop-inc/foundation": "2.2.3-pr780.0",
+    "autoprefixer": "^10.4.19",
     "concurrently": "^8.2.2",
     "dot-prop": "^8.0.2",
     "dotenv": "^16.4.5",
-    "electron": "^29.1.4",
+    "electron": "^29.1.5",
     "electron-log": "^5.1.2",
     "electron-serve": "^1.3.0",
     "eslint": "^8.57.0",
@@ -65,12 +65,12 @@
     "minimatch": "^9.0.3",
     "prettier": "^3.2.5",
     "strip-ansi": "^7.1.0",
-    "stylelint": "^16.2.1",
+    "stylelint": "^16.3.0",
     "stylelint-config-standard": "^36.0.0",
     "tar-fs": "^3.0.5",
     "tar-stream": "^3.1.7",
     "terser": "^5.29.2",
-    "vite": "^5.1.6"
+    "vite": "^5.2.6"
   },
   "overrides": {
     "@noop-inc/console": "$@noop-inc/console",
@@ -80,7 +80,7 @@
     "vite": "$vite"
   },
   "@noop-inc": {
-    "workshop-vm": "0.8.2"
+    "workshop-vm": "0.8.2-pr10.15"
   },
   "eslintConfig": {
     "root": true,
