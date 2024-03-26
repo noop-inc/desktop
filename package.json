@@ -33,7 +33,7 @@
     "make": "npm run postinstall && electron-forge make",
     "noop-link": "npm link @noop-inc/console @noop-inc/foundation",
     "package": "npm run postinstall && electron-forge package",
-    "postinstall": "sh -c 'if [ -f ./node_modules/@noop-inc/desktop-lima/bin/postinstall.js ]; then cd node_modules/@noop-inc/desktop-lima && npm run postinstall; fi'",
+    "postinstall": "npm run postinstall --prefix node_modules/@noop-inc/desktop-lima || true",
     "publish": "npm run postinstall && electron-forge publish",
     "serve": "electron-forge start"
   },
