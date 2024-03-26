@@ -13,6 +13,10 @@ import { inspect } from 'node:util'
 import settings from './Settings.js'
 import { arch, cpus, platform, release, totalmem } from 'node:os'
 
+if (require('electron-squirrel-startup')) {
+  app.quit()
+}
+
 // log.initialize()
 log.errorHandler.startCatching()
 log.eventLogger.startLogging()
@@ -352,7 +356,7 @@ const handleCloneRepository = async (_event, { repositoryUrl, subdirectory }) =>
   const tarStream = Readable.fromWeb(cloneResponse.body)
   const tarExtractor = extract(foundDirectory)
   await finished(tarStream.pipe(tarExtractor))
-  const url = pathToFileURL(foundDirectory.replace(projectsDirectory, '/noop/projects')).href
+  const url = pathToFileURL(foundDirectory).href
   const repoResponse = await fetch(`${workshopApiBase}/local/repos`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -372,10 +376,6 @@ ipcMain.handle('clone-repository', handleCloneRepository)
 
 const handleOpenPath = async (_event, url) => {
   await ensureMainWindow()
-  const projectsDirectory = await settings.get('Workshop.ProjectsDirectory')
-  if ((url === 'file:///noop/projects') || url?.startsWith('file:///noop/projects/')) {
-    url = url.replace('/noop/projects', projectsDirectory)
-  }
   shell.openPath(fileURLToPath(url))
   return true
 }
@@ -434,8 +434,7 @@ const handleLocalRepositories = async repositories => {
 
   await Promise.all(localRepositories.map(async ({ id: repoId, url }) => {
     await ensureMainWindow()
-    const projectsDirectory = await settings.get('Workshop.ProjectsDirectory')
-    const watcher = fileWatchers[repoId] || new FileWatcher({ repoId, url, projectsDir: projectsDirectory })
+    const watcher = fileWatchers[repoId] || new FileWatcher({ repoId, url })
     if (!(repoId in fileWatchers)) {
       fileWatchers[repoId] = watcher
       const { path } = watcher
@@ -529,7 +528,7 @@ if (!gotTheLock) {
       if (mainWindow.isMinimized()) mainWindow.restore()
       mainWindow.focus()
     }
-    await handleUpdateRoute(commandLine.pop().slice(0, -1))
+    await handleUpdateRoute(commandLine.pop())
   })
 
   app.on('open-url', async (event, url) => {

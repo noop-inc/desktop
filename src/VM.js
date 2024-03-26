@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 import { QemuVirtualMachine } from '@noop-inc/foundation/lib/VirtualMachine.js'
-import { readdir, stat, mkdir, rm } from 'node:fs/promises'
+import { readdir, stat, mkdir, rm, access, rename } from 'node:fs/promises'
 import { EventEmitter } from 'node:events'
 import { inspect, promisify } from 'node:util'
 import { app, dialog } from 'electron'
@@ -12,9 +12,15 @@ import stripAnsi from 'strip-ansi'
 const arch = process.arch.includes('arm') ? 'aarch64' : 'x86_64'
 
 const userData = app.getPath('userData')
-const workdir = join(userData, 'Workshop/')
-const dataDisk = join(workdir, 'data.disk')
-const systemDisk = join(workdir, 'system.disk')
+const dataDir = join(userData, 'data')
+
+const vmDir = join(dataDir, 'VM')
+const systemDisk = join(vmDir, 'system.disk')
+
+const workshopDir = join(dataDir, 'Workshop')
+const dataDisk = join(workshopDir, 'data.disk')
+
+const desktopDir = join(dataDir, 'Desktop')
 
 const {
   resourcesPath,
@@ -103,7 +109,26 @@ export default class VM extends EventEmitter {
       now = Date.now()
       this.#lastCmd = now
       try {
-        await mkdir(workdir, { recursive: true })
+        // migrate old data.disk
+        try {
+          const oldDataDisk = join(userData, 'Workshop', 'data.disk')
+          await access(oldDataDisk)
+          await mkdir(workshopDir, { recursive: true })
+          await rename(oldDataDisk, dataDisk)
+        } catch (error) {}
+
+        // migrate old vm files
+        try {
+          const oldWorkshop = join(userData, 'Workshop')
+          await access(oldWorkshop)
+          await mkdir(dataDir, { recursive: true })
+          await rename(oldWorkshop, vmDir)
+        } catch (error) {}
+
+        await mkdir(vmDir, { recursive: true })
+        await mkdir(workshopDir, { recursive: true })
+        await mkdir(desktopDir, { recursive: true })
+
         const baseImage = await this.workshopImage()
         try {
           await stat(baseImage)
@@ -133,9 +158,10 @@ export default class VM extends EventEmitter {
         ]
         const disks = [systemDisk, dataDisk]
         const mounts = {
-          Projects: await this.projectsDirectory()
+          Host: { path: '/' },
+          Desktop: { path: desktopDir }
         }
-        const params = { workdir, cpu, memory, ports, disks, mounts }
+        const params = { workdir: vmDir, cpu, memory, ports, disks, mounts }
         logHandler({ event: 'vm.params', ...params })
         const vm = new QemuVirtualMachine(params)
         this.#vm = vm
@@ -174,7 +200,7 @@ export default class VM extends EventEmitter {
     }
   }
 
-  async stop (timeout = 20) {
+  async stop (timeout = 30) {
     if (this.isQuitting && this.#restarting) {
       this.#restarting = null
       if (this.#quitting) return
@@ -191,8 +217,6 @@ export default class VM extends EventEmitter {
         (async () => {
           if (this.#traffic) {
             logHandler({ event: 'vm.traffic.close.start', sockets: this.#sockets?.size })
-            // const now = Date.now()
-            // this.#lastCmd = now
             try {
               const traffic = this.#traffic
               await Promise.all([
@@ -233,8 +257,6 @@ export default class VM extends EventEmitter {
         (async () => {
           if (this.#vm) {
             logHandler({ event: 'vm.stop.start' })
-            // const now = Date.now()
-            // this.#lastCmd = now
             try {
               const vm = this.#vm
               if (timeout) {
@@ -274,7 +296,7 @@ export default class VM extends EventEmitter {
     const now = Date.now()
     this.#restarting = now
     try {
-      await this.stop(reset ? 0 : 20)
+      await this.stop(reset ? 0 : 30)
       if (this.isQuitting || this.#quitting) return
       if (reset) {
         await rm(dataDisk)
