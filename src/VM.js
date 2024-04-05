@@ -140,7 +140,7 @@ export default class VM extends EventEmitter {
         } catch (error) {
           logHandler({ event: 'workshop.initialize', disk: dataDisk })
           await settings.delete('Workshop.ProjectsDirectory')
-          await QemuVirtualMachine.createDiskImage(dataDisk, { size: 100 })
+          // await QemuVirtualMachine.createDiskImage(dataDisk, { size: 100 })
         }
         try {
           await rm(systemDisk)
@@ -153,13 +153,14 @@ export default class VM extends EventEmitter {
         const memory = this.defaultMemory
         const ports = [
           '127.0.0.1:44450-:22', // SSH
-          '127.0.0.1:44451-:441', // Workshop Traffic
-          '127.0.0.1:44452-:442' // Workshop API
+          '127.0.0.1:44451-:443', // Workshop Traffic
+          '127.0.0.1:44452-:44452' // Workshop API
         ]
-        const disks = [systemDisk, dataDisk]
+        const disks = [systemDisk]
         const mounts = {
           Host: { path: '/' },
-          Desktop: { path: desktopDir }
+          Desktop: { path: desktopDir },
+          Workshop: { path: workshopDir, readyOnly: false }
         }
         const params = { workdir: vmDir, cpu, memory, ports, disks, mounts }
         logHandler({ event: 'vm.params', ...params })

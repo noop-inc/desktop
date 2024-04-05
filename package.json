@@ -52,37 +52,39 @@
     "@noop-inc/console": "^3.0.31",
     "@noop-inc/desktop-lima": "0.0.70",
     "@noop-inc/discovery": "^2.0.53",
-    "@noop-inc/foundation": "2.2.3-pr780.1",
+    "@noop-inc/foundation": "2.2.4-pr780.0",
     "autoprefixer": "^10.4.19",
     "concurrently": "^8.2.2",
     "dot-prop": "^8.0.2",
     "dotenv": "^16.4.5",
-    "electron": "^29.1.5",
+    "electron": "^29.2.0",
     "electron-log": "^5.1.2",
     "electron-serve": "^1.3.0",
     "eslint": "^8.57.0",
     "eslint-config-standard": "^17.1.0",
     "ignore": "^5.3.1",
     "marked": "^12.0.1",
-    "minimatch": "^9.0.3",
+    "minimatch": "^9.0.4",
+    "node-gyp": "^10.1.0",
     "prettier": "^3.2.5",
     "strip-ansi": "^7.1.0",
-    "stylelint": "^16.3.0",
+    "stylelint": "^16.3.1",
     "stylelint-config-standard": "^36.0.0",
     "tar-fs": "^3.0.5",
     "tar-stream": "^3.1.7",
-    "terser": "^5.29.2",
-    "vite": "^5.2.6"
+    "terser": "^5.30.3",
+    "vite": "^5.2.8"
   },
   "overrides": {
     "@noop-inc/console": "$@noop-inc/console",
     "@noop-inc/desktop-lima": "$@noop-inc/desktop-lima",
     "@noop-inc/discovery": "$@noop-inc/discovery",
     "@noop-inc/foundation": "$@noop-inc/foundation",
+    "node-gyp": "$node-gyp",
     "vite": "$vite"
   },
   "@noop-inc": {
-    "workshop-vm": "0.8.2-pr10.16"
+    "workshop-vm": "0.8.2-pr10.24"
   },
   "eslintConfig": {
     "root": true,
