@@ -52,7 +52,7 @@
     "@noop-inc/console": "^3.0.31",
     "@noop-inc/desktop-lima": "0.0.70",
     "@noop-inc/discovery": "^2.0.53",
-    "@noop-inc/foundation": "2.2.4-pr780.0",
+    "@noop-inc/foundation": "2.2.4-pr780.1",
     "autoprefixer": "^10.4.19",
     "concurrently": "^8.2.2",
     "dot-prop": "^8.0.2",
@@ -84,7 +84,7 @@
     "vite": "$vite"
   },
   "@noop-inc": {
-    "workshop-vm": "0.8.2-pr10.24"
+    "workshop-vm": "0.8.2-pr10.25"
   },
   "eslintConfig": {
     "root": true,
