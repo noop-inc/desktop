@@ -160,7 +160,7 @@ export default class VM extends EventEmitter {
         const mounts = {
           Host: { path: '/' },
           Desktop: { path: desktopDir },
-          Workshop: { path: workshopDir, readyOnly: false }
+          Workshop: { path: workshopDir, readOnly: false }
         }
         const params = { workdir: vmDir, cpu, memory, ports, disks, mounts }
         logHandler({ event: 'vm.params', ...params })
