@@ -41,7 +41,7 @@
     "chokidar": "^3.6.0"
   },
   "devDependencies": {
-    "@electron-forge/cli": "^7.3.0",
+    "@electron-forge/cli": "^7.4.0",
     "@electron-forge/maker-dmg": "^7.3.0",
     "@electron-forge/maker-zip": "^7.3.0",
     "@electron-forge/plugin-fuses": "^7.3.0",
