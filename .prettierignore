@@ -95,16 +95,9 @@ out/
 *.qcow2
 *.disk
 
-**/reboot.css
-
 **/*.js
 **/*.mjs
 **/*.cjs
 
-**/*.htm
-**/*.html
-**/*.json
-**/*.md
-**/*.markdown
-**/*.yml
-**/*.yaml
+**/*.scss
+**/*.css
