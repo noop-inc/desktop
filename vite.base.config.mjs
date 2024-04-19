@@ -90,7 +90,7 @@ export const pluginExposeRenderer = (name) => {
   }
 }
 
-/** @type {(command: 'reload' | 'restart') => outDir('vite').Plugin} */
+/** @type {(command: 'reload' | 'restart') => import('vite').Plugin} */
 export const pluginHotRestart = (command) => {
   return {
     name: '@electron-forge/plugin-vite:hot-restart',

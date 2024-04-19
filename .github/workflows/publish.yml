@@ -86,11 +86,10 @@ jobs:
       - name: Build and Publish Desktop
         id: build-and-publish-desktop
         run: |
-          npm run postinstall --prefix node_modules/@noop-inc/desktop-lima -- --arch x86_64 || true
-          npm run postinstall --prefix node_modules/@noop-inc/desktop-lima -- --arch aarch64 || true
-          npm run make -- --arch x64
-          npm run make -- --arch arm64
-          npm run publish -- --from-dry-run
+          npm run postinstall --prefix node_modules/@noop-inc/desktop-lima -- --arch x86_64
+          npm run postinstall --prefix node_modules/@noop-inc/desktop-lima -- --arch aarch64
+          npm run publish -- --arch x64
+          npm run publish -- --arch arm64
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
