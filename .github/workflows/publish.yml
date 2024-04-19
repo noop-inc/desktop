@@ -77,7 +77,7 @@ jobs:
 
       - name: Download Workshop VM (mac)
         if: ${{ startsWith(matrix.runner, 'macos') }}
-        id: download-workshop-vm
+        id: download-workshop-vm-mac
         run: |
           gh release download "v${WORKSHOP_VM_VERSION}" -p "noop-workshop-vm-${WORKSHOP_VM_VERSION}.*.disk" -R "noop-inc/workshop-vm"
         env:
@@ -86,7 +86,7 @@ jobs:
 
       - name: Download Workshop VM (windows)
         if: ${{ startsWith(matrix.runner, 'windows') }}
-        id: download-workshop-vm
+        id: download-workshop-vm-windows
         run: |
           gh release download "v${WORKSHOP_VM_VERSION}" -p "noop-workshop-vm-${WORKSHOP_VM_VERSION}.*.tar.gz" -R "noop-inc/workshop-vm"
         env:
