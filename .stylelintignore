@@ -94,6 +94,7 @@ out/
 *.zip
 *.qcow2
 *.disk
+*.tar.gz
 
 **/reboot.css
 

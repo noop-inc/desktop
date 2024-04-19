@@ -46,9 +46,9 @@ module.exports = {
         ? {}
         : {
             extraResource: [
-              `node_modules/@noop-inc/desktop-lima/dist/lima-and-qemu.macos-${arch}`,
-              `noop-workshop-vm-${process.env.WORKSHOP_VM_VERSION}.${arch}.disk`
-            ]
+              process.platform === 'darwin' ? `node_modules/@noop-inc/desktop-lima/dist/lima-and-qemu.macos-${arch}` : null,
+              `noop-workshop-vm-${process.env.WORKSHOP_VM_VERSION}.${arch}.${({ darwin: 'disk', win32: 'tar.gz' })[process.platform]}`
+            ].filter(Boolean)
           }
     ),
     osxSign: {
@@ -65,10 +65,18 @@ module.exports = {
   },
   rebuildConfig: {},
   makers: [
-    // {
-    //   name: '@electron-forge/maker-squirrel',
-    //   config: {}
-    // },
+    {
+      name: '@electron-forge/maker-squirrel',
+      config: {
+        // An URL to an ICO file to use as the application icon (displayed in Control Panel > Programs and Features).
+        iconUrl: 'https://noop.dev/assets/console/img/icons/icon.ico',
+        // The ICO file to use as the icon for the generated Setup.exe
+        setupIcon: 'assets/icon.ico',
+        name: 'Noop',
+        authors: 'Noop Inc',
+        description: 'Noop Developer Desktop'
+      }
+    },
     {
       name: '@electron-forge/maker-zip',
       platforms: ['darwin']

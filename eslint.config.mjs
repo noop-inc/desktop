@@ -14,6 +14,7 @@ export default [
       '**/*.zip',
       '**/*.qcow2',
       '**/*.disk',
+      '**/*.tar.gz',
       '**/*.htm',
       '**/*.html',
       '**/*.json',

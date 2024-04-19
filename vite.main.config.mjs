@@ -26,7 +26,8 @@ export default defineConfig((env) => {
           ...external,
           'better-sqlite3',
           'node-pty',
-          'chokidar'
+          'chokidar',
+          'electron-squirrel-startup'
           // 'node-cron'
         ]
       }
