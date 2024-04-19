@@ -70,10 +70,10 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN }}
 
       - name: Workshop VM Version
-        id: workshop-vm-
+        id: workshop-vm-version
         shell: bash
         run: |
-          WORKSHOP_VM_VERSION=$(( Get-Content -Raw package.json | ConvertFrom-Json ).'@noop-inc'.'workshop-vm')
+          WORKSHOP_VM_VERSION=$(cat package.json | jq -r '."@noop-inc"."workshop-vm"')
           echo "WORKSHOP_VM_VERSION=${WORKSHOP_VM_VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Download Workshop VM (mac)
