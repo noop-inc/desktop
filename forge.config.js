@@ -1,12 +1,18 @@
 const { FusesPlugin } = require('@electron-forge/plugin-fuses')
 const { FuseV1Options, FuseVersion } = require('@electron/fuses')
+const { parseArgs } = require('node:util')
 // const { spawn: spawnCallback } = require('node:child_process')
 // const { rm, cp, rename } = require('node:fs/promises')
 // const { resolve } = require('node:path')
 
 require('dotenv').config()
 
-const arch = process.arch.includes('arm') ? 'aarch64' : 'x86_64'
+const args = process.argv.slice(2)
+const options = { arch: { type: 'string' } }
+const { values } = parseArgs({ args, options })
+const arch = ['x64', 'arm64'].includes(values?.arch)
+  ? { x64: 'x86_64', arm64: 'aarch64' }[values.arch]
+  : (process.arch.includes('arm') ? 'aarch64' : 'x86_64')
 
 // const spawn = async (...args) => await new Promise((resolve, reject) => {
 //   const spawnArgs = [...args]

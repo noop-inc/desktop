@@ -15,7 +15,6 @@ jobs:
       matrix:
         include:
           - runner: macos-14
-          - runner: macos-14-large
 
     steps:
       - name: Code Checkout
@@ -72,14 +71,7 @@ jobs:
         id: download-workshop-vm
         run: |
           WORKSHOP_VM_VERSION=$(cat package.json | jq -r '."@noop-inc"."workshop-vm"')
-          ARCH=`uname -m`
-          if [[ "$ARCH" == *"arm"* ]]
-          then
-            ARCH="aarch64"
-          else
-            ARCH="x86_64"
-          fi
-          gh release download "v${WORKSHOP_VM_VERSION}" -p "noop-workshop-vm-${WORKSHOP_VM_VERSION}.${ARCH}.disk" -R "noop-inc/workshop-vm"
+          gh release download "v${WORKSHOP_VM_VERSION}" -p "noop-workshop-vm-${WORKSHOP_VM_VERSION}.*.disk" -R "noop-inc/workshop-vm"
           echo "WORKSHOP_VM_VERSION=${WORKSHOP_VM_VERSION}" >> "$GITHUB_OUTPUT"
         env:
           GITHUB_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN }}
@@ -93,7 +85,12 @@ jobs:
 
       - name: Build and Publish Desktop
         id: build-and-publish-desktop
-        run: npm run publish
+        run: |
+          npm run postinstall --prefix node_modules/@noop-inc/desktop-lima -- --arch x86_64 || true
+          npm run postinstall --prefix node_modules/@noop-inc/desktop-lima -- --arch aarch64 || true
+          npm run make -- --arch x64
+          npm run make -- --arch arm64
+          npm run publish -- --from-dry-run
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           APPLE_ID: ${{ secrets.APPLE_ID }}

@@ -50,9 +50,9 @@
     "@electron-forge/plugin-vite": "^7.4.0",
     "@electron-forge/publisher-github": "^7.4.0",
     "@eslint/eslintrc": "^3.0.2",
-    "@eslint/js": "^9.0.0",
+    "@eslint/js": "^9.1.1",
     "@noop-inc/console": "^3.0.33",
-    "@noop-inc/desktop-lima": "0.0.70",
+    "@noop-inc/desktop-lima": "0.0.71",
     "@noop-inc/discovery": "^2.0.54",
     "@noop-inc/foundation": "2.2.8-pr780.3",
     "autoprefixer": "^10.4.19",
@@ -65,7 +65,7 @@
     "eslint": "^9.0.0",
     "eslint-config-standard": "^17.1.0",
     "ignore": "^5.3.1",
-    "marked": "^12.0.1",
+    "marked": "^12.0.2",
     "minimatch": "^9.0.4",
     "node-gyp": "^10.1.0",
     "prettier": "^3.2.5",
@@ -87,6 +87,6 @@
     "vite": "$vite"
   },
   "@noop-inc": {
-    "workshop-vm": "0.8.2-pr10.44"
+    "workshop-vm": "0.8.2-pr10.45"
   }
 }
