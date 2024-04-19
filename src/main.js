@@ -1,5 +1,5 @@
 import { app, shell, BrowserWindow, screen, ipcMain, nativeTheme, dialog, autoUpdater } from 'electron'
-import { join, resolve } from 'node:path'
+import { join, resolve, sep } from 'node:path'
 import serve from 'electron-serve'
 import VM from './VM.js'
 import log from 'electron-log/main'
@@ -58,7 +58,6 @@ let mainWindow
 let eulaWindow
 let authWindow
 let updaterInterval
-// let vm.isQuitting = false
 let localRepositories = []
 const fileWatchers = {}
 
@@ -95,7 +94,8 @@ const createMainWindow = async () => {
     mainWindow.on('close', event => {
       if (!vm.isQuitting) {
         event.preventDefault()
-        mainWindow.hide()
+        if (process.platform === 'darwin') mainWindow.hide()
+        if (process.platform === 'win32') mainWindow.minimize()
       }
     })
 
@@ -309,7 +309,7 @@ const handleSubdirectoryInput = async () => {
       break
     }
     const selected = returnValue?.filePaths?.[0] || null
-    if ((selected === projectsDirectory) || selected?.startsWith(`${projectsDirectory}/`)) {
+    if ((selected === projectsDirectory) || selected?.startsWith(join(projectsDirectory, sep))) {
       subdirectory = selected
       break
     }
@@ -329,7 +329,7 @@ ipcMain.handle('subdirectory-input', async () => await handleSubdirectoryInput()
 const handleCloneRepository = async (_event, { repositoryUrl, subdirectory }) => {
   await ensureMainWindow()
   const projectsDirectory = await settings.get('Workshop.ProjectsDirectory')
-  if (!((subdirectory === projectsDirectory) || subdirectory?.startsWith(`${projectsDirectory}/`))) {
+  if (!((subdirectory === projectsDirectory) || subdirectory?.startsWith(join(projectsDirectory, sep)))) {
     throw Error('Selected directory must be scoped within the current Projects Directory.')
   }
   await ensureMainWindow()
@@ -539,9 +539,9 @@ if (!gotTheLock) {
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits
 // explicitly with Cmd + Q.
-app.on('window-all-closed', async () => {
-  if (process.platform !== 'darwin') app.quit()
-})
+// app.on('window-all-closed', async () => {
+//   if (process.platform !== 'darwin') app.quit()
+// })
 
 app.on('activate', async () => {
   // On OS X it's common to re-create a window in the app when the
