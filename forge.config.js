@@ -27,7 +27,7 @@ module.exports = {
     asar: true,
     name: 'Noop',
     appBundleId: 'app.noop.desktop',
-    icon: 'assets/icon',
+    icon: `assets/icon${{ darwin: '.png', win32: '.ico' }[process.platform] || ''}`,
     protocols: [
       {
         name: 'noop',
