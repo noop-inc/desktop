@@ -15,7 +15,9 @@ jobs:
       matrix:
         include:
           - runner: macos-14
+            ext: disk
           - runner: windows-latest
+            ext: tar.gz
 
     steps:
       - name: Code Checkout
@@ -69,30 +71,16 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN }}
 
-      - name: Workshop VM Version
-        id: workshop-vm-version
+      - name: Download Workshop VM
+        id: download-workshop-vm
         shell: bash
         run: |
           WORKSHOP_VM_VERSION=$(cat package.json | jq -r '."@noop-inc"."workshop-vm"')
+          gh release download "v${WORKSHOP_VM_VERSION}" -p "noop-workshop-vm-${WORKSHOP_VM_VERSION}.*.${WORKSHOP_EXT}" -R "noop-inc/workshop-vm"
           echo "WORKSHOP_VM_VERSION=${WORKSHOP_VM_VERSION}" >> "$GITHUB_OUTPUT"
-
-      - name: Download Workshop VM (mac)
-        if: ${{ startsWith(matrix.runner, 'macos') }}
-        id: download-workshop-vm-mac
-        run: |
-          gh release download "v${WORKSHOP_VM_VERSION}" -p "noop-workshop-vm-${WORKSHOP_VM_VERSION}.*.disk" -R "noop-inc/workshop-vm"
         env:
           GITHUB_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN }}
-          WORKSHOP_VM_VERSION: ${{ steps.workshop-vm-version.outputs.WORKSHOP_VM_VERSION }}
-
-      - name: Download Workshop VM (windows)
-        if: ${{ startsWith(matrix.runner, 'windows') }}
-        id: download-workshop-vm-windows
-        run: |
-          gh release download "v${WORKSHOP_VM_VERSION}" -p "noop-workshop-vm-${WORKSHOP_VM_VERSION}.*.tar.gz" -R "noop-inc/workshop-vm"
-        env:
-          GITHUB_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN }}
-          WORKSHOP_VM_VERSION: ${{ steps.workshop-vm-version.outputs.WORKSHOP_VM_VERSION }}
+          WORKSHOP_EXT: ${{ matrix.ext }}
 
       - name: Bump Version
         id: bump-version
@@ -115,7 +103,7 @@ jobs:
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           TEAM_ID: ${{ secrets.TEAM_ID }}
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN }}
-          WORKSHOP_VM_VERSION: ${{ steps.workshop-vm-version.outputs.WORKSHOP_VM_VERSION }}
+          WORKSHOP_VM_VERSION: ${{ steps.download-workshop-vm.outputs.WORKSHOP_VM_VERSION }}
 
       - name: Build and Publish Desktop (windows)
         if: ${{ startsWith(matrix.runner, 'windows') }}
@@ -126,4 +114,4 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN }}
-          WORKSHOP_VM_VERSION: ${{ steps.workshop-vm-version.outputs.WORKSHOP_VM_VERSION }}
+          WORKSHOP_VM_VERSION: ${{ steps.download-workshop-vm.outputs.WORKSHOP_VM_VERSION }}
