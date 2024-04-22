@@ -70,7 +70,7 @@
     "tar-fs": "^3.0.5",
     "tar-stream": "^3.1.7",
     "terser": "^5.29.2",
-    "vite": "^5.1.6"
+    "vite": "^5.2.10"
   },
   "overrides": {
     "@noop-inc/console": "$@noop-inc/console",
