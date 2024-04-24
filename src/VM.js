@@ -380,7 +380,7 @@ export default class VM extends EventEmitter {
       }
 
       if (process.platform === 'win32') {
-        return 'C:\\Users\\dfnj1\\Downloads\\noop-workshop-vm-0.8.2-pr10.44.x86_64.tar.gz'
+        return 'C:\\Users\\dfnj1\\Downloads\\noop-workshop-vm-0.8.2-pr10.47.x86_64.tar.gz'
       }
     } else if (['darwin', 'win32'].includes(process.platform)) {
       const files = await readdir(resourcesPath)
