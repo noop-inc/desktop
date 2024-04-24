@@ -27,7 +27,7 @@ module.exports = {
     asar: true,
     name: 'Noop',
     appBundleId: 'app.noop.desktop',
-    icon: `assets/icon${{ darwin: '.png', win32: '.ico' }[process.platform] || ''}`,
+    icon: `assets/icons/${process.platform}/icon`,
     protocols: [
       {
         name: 'noop',
@@ -71,7 +71,7 @@ module.exports = {
         // An URL to an ICO file to use as the application icon (displayed in Control Panel > Programs and Features).
         iconUrl: 'https://noop.dev/assets/console/img/icons/icon.ico',
         // The ICO file to use as the icon for the generated Setup.exe
-        setupIcon: 'assets/icon.ico',
+        setupIcon: `assets/icons/${process.platform}/icon.ico`,
         name: 'Noop',
         authors: 'Noop Inc',
         description: 'Noop Developer Desktop'
@@ -85,7 +85,7 @@ module.exports = {
       name: '@electron-forge/maker-dmg',
       config: {
         // Path to the icon to use for the app in the DMG window
-        icon: 'assets/icon.icns',
+        icon: `assets/icons/${process.platform}/icon.icns`,
         format: 'ULMO',
         additionalDMGOptions: {
           filesystem: 'APFS'
