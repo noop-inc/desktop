@@ -1,5 +1,7 @@
 name: Publish
 
+run-name: Publish ${{ github.event.inputs.DesktopVersion }} by @${{ github.actor }}
+
 on:
   workflow_dispatch:
     inputs:
