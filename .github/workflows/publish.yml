@@ -31,7 +31,17 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN }}
 
       - name: Code Linting
+        id: lint-code
         run: npm run lint
+
+      - name: Verify Workshop VM Release
+        id: verify-workshop-vm-release
+        run: |
+          # Verify the specified Workshop VM version exists
+          WORKSHOP_VM_VERSION=$(cat package.json | jq -r '."@noop-inc"."workshop-vm"')
+          gh release view "v${WORKSHOP_VM_VERSION}" -R "noop-inc/workshop-vm"
+        env:
+          GITHUB_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN }}
 
       - name: Bump Version
         id: bump-version
@@ -43,11 +53,6 @@ jobs:
       - name: Create Desktop Release
         id: create-desktop-release
         run: |
-          WORKSHOP_VM_VERSION=$(cat package.json | jq -r '."@noop-inc"."workshop-vm"')
-
-          # Verify the specified Workshop VM version exists
-          gh release view "v${WORKSHOP_VM_VERSION}" -R "noop-inc/workshop-vm"
-
           # Verify an existing Desktop release, and create new release if needed
           gh release view "${VERSION_INPUT}" || gh release create "${VERSION_INPUT}" -d -p --verify-tag -t "${VERSION_INPUT}"
         env:
