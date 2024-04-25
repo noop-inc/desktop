@@ -281,11 +281,7 @@ export default class VM extends EventEmitter {
             logHandler({ event: 'vm.stop.start' })
             try {
               const vm = this.#vm
-              if (timeout) {
-                await vm.stop(timeout)
-              } else {
-                vm.kill()
-              }
+              await vm.stop(timeout)
               logHandler({ event: 'vm.stop.end' })
               if (this.#vm === vm) this.#vm = null
             } catch (error) {
@@ -376,11 +372,11 @@ export default class VM extends EventEmitter {
   async workshopVmAsset () {
     if (npmLifecycleEvent === 'serve') {
       if (process.platform === 'darwin') {
-        join(npmConfigLocalPrefix, '../workshop-vm/limaless/prep/disks/noop-workshop-vm-0.0.0-automated.aarch64.disk')
+        return join(npmConfigLocalPrefix, '../workshop-vm/limaless/prep/disks/noop-workshop-vm-0.0.0-automated.aarch64.disk')
       }
 
       if (process.platform === 'win32') {
-        return 'C:\\Users\\dfnj1\\Downloads\\noop-workshop-vm-0.8.2-pr10.47.x86_64.tar.gz'
+        return 'C:\\Users\\dfnj1\\Downloads\\noop-workshop-vm-0.8.2-pr10.48.x86_64.tar.gz'
       }
     } else if (['darwin', 'win32'].includes(process.platform)) {
       const files = await readdir(resourcesPath)
@@ -406,14 +402,23 @@ export default class VM extends EventEmitter {
       this.#sockets.add(outgoing)
       outgoing.once('error', () => {
         this.#sockets?.delete(outgoing)
-        incoming.end(() => this.#sockets?.delete(incoming))
+        incoming.end(() => {
+          if (!incoming.destroyed) incoming.destroy()
+          this.#sockets?.delete(incoming)
+        })
       })
       incoming.once('error', () => {
         this.#sockets?.delete(incoming)
-        outgoing.end(() => this.#sockets?.delete(outgoing))
+        outgoing.end(() => {
+          if (!outgoing.destroyed) outgoing.destroy()
+          this.#sockets?.delete(outgoing)
+        })
       })
     } catch (error) {
-      incoming.end(() => this.#sockets?.delete(incoming))
+      incoming.end(() => {
+        if (!incoming.destroyed) incoming.destroy()
+        this.#sockets?.delete(incoming)
+      })
     }
   }
 
