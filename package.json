@@ -54,7 +54,7 @@
     "@noop-inc/console": "^3.0.34",
     "@noop-inc/desktop-lima": "0.0.72",
     "@noop-inc/discovery": "^2.0.54",
-    "@noop-inc/foundation": "2.2.9-pr780.0",
+    "@noop-inc/foundation": "2.2.9-pr780.1",
     "autoprefixer": "^10.4.19",
     "concurrently": "^8.2.2",
     "dot-prop": "^8.0.2",
@@ -87,6 +87,6 @@
     "vite": "$vite"
   },
   "@noop-inc": {
-    "workshop-vm": "0.8.2-pr10.48"
+    "workshop-vm": "0.8.2-pr10.49"
   }
 }
