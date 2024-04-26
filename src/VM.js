@@ -242,35 +242,27 @@ export default class VM extends EventEmitter {
         (async () => {
           if (this.#traffic) {
             logHandler({ event: 'vm.traffic.close.start', sockets: this.#sockets?.size })
-            try {
-              const traffic = this.#traffic
-              const stopServer = promisify(this.#traffic.close.bind(this.#traffic))
-              const serverStopped = stopServer()
-              await Promise.all([
-                ...[...this.#sockets].map(async socket => {
-                  if (!socket.destroyed) {
-                    const endSocket = promisify(socket.end.bind(socket))
-                    const ac = new AbortController()
-                    const signal = ac.signal
-                    await Promise.race([wait(1000, null, { signal }), endSocket()])
-                    ac.abort()
-                  }
-                  if (!socket.destroyed) socket.destroy()
-                  this.#sockets.delete(socket)
-                }),
-                serverStopped
-              ])
-              logHandler({ event: 'vm.traffic.close.end', sockets: this.#sockets?.size })
-              if (this.#traffic === traffic) {
-                this.#sockets = null
-                this.#traffic = null
-              }
-            } catch (error) {
-              logHandler({ event: 'vm.stop.error', error })
-              if (now === this.#lastCmd) {
-                this.handleStatus('STOP_FAILED')
-                throw error
-              }
+            const traffic = this.#traffic
+            const stopServer = promisify(this.#traffic.close.bind(this.#traffic))
+            const serverStopped = stopServer()
+            await Promise.all([
+              ...[...this.#sockets].map(async socket => {
+                if (!socket.destroyed) {
+                  const endSocket = promisify(socket.end.bind(socket))
+                  const ac = new AbortController()
+                  const signal = ac.signal
+                  await Promise.race([wait(1000, null, { signal }), endSocket()])
+                  ac.abort()
+                }
+                if (!socket.destroyed) socket.destroy()
+                this.#sockets.delete(socket)
+              }),
+              serverStopped
+            ])
+            logHandler({ event: 'vm.traffic.close.end', sockets: this.#sockets?.size })
+            if (this.#traffic === traffic) {
+              this.#sockets = null
+              this.#traffic = null
             }
           } else {
             logHandler({ event: 'vm.traffic.close.skip', sockets: this.#sockets?.size })
@@ -279,23 +271,18 @@ export default class VM extends EventEmitter {
         (async () => {
           if (this.#vm) {
             logHandler({ event: 'vm.stop.start' })
-            try {
-              const vm = this.#vm
-              await vm.stop(timeout)
-              logHandler({ event: 'vm.stop.end' })
-              if (this.#vm === vm) this.#vm = null
-            } catch (error) {
-              logHandler({ event: 'vm.stop.error', error })
-              if (now === this.#lastCmd) {
-                this.handleStatus('STOP_FAILED')
-                throw error
-              }
+            const vm = this.#vm
+            await vm.stop(timeout)
+            logHandler({ event: 'vm.stop.end' })
+            if (this.#vm === vm) {
+              this.#vm = null
+              try {
+                await rm(systemDisk)
+              } catch (error) {}
             }
           } else {
             logHandler({ event: 'vm.stop.skip' })
           }
-          this.#quitting = null
-          this.handleStatus('STOPPED')
         })()
       ])
     } catch (error) {
