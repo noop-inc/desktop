@@ -51,7 +51,7 @@
     "@electron-forge/publisher-github": "^7.4.0",
     "@eslint/eslintrc": "^3.0.2",
     "@eslint/js": "^9.1.1",
-    "@noop-inc/console": "^3.0.34",
+    "@noop-inc/console": "^3.0.35",
     "@noop-inc/desktop-lima": "0.0.72",
     "@noop-inc/discovery": "^2.0.54",
     "@noop-inc/foundation": "2.2.9-pr780.1",
@@ -87,6 +87,6 @@
     "vite": "$vite"
   },
   "@noop-inc": {
-    "workshop-vm": "0.8.2-pr10.49"
+    "workshop-vm": "0.8.2-pr10.50"
   }
 }
