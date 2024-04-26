@@ -52,7 +52,7 @@
     "@eslint/eslintrc": "^3.0.2",
     "@eslint/js": "^9.1.1",
     "@noop-inc/console": "^3.0.35",
-    "@noop-inc/desktop-lima": "0.0.72",
+    "@noop-inc/desktop-lima": "^0.0.73",
     "@noop-inc/discovery": "^2.0.54",
     "@noop-inc/foundation": "2.2.9-pr780.1",
     "autoprefixer": "^10.4.19",
@@ -72,7 +72,7 @@
     "strip-ansi": "^7.1.0",
     "stylelint": "^16.4.0",
     "stylelint-config-standard": "^36.0.0",
-    "tar-fs": "^3.0.5",
+    "tar-fs": "^3.0.6",
     "tar-stream": "^3.1.7",
     "terser": "^5.30.4",
     "vite": "^5.2.10"
@@ -87,6 +87,6 @@
     "vite": "$vite"
   },
   "@noop-inc": {
-    "workshop-vm": "0.8.2-pr10.50"
+    "workshop-vm": "0.8.2-pr10.51"
   }
 }
