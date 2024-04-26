@@ -11,7 +11,7 @@ on:
 
 jobs:
   Bump:
-    name: Bump Version / Create Tag and Release
+    name: Create Release
     runs-on: ubuntu-latest
     steps:
       - name: Code Checkout
@@ -63,7 +63,7 @@ jobs:
 
   Publish:
     needs: Bump
-    name: Publish Desktop Release
+    name: Publish Release
     runs-on: ${{matrix.runner}}
     strategy:
       matrix:
