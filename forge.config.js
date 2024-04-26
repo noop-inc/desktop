@@ -142,8 +142,8 @@ module.exports = {
           owner: 'noop-inc',
           name: 'desktop'
         },
-        prerelease: true,
-        draft: true,
+        // prerelease: true,
+        // draft: true,
         force: true
       }
     }
