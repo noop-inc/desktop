@@ -10,66 +10,66 @@ on:
         required: true
 
 jobs:
-  Bump:
-    name: Create Release
-    runs-on: ubuntu-latest
-    steps:
-      - name: Code Checkout
-        id: code-checkout
-        uses: actions/checkout@v4
+  # Bump:
+  #   name: Create Release
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Code Checkout
+  #       id: code-checkout
+  #       uses: actions/checkout@v4
 
-      - name: Setup NodeJS
-        id: setup-nodejs
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          registry-url: 'https://npm.pkg.github.com'
-          scope: '@noop-inc'
+  #     - name: Setup NodeJS
+  #       id: setup-nodejs
+  #       uses: actions/setup-node@v4
+  #       with:
+  #         node-version: 20
+  #         registry-url: 'https://npm.pkg.github.com'
+  #         scope: '@noop-inc'
 
-      - name: Install Node Modules
-        id: install-node-modules
-        run: npm ci
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN }}
+  #     - name: Install Node Modules
+  #       id: install-node-modules
+  #       run: npm ci
+  #       env:
+  #         NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN }}
 
-      - name: Code Linting
-        id: lint-code
-        run: npm run lint
+  #     - name: Code Linting
+  #       id: lint-code
+  #       run: npm run lint
 
-      - name: Verify Workshop VM Release
-        id: verify-workshop-vm-release
-        run: |
-          # Verify the specified Workshop VM version exists
-          WORKSHOP_VM_VERSION=$(cat package.json | jq -r '."@noop-inc"."workshop-vm"')
-          gh release view "v${WORKSHOP_VM_VERSION}" -R "noop-inc/workshop-vm"
-        env:
-          GITHUB_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN }}
+  #     - name: Verify Workshop VM Release
+  #       id: verify-workshop-vm-release
+  #       run: |
+  #         # Verify the specified Workshop VM version exists
+  #         WORKSHOP_VM_VERSION=$(cat package.json | jq -r '."@noop-inc"."workshop-vm"')
+  #         gh release view "v${WORKSHOP_VM_VERSION}" -R "noop-inc/workshop-vm"
+  #       env:
+  #         GITHUB_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN }}
 
-      - name: Bump Version
-        id: bump-version
-        run: node .github/workflows/bump.mjs
-        env:
-          VERSION_INPUT: ${{ github.event.inputs.DesktopVersion }}
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  #     - name: Bump Version
+  #       id: bump-version
+  #       run: node .github/workflows/bump.mjs
+  #       env:
+  #         VERSION_INPUT: ${{ github.event.inputs.DesktopVersion }}
+  #         NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Create Desktop Release
-        id: create-desktop-release
-        run: |
-          # Verify an existing Desktop release, and create new release if needed
-          gh release view "${VERSION_INPUT}" || gh release create "${VERSION_INPUT}" -d -p --verify-tag -t "${VERSION_INPUT}"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VERSION_INPUT: ${{ github.event.inputs.DesktopVersion }}
+  #     - name: Create Desktop Release
+  #       id: create-desktop-release
+  #       run: |
+  #         # Verify an existing Desktop release, and create new release if needed
+  #         gh release view "${VERSION_INPUT}" || gh release create "${VERSION_INPUT}" -d -p --verify-tag -t "${VERSION_INPUT}"
+  #       env:
+  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  #         VERSION_INPUT: ${{ github.event.inputs.DesktopVersion }}
 
   Publish:
-    needs: Bump
+    # needs: Bump
     name: Publish Release
     runs-on: ${{matrix.runner}}
     strategy:
       matrix:
         include:
-          - runner: macos-14
-            ext: disk
+          # - runner: macos-14
+          #   ext: disk
           - runner: windows-latest
             ext: tar.gz
 
@@ -77,8 +77,8 @@ jobs:
       - name: Code Checkout
         id: code-checkout
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.inputs.DesktopVersion }}
+        # with:
+        #   ref: ${{ github.event.inputs.DesktopVersion }}
 
       - name: Setup NodeJS
         id: setup-nodejs
@@ -94,38 +94,44 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install Apple certificate
-        if: ${{ startsWith(matrix.runner, 'macos') }}
-        id: install-apple-certificate
-        env:
-          BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
-          P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
-          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
-          CERTIFICATE_IDENTITY: ${{ secrets.CERTIFICATE_IDENTITY }}
-        run: |
-          # create variables
-          CERTIFICATE_PATH=$RUNNER_TEMP/build_certificate.p12
-          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+      # - name: Install Apple certificate
+      #   if: ${{ startsWith(matrix.runner, 'macos') }}
+      #   id: install-apple-certificate
+      #   env:
+      #     BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+      #     P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+      #     KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+      #     CERTIFICATE_IDENTITY: ${{ secrets.CERTIFICATE_IDENTITY }}
+      #   run: |
+      #     # create variables
+      #     CERTIFICATE_PATH=$RUNNER_TEMP/build_certificate.p12
+      #     KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
 
-          # import certificate from secrets
-          echo -n "$BUILD_CERTIFICATE_BASE64" | base64 --decode -o $CERTIFICATE_PATH
+      #     # import certificate from secrets
+      #     echo -n "$BUILD_CERTIFICATE_BASE64" | base64 --decode -o $CERTIFICATE_PATH
 
-          # create temporary keychain
-          security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
-          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
-          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+      #     # create temporary keychain
+      #     security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+      #     security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+      #     security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
 
-          # import certificate to keychain
-          security import $CERTIFICATE_PATH -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
-          security list-keychain -d user -s $KEYCHAIN_PATH
+      #     # import certificate to keychain
+      #     security import $CERTIFICATE_PATH -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
+      #     security list-keychain -d user -s $KEYCHAIN_PATH
 
-          security find-identity -p codesigning -v
+      #     security find-identity -p codesigning -v
 
       - name: Install Node Modules
         id: install-node-modules
         run: npm ci
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN }}
+
+      - name: Temp Bump Version
+        id: Temp Bump Version
+        run: npm --no-git-tag-version version $VERSION_INPUT
+        env:
+          VERSION_INPUT: ${{ github.event.inputs.DesktopVersion }}
 
       - name: Download Workshop VM
         id: download-workshop-vm
@@ -138,21 +144,21 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN }}
           WORKSHOP_EXT: ${{ matrix.ext }}
 
-      - name: Build and Publish Desktop (mac)
-        if: ${{ startsWith(matrix.runner, 'macos') }}
-        id: build-and-publish-desktop-mac
-        run: |
-          npm run postinstall --prefix node_modules/@noop-inc/desktop-lima -- --arch x86_64
-          npm run postinstall --prefix node_modules/@noop-inc/desktop-lima -- --arch aarch64
-          npm run publish -- --arch x64
-          npm run publish -- --arch arm64
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          TEAM_ID: ${{ secrets.TEAM_ID }}
-          NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN }}
-          WORKSHOP_VM_VERSION: ${{ steps.download-workshop-vm.outputs.WORKSHOP_VM_VERSION }}
+      # - name: Build and Publish Desktop (mac)
+      #   if: ${{ startsWith(matrix.runner, 'macos') }}
+      #   id: build-and-publish-desktop-mac
+      #   run: |
+      #     npm run postinstall --prefix node_modules/@noop-inc/desktop-lima -- --arch x86_64
+      #     npm run postinstall --prefix node_modules/@noop-inc/desktop-lima -- --arch aarch64
+      #     npm run publish -- --arch x64
+      #     npm run publish -- --arch arm64
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #     APPLE_ID: ${{ secrets.APPLE_ID }}
+      #     APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+      #     TEAM_ID: ${{ secrets.TEAM_ID }}
+      #     NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN }}
+      #     WORKSHOP_VM_VERSION: ${{ steps.download-workshop-vm.outputs.WORKSHOP_VM_VERSION }}
 
       - name: Build and Publish Desktop (windows)
         if: ${{ startsWith(matrix.runner, 'windows') }}
