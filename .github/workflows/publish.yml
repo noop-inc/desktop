@@ -129,7 +129,8 @@ jobs:
 
       - name: Temp Bump Version
         id: temp-bump-version
-        run: npm --no-git-tag-version version $VERSION_INPUT
+        shell: bash
+        run: npm --no-git-tag-version version "${VERSION_INPUT}"
         env:
           VERSION_INPUT: ${{ github.event.inputs.DesktopVersion }}
 
