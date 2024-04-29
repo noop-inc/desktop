@@ -48,7 +48,7 @@
     "@electron-forge/plugin-vite": "^7.3.0",
     "@electron-forge/publisher-github": "^7.3.0",
     "@noop-inc/console": "^3.0.31",
-    "@noop-inc/desktop-lima": "0.0.70",
+    "@noop-inc/desktop-lima": "0.0.73",
     "@noop-inc/discovery": "^2.0.53",
     "@noop-inc/foundation": "2.2.3-pr658.0",
     "autoprefixer": "^10.4.18",
