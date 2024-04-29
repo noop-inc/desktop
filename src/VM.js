@@ -111,29 +111,31 @@ export default class VM extends EventEmitter {
             type: 'info',
             buttons: ['Install WSL', 'Not Now'],
             title: 'Install WSL',
-            detail: 'WSL appears to be unavailable on your machine. WSL needs to be installed to use Workshop.',
+            detail: 'WSL appears to be unavailable. WSL needs to be installed to use Workshop.',
             cancelId: 2
           })
 
           if (returnValue.response === 0) {
+            this.handleStatus('WSL_INSTALLING')
             await WslVirtualMachine.installWsl()
 
             const returnValue = await dialog.showMessageBox(this.mainWindow, {
               type: 'info',
               buttons: ['System Reboot', 'Later'],
               title: 'WSL Installation Completed',
-              detail: 'WSL installation has completed. A system reboot is needed for changes to take effect.',
+              detail: 'WSL installation has completed. A system reboot is recommended to ensure changes take effect.',
               cancelId: 2
             })
 
             if (returnValue.response === 0) {
               await WslVirtualMachine.systemReboot()
             }
+          } else {
+            throw error
           }
-          throw error
         } catch (error) {
           if (now === this.#lastCmd) {
-            this.handleStatus('CREATE_FAILED')
+            this.handleStatus('WSL_INSTALL_FAILED')
             throw error
           }
         }
@@ -348,6 +350,7 @@ export default class VM extends EventEmitter {
       await this.start()
     } catch (error) {
       if (now === this.#restarting) {
+        this.#restarting = null
         this.handleStatus('RESTART_FAILED')
         throw error
       }
