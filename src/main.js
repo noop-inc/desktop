@@ -112,9 +112,8 @@ const createMainWindow = async () => {
       await loadURL(mainWindow)
     }
 
-    if (managingVm) await handleWorkshopVmStatus()
-
     if (managingVm) {
+      await handleWorkshopVmStatus()
       vm.on('status', handleWorkshopVmStatus)
       await vm.start()
     }
@@ -158,7 +157,8 @@ const createMainWindow = async () => {
           buttons: ['Restart', 'Later'],
           title: 'Application Update',
           message: process.platform === 'win32' ? releaseNotes : releaseName,
-          detail: 'A new version has been downloaded. Restart the application to apply the updates.'
+          detail: 'A new version has been downloaded. Restart the application to apply the updates.',
+          cancelId: 2
         })
         if (returnValue.response === 0) {
           vm.isQuitting = true
@@ -399,7 +399,8 @@ const handleRestartWorkshopVm = async (_event, reset) => {
       title: `${reset ? 'Reset' : 'Restart'} Workshop VM`,
       detail: reset
         ? 'Resetting Workshop VM will erase the entirety of Workshop\'s contents and settings.'
-        : 'Restarting Workshop VM will stop all existing Workshop\'s processes.'
+        : 'Restarting Workshop VM will stop all existing Workshop\'s processes.',
+      cancelId: 2
     })
     if (returnValue.response === 0) {
       vm.isRestarting = true

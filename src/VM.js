@@ -1,5 +1,6 @@
 import { join } from 'node:path'
 import { QemuVirtualMachine, WslVirtualMachine } from '@noop-inc/foundation/lib/VirtualMachine.js'
+import Error from '@noop-inc/foundation/lib/Error.js'
 import { readdir, stat, mkdir, rm, access, rename } from 'node:fs/promises'
 import { EventEmitter } from 'node:events'
 import { inspect, promisify } from 'node:util'
@@ -101,7 +102,44 @@ export default class VM extends EventEmitter {
   async start () {
     let now = Date.now()
     this.#lastCmd = now
-    if (this.#vm) throw new Error('Workshop VM already running')
+    if (process.platform === 'win32') {
+      try {
+        await WslVirtualMachine.checkWsl()
+      } catch (error) {
+        try {
+          const returnValue = await dialog.showMessageBox(this.mainWindow, {
+            type: 'info',
+            buttons: ['Install WSL', 'Not Now'],
+            title: 'Install WSL',
+            detail: 'WSL appears to be unavailable on your machine. WSL needs to be installed to use Workshop.',
+            cancelId: 2
+          })
+
+          if (returnValue.response === 0) {
+            await WslVirtualMachine.installWsl()
+
+            const returnValue = await dialog.showMessageBox(this.mainWindow, {
+              type: 'info',
+              buttons: ['System Reboot', 'Later'],
+              title: 'WSL Installation Completed',
+              detail: 'WSL installation has completed. A system reboot is needed for changes to take effect.',
+              cancelId: 2
+            })
+
+            if (returnValue.response === 0) {
+              await WslVirtualMachine.systemReboot()
+            }
+          }
+          throw error
+        } catch (error) {
+          if (now === this.#lastCmd) {
+            this.handleStatus('CREATE_FAILED')
+            throw error
+          }
+        }
+      }
+    }
+    if (this.#vm) throw new DesktopVmError('Workshop VM already running')
     if ((process.platform === 'darwin') && !this.#traffic) {
       this.#sockets = new Set()
       this.#traffic = createServer(socket => this.handleTrafficSocket(socket))
@@ -137,7 +175,7 @@ export default class VM extends EventEmitter {
           try {
             await stat(baseImage)
           } catch (cause) {
-            throw new Error('Workshop base image not found', { cause })
+            throw new DesktopVmError('Workshop base image not found', { cause })
           }
           try {
             await stat(dataDisk)
@@ -229,8 +267,7 @@ export default class VM extends EventEmitter {
       this.#restarting = null
       if (this.#quitting) return
     }
-    if ((process.platform === 'darwin') && !this.#vm && !this.#traffic) return true
-    if ((process.platform === 'win32') && !this.#vm) return true
+
     const now = Date.now()
     this.#lastCmd = now
     this.#quitting = now
@@ -264,7 +301,7 @@ export default class VM extends EventEmitter {
               this.#sockets = null
               this.#traffic = null
             }
-          } else {
+          } else if (process.platform === 'darwin') {
             logHandler({ event: 'vm.traffic.close.skip', sockets: this.#sockets?.size })
           }
         })(),
@@ -363,7 +400,7 @@ export default class VM extends EventEmitter {
       }
 
       if (process.platform === 'win32') {
-        return 'C:\\Users\\dfnj1\\Downloads\\noop-workshop-vm-0.8.2-pr10.49.x86_64.tar.gz'
+        return 'C:\\Users\\dfnj1\\Downloads\\noop-workshop-vm-0.8.2-pr10.52.x86_64.tar.gz'
       }
     } else if (['darwin', 'win32'].includes(process.platform)) {
       const files = await readdir(resourcesPath)
@@ -453,5 +490,11 @@ export default class VM extends EventEmitter {
 
   set isRestarting (isRestarting) {
     this.#isRestarting = isRestarting
+  }
+}
+
+class DesktopVmError extends Error {
+  static get displayName () {
+    return 'DesktopVmError'
   }
 }
