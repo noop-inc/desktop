@@ -142,8 +142,8 @@ jobs:
         if: ${{ startsWith(matrix.runner, 'macos') }}
         id: build-and-publish-desktop-mac
         run: |
-          npm run postinstall --prefix node_modules/@noop-inc/desktop-lima -- --arch x86_64
-          npm run postinstall --prefix node_modules/@noop-inc/desktop-lima -- --arch aarch64
+          npm run postinstall --prefix node_modules/@noop-inc/desktop-qemu -- --arch x86_64
+          npm run postinstall --prefix node_modules/@noop-inc/desktop-qemu -- --arch aarch64
           npm run publish -- --arch x64
           npm run publish -- --arch arm64
         env:

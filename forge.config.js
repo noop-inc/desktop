@@ -18,7 +18,7 @@ const arch = ['x64', 'arm64'].includes(arg)
 //   spawnArgs[2] = { ...spawnArgs[2], stdio: [process.stdin, process.stdout, process.stderr] }
 //   const cp = spawnCallback(...spawnArgs)
 //   cp.on('close', code => {
-//     code ? reject(new Error('dekstop-lima install error', { code, args })) : resolve()
+//     code ? reject(new Error('dekstop-qemu install error', { code, args })) : resolve()
 //   })
 // })
 
@@ -46,7 +46,7 @@ module.exports = {
         ? {}
         : {
             extraResource: [
-              process.platform === 'darwin' ? `node_modules/@noop-inc/desktop-lima/dist/lima-and-qemu.macos-${arch}` : null,
+              process.platform === 'darwin' ? `node_modules/@noop-inc/desktop-qemu/dist/qemu.macos-${arch}` : null,
               `noop-workshop-vm-${process.env.WORKSHOP_VM_VERSION}.${arch}.${({ darwin: 'disk', win32: 'tar.gz' })[process.platform]}`
             ].filter(Boolean)
           }
@@ -157,19 +157,19 @@ module.exports = {
   //           x64: 'x86_64'
   //         })[arch]
 
-  //         const qemuDistDir = resolve(__dirname, 'node_modules/@noop-inc/desktop-lima/dist')
+  //         const qemuDistDir = resolve(__dirname, 'node_modules/@noop-inc/desktop-qemu/dist')
 
-  //         const qemuX86Zip = resolve(qemuDistDir, 'lima-and-qemu.macos-x86_64.zip')
-  //         const qemuArmZip = resolve(qemuDistDir, 'lima-and-qemu.macos-aarch64.zip')
+  //         const qemuX86Zip = resolve(qemuDistDir, 'qemu.macos-x86_64.zip')
+  //         const qemuArmZip = resolve(qemuDistDir, 'qemu.macos-aarch64.zip')
 
-  //         const qemuX86Dir = resolve(qemuDistDir, 'lima-and-qemu.macos-x86_64')
-  //         const qemuArmDir = resolve(qemuDistDir, 'lima-and-qemu.macos-aarch64')
+  //         const qemuX86Dir = resolve(qemuDistDir, 'qemu.macos-x86_64')
+  //         const qemuArmDir = resolve(qemuDistDir, 'qemu.macos-aarch64')
 
-  //         // const qemuArmZip = resolve(__dirname, 'node_modules/@noop-inc/desktop-lima/dist/lima-and-qemu.macos-aarch64.zip')
+  //         // const qemuArmZip = resolve(__dirname, 'node_modules/@noop-inc/desktop-qemu/dist/qemu.macos-aarch64.zip')
 
-  //         // const qemuX86Dir = resolve(__dirname, 'lima-and-qemu.macos-x86_64')
-  //         // const qemuArmDir = resolve(__dirname, 'lima-and-qemu.macos-aarch64')
-  //         // const qemuDir = resolve(__dirname, 'lima-and-qemu.macos')
+  //         // const qemuX86Dir = resolve(__dirname, 'qemu.macos-x86_64')
+  //         // const qemuArmDir = resolve(__dirname, 'qemu.macos-aarch64')
+  //         // const qemuDir = resolve(__dirname, 'qemu.macos')
 
   //         const workshopVmImageX86 = resolve(__dirname, `noop-workshop-vm-${process.env.WORKSHOP_VM_VERSION}.x86_64.disk`)
   //         const workshopVmImageArm = resolve(__dirname, `noop-workshop-vm-${process.env.WORKSHOP_VM_VERSION}.aarch64.disk`)

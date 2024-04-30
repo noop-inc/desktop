@@ -35,8 +35,8 @@ const {
 
 if (process.platform === 'darwin') {
   QemuVirtualMachine.path = (npmLifecycleEvent === 'serve')
-    ? join(npmConfigLocalPrefix, `node_modules/@noop-inc/desktop-lima/dist/lima-and-qemu.macos-${arch}`)
-    : join(resourcesPath, `lima-and-qemu.macos-${arch}`)
+    ? join(npmConfigLocalPrefix, `node_modules/@noop-inc/desktop-qemu/dist/qemu.macos-${arch}`)
+    : join(resourcesPath, `qemu.macos-${arch}`)
 }
 
 const mainWindowViteDevServerURL = MAIN_WINDOW_VITE_DEV_SERVER_URL // eslint-disable-line no-undef
@@ -399,7 +399,7 @@ export default class VM extends EventEmitter {
   async workshopVmAsset () {
     if (npmLifecycleEvent === 'serve') {
       if (process.platform === 'darwin') {
-        return join(npmConfigLocalPrefix, '../workshop-vm/limaless/prep/disks/noop-workshop-vm-0.0.0-automated.aarch64.disk')
+        return join(npmConfigLocalPrefix, '../workshop-vm/prep/disks/noop-workshop-vm-0.0.0-automated.aarch64.disk')
       }
 
       if (process.platform === 'win32') {

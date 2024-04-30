@@ -33,7 +33,7 @@
     "make": "npm run postinstall && electron-forge make",
     "noop-link": "npm link @noop-inc/console @noop-inc/foundation",
     "package": "npm run postinstall && electron-forge package",
-    "postinstall": "npm run postinstall --prefix node_modules/@noop-inc/desktop-lima || true",
+    "postinstall": "npm run postinstall --prefix node_modules/@noop-inc/desktop-qemu || true",
     "publish": "npm run postinstall && electron-forge publish",
     "serve": "electron-forge start"
   },
@@ -52,9 +52,9 @@
     "@eslint/eslintrc": "^3.0.2",
     "@eslint/js": "^9.1.1",
     "@noop-inc/console": "^3.0.36",
-    "@noop-inc/desktop-lima": "^0.0.73",
+    "@noop-inc/desktop-qemu": "^0.0.75",
     "@noop-inc/discovery": "^2.0.54",
-    "@noop-inc/foundation": "2.2.9-pr780.3",
+    "@noop-inc/foundation": "2.2.9-pr658.0",
     "autoprefixer": "^10.4.19",
     "concurrently": "^8.2.2",
     "dot-prop": "^8.0.2",
@@ -79,7 +79,7 @@
   },
   "overrides": {
     "@noop-inc/console": "$@noop-inc/console",
-    "@noop-inc/desktop-lima": "$@noop-inc/desktop-lima",
+    "@noop-inc/desktop-qemu": "$@noop-inc/desktop-qemu",
     "@noop-inc/discovery": "$@noop-inc/discovery",
     "@noop-inc/foundation": "$@noop-inc/foundation",
     "eslint": "$eslint",
@@ -87,6 +87,6 @@
     "vite": "$vite"
   },
   "@noop-inc": {
-    "workshop-vm": "0.8.2-pr10.52"
+    "workshop-vm": "0.8.2-pr6.0"
   }
 }
