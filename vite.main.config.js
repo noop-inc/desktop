@@ -4,7 +4,7 @@ import {
   getBuildDefine,
   external,
   pluginHotRestart
-} from './vite.base.config.mjs'
+} from './vite.base.config.js'
 
 // https://vitejs.dev/config
 export default defineConfig((env) => {
@@ -19,15 +19,15 @@ export default defineConfig((env) => {
       lib: {
         entry: forgeConfigSelf.entry,
         fileName: () => '[name].js',
-        formats: ['cjs']
+        formats: ['es']
       },
       rollupOptions: {
         external: [
           ...external,
           'better-sqlite3',
           'node-pty',
-          'chokidar',
-          'electron-squirrel-startup'
+          'chokidar'
+          // 'electron-squirrel-startup'
           // 'node-cron'
         ]
       }

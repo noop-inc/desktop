@@ -47,7 +47,7 @@ jobs:
 
       - name: Bump Version
         id: bump-version
-        run: node .github/workflows/bump.mjs
+        run: node .github/workflows/bump.js
         env:
           VERSION_INPUT: ${{ github.event.inputs.DesktopVersion }}
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
