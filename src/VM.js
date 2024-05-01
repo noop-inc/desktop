@@ -111,7 +111,7 @@ export default class VM extends EventEmitter {
             type: 'info',
             buttons: ['Install WSL', 'Not Now'],
             title: 'Install WSL',
-            detail: 'WSL appears to be unavailable. WSL needs to be installed to use local development features of Workshop.',
+            detail: 'WSL appears to be unavailable. WSL needs to be installed to use the local development features of Workshop.',
             cancelId: 2
           })
 
@@ -123,7 +123,7 @@ export default class VM extends EventEmitter {
               type: 'info',
               buttons: ['System Reboot', 'Later'],
               title: 'WSL Installation Completed',
-              detail: 'WSL installation has completed. A system reboot is recommended to ensure the changes take effect.',
+              detail: 'WSL installation has completed. A system reboot is recommended to ensure changes take effect.',
               cancelId: 2
             })
 
