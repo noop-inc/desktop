@@ -51,13 +51,13 @@
     "@electron-forge/publisher-github": "^7.4.0",
     "@eslint/eslintrc": "^3.0.2",
     "@eslint/js": "^9.1.1",
-    "@noop-inc/console": "3.0.37-pr1235.1",
+    "@noop-inc/console": "3.0.37-pr1235.2",
     "@noop-inc/desktop-qemu": "^0.0.75",
     "@noop-inc/discovery": "^2.0.55",
     "@noop-inc/foundation": "2.2.11-pr658.0",
     "autoprefixer": "^10.4.19",
     "concurrently": "^8.2.2",
-    "dot-prop": "^8.0.2",
+    "dot-prop": "^9.0.0",
     "dotenv": "^16.4.5",
     "electron": "^30.0.3",
     "electron-log": "^5.1.4",
@@ -88,6 +88,6 @@
     "vite": "$vite"
   },
   "@noop-inc": {
-    "workshop-vm": "0.9.0"
+    "workshop-vm": "0.9.1"
   }
 }
