@@ -1,7 +1,7 @@
 import { watch } from 'chokidar'
 import ignore from 'ignore'
 import { readdir, readFile, access, constants, stat } from 'node:fs/promises'
-import { join, relative } from 'node:path'
+import { join, relative, sep, normalize, posix, basename } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { EventEmitter } from 'node:events'
 import { Discovery } from '@noop-inc/discovery'
@@ -25,7 +25,6 @@ const formatter = (...messages) =>
 export default class FileWatcher extends EventEmitter {
   repoId
   url
-  projectsDir
   path
   running = false
   shouldDelete = false
@@ -37,10 +36,10 @@ export default class FileWatcher extends EventEmitter {
   changeTimeout
   timeoutDuration = 2000
 
-  constructor ({ repoId, url, projectsDir }) {
+  constructor ({ repoId, url }) {
     super()
-    const path = fileURLToPath(url).replace('/noop/projects', projectsDir)
-    Object.assign(this, { repoId, url, projectsDir, path })
+    const path = fileURLToPath(url)
+    Object.assign(this, { repoId, url, path })
     formatter({ event: 'watcher.created', path: this.path })
   }
 
@@ -105,18 +104,22 @@ export default class FileWatcher extends EventEmitter {
       const blueprint = manifests.blueprint
 
       for (const component of blueprint.components) {
-        const root = join(this.path, component.root || '.', '/')
+        const normalizedRoot = component.root ? normalize(component.root) : '.'
+        const absoluteRoot = join(this.path, normalizedRoot, sep)
         const filePatterns = await Promise.all(component.filePatterns.map(async pattern => {
           try {
-            const stats = await stat(join(root, pattern))
-            if (!stats.isDirectory()) return pattern
-            if (pattern.endsWith('/')) pattern = pattern.substring(0, pattern.length - 1)
-            return [pattern, join(pattern, '/'), join(pattern, '**')]
+            const normalizedPattern = normalize(pattern)
+            let posixPattern = posix.normalize(pattern)
+            const absolutePattern = join(absoluteRoot, normalizedPattern)
+            const stats = await stat(absolutePattern)
+            if (!stats.isDirectory()) return posixPattern
+            if (posixPattern.endsWith(posix.sep)) posixPattern = posixPattern.substring(0, posixPattern.length - posix.sep.length)
+            return [posixPattern, posix.join(posixPattern, posix.sep), posix.join(posixPattern, '**')]
           } catch (error) {
-            return pattern
+            return posix.normalize(pattern)
           }
         }))
-        patterns[root] = [...(new Set([...(patterns[root] || []), ...filePatterns.flat()]))].sort()
+        patterns[absoluteRoot] = [...(new Set([...(patterns[absoluteRoot] || []), ...filePatterns.flat()]))].sort()
       }
       formatter({ event: 'watcher.patterns', path: this.path, patterns })
       this.patterns = patterns
@@ -146,13 +149,13 @@ export default class FileWatcher extends EventEmitter {
         if (file.isDirectory() && (name !== '.git')) {
           const joinedPath = join(path, name)
           for (const ignorerPath in this.ignorers) {
-            if (!joinedPath.startsWith(`${ignorerPath}/`)) continue
+            if (!joinedPath.startsWith(join(ignorerPath, sep))) continue
             const ignorer = this.ignorers[ignorerPath]
             const relativePath = relative(ignorerPath, joinedPath)
             if (ignorer.ignores(relativePath)) return false
           }
           for (const componentRoot in this.patterns) {
-            if (componentRoot.startsWith(`${file}/`) || `${file}/`.startsWith(componentRoot)) return true
+            if (componentRoot.startsWith(join(joinedPath, sep)) || join(joinedPath, sep).startsWith(componentRoot)) return true
           }
         }
         return false
@@ -168,40 +171,40 @@ export default class FileWatcher extends EventEmitter {
       // ignorePermissionErrors: true,
       // depth: 16,
       ignored: (absolutePath, stats) => {
-        const split = absolutePath.split('/')
-        const name = split.pop()
+        const normalizedPath = normalize(absolutePath)
+        const name = basename(normalizedPath)
         if (
-          (absolutePath === this.path) ||
-          (absolutePath === `${this.path}/.noop`) ||
-          absolutePath.startsWith(`${this.path}/.noop/`)
+          (normalizedPath === this.path) ||
+          (normalizedPath === join(this.path, '.noop')) ||
+          normalizedPath.startsWith(join(this.path, '.noop', sep))
         ) {
           return false
         }
         if (
           (name === '.git') ||
-          absolutePath.includes('/.git/') ||
+          normalizedPath.includes(join(sep, '.git', sep)) ||
           (name === 'node_modules') ||
-          absolutePath.includes('/node_modules/') ||
+          normalizedPath.includes(join(sep, 'node_modules', sep)) ||
           (name === 'Dockerfile')
         ) {
           return true
         }
         for (const ignorerPath in this.ignorers) {
-          if (!absolutePath.startsWith(`${ignorerPath}/`)) continue
+          if (!normalizedPath.startsWith(join(ignorerPath, sep))) continue
           const ignorer = this.ignorers[ignorerPath]
-          const relativePath = relative(ignorerPath, absolutePath)
+          const relativePath = relative(ignorerPath, normalizedPath)
           if (relativePath === '.gitignore') return false
           if (ignorer.ignores(relativePath)) return true
         }
         for (const [componentRoot, patterns] of Object.entries(this.patterns)) {
           if (
-            componentRoot.startsWith(`${absolutePath}/`) ||
-            (`${absolutePath}/` === componentRoot)
+            componentRoot.startsWith(join(normalizedPath, sep)) ||
+            (join(normalizedPath, sep) === componentRoot)
           ) {
             return false
           }
-          if (absolutePath.startsWith(componentRoot)) {
-            const relativePath = absolutePath.replace(componentRoot, '')
+          if (normalizedPath.startsWith(componentRoot)) {
+            const relativePath = normalizedPath.replace(componentRoot, '')
             if (patterns.some(pattern => minimatch(relativePath, pattern, { partial: true, dot: true }))) {
               return false
             }
@@ -246,9 +249,8 @@ export default class FileWatcher extends EventEmitter {
   }
 
   async #changeHandler (relativeFile = '') {
-    const split = relativeFile.split('/')
-    const name = split.pop()
-    if ((name === '.gitignore') || relativeFile.startsWith('.noop/')) this.shouldRestart = true
+    const name = basename(relativeFile)
+    if ((name === '.gitignore') || relativeFile.startsWith(join('.noop', sep))) this.shouldRestart = true
     clearInterval(this.changeTimeout)
     this.changeTimeout = setTimeout(async () => {
       await this.#confirmNoopDir()

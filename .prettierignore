@@ -95,3 +95,10 @@ out/
 *.qcow2
 *.disk
 *.tar.gz
+
+**/*.js
+**/*.mjs
+**/*.cjs
+
+**/*.scss
+**/*.css

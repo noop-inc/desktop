@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 import { app } from 'electron'
-import { readFile, writeFile } from 'node:fs/promises'
+import { readFile, writeFile, mkdir, access, rename } from 'node:fs/promises'
 import { parse, stringify } from '@noop-inc/foundation/lib/Yaml.js'
 import { getProperty, setProperty, hasProperty, deleteProperty } from 'dot-prop'
 import { inspect } from 'node:util'
@@ -16,7 +16,9 @@ const packaged = (!mainWindowViteDevServerURL && app.isPackaged)
 const managingVm = (packaged || (npmLifecycleEvent === 'serve'))
 
 const userData = app.getPath('userData')
-const file = join(userData, 'settings.yaml')
+const dataDir = join(userData, 'data')
+const desktopDir = join(dataDir, 'Desktop')
+const file = join(desktopDir, 'settings.yaml')
 
 const formatter = (...messages) =>
   console[messages[0].event.includes('.error') ? 'error' : 'log'](
@@ -34,6 +36,15 @@ class Settings {
 
   async start () {
     if (this.#started) return
+
+    // migrate old settings file
+    try {
+      const oldFile = join(userData, 'settings.yaml')
+      await access(oldFile)
+      await mkdir(desktopDir, { recursive: true })
+      await rename(oldFile, file)
+    } catch (error) {}
+
     try {
       this.#settings = parse((await readFile(file)).toString())
     } catch (error) {
@@ -79,6 +90,7 @@ class Settings {
     this.#settings = JSON.parse(JSON.stringify(this.#settings))
     const yaml = stringify(this.#settings)
     formatter({ event: 'workshop.settings.update', settings: this.#settings, file })
+    await mkdir(desktopDir, { recursive: true })
     await writeFile(file, yaml)
   }
 

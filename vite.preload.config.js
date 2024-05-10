@@ -3,7 +3,7 @@ import {
   getBuildConfig,
   external,
   pluginHotRestart
-} from './vite.base.config.mjs'
+} from './vite.base.config.js'
 
 // https://vitejs.dev/config
 export default defineConfig((env) => {

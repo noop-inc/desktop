@@ -1,6 +1,7 @@
 import { join } from 'node:path'
-import { QemuVirtualMachine } from '@noop-inc/foundation/lib/VirtualMachine.js'
-import { readdir, stat, mkdir, rm } from 'node:fs/promises'
+import { QemuVirtualMachine, WslVirtualMachine } from '@noop-inc/foundation/lib/VirtualMachine.js'
+import Error from '@noop-inc/foundation/lib/Error.js'
+import { readdir, stat, mkdir, rm, access, rename } from 'node:fs/promises'
 import { EventEmitter } from 'node:events'
 import { inspect, promisify } from 'node:util'
 import { app, dialog } from 'electron'
@@ -8,13 +9,20 @@ import { homedir, cpus, totalmem } from 'node:os'
 import settings from './Settings.js'
 import { createServer, createConnection } from 'node:net'
 import stripAnsi from 'strip-ansi'
+import { setTimeout as wait } from 'node:timers/promises'
 
 const arch = process.arch.includes('arm') ? 'aarch64' : 'x86_64'
 
 const userData = app.getPath('userData')
-const workdir = join(userData, 'Workshop/')
-const dataDisk = join(workdir, 'data.disk')
-const systemDisk = join(workdir, 'system.disk')
+const dataDir = join(userData, 'data')
+
+const vmDir = join(dataDir, 'VM')
+const systemDisk = join(vmDir, 'system.disk')
+
+const workshopDir = join(dataDir, 'Workshop')
+const dataDisk = join(workshopDir, 'data.disk')
+
+const desktopDir = join(dataDir, 'Desktop')
 
 const {
   resourcesPath,
@@ -25,9 +33,11 @@ const {
   }
 } = process
 
-QemuVirtualMachine.path = (npmLifecycleEvent === 'serve')
-  ? join(npmConfigLocalPrefix, `node_modules/@noop-inc/desktop-lima/dist/lima-and-qemu.macos-${arch}`)
-  : join(resourcesPath, `lima-and-qemu.macos-${arch}`)
+if (process.platform === 'darwin') {
+  QemuVirtualMachine.path = (npmLifecycleEvent === 'serve')
+    ? join(npmConfigLocalPrefix, `node_modules/@noop-inc/desktop-qemu/dist/qemu.macos-${arch}`)
+    : join(resourcesPath, `qemu.macos-${arch}`)
+}
 
 const mainWindowViteDevServerURL = MAIN_WINDOW_VITE_DEV_SERVER_URL // eslint-disable-line no-undef
 const packaged = (!mainWindowViteDevServerURL && app.isPackaged)
@@ -92,52 +102,132 @@ export default class VM extends EventEmitter {
   async start () {
     let now = Date.now()
     this.#lastCmd = now
-    if (this.#vm) throw new Error('Workshop VM already running')
-    if (!this.#traffic) {
+    if (process.platform === 'win32') {
+      try {
+        await WslVirtualMachine.checkWsl()
+      } catch (error) {
+        try {
+          const returnValue = await dialog.showMessageBox(this.mainWindow, {
+            type: 'info',
+            buttons: ['Install WSL', 'Not Now'],
+            title: 'Install WSL',
+            detail: 'WSL appears to be unavailable. WSL needs to be installed to use the local development features of Workshop.',
+            cancelId: 2
+          })
+
+          if (returnValue.response === 0) {
+            this.handleStatus('WSL_INSTALLING')
+            await WslVirtualMachine.installWsl()
+
+            const returnValue = await dialog.showMessageBox(this.mainWindow, {
+              type: 'info',
+              buttons: ['System Reboot', 'Later'],
+              title: 'WSL Installation Completed',
+              detail: 'WSL installation has completed. A system reboot is recommended to ensure changes take effect.',
+              cancelId: 2
+            })
+
+            if (returnValue.response === 0) {
+              await WslVirtualMachine.systemReboot()
+            }
+          } else {
+            throw error
+          }
+        } catch (error) {
+          if (now === this.#lastCmd) {
+            this.handleStatus('WSL_INSTALL_FAILED')
+            throw error
+          }
+        }
+      }
+    }
+    if (this.#vm) throw new DesktopVmError('Workshop VM already running')
+    if ((process.platform === 'darwin') && !this.#traffic) {
       this.#sockets = new Set()
       this.#traffic = createServer(socket => this.handleTrafficSocket(socket))
-      await promisify(this.#traffic.listen.bind(this.#traffic))(443)
+      await promisify(this.#traffic.listen.bind(this.#traffic))({ port: 443, host: '0.0.0.0' })
     }
     if (now === this.#lastCmd) {
       this.handleStatus(this.#restarting ? 'RESTARTING' : 'CREATING')
       now = Date.now()
       this.#lastCmd = now
       try {
-        await mkdir(workdir, { recursive: true })
-        const baseImage = await this.workshopImage()
+        // migrate old data.disk
         try {
-          await stat(baseImage)
-        } catch (cause) {
-          throw new Error('Workshop base image not found', { cause })
-        }
-        try {
-          await stat(dataDisk)
-        } catch (error) {
-          logHandler({ event: 'workshop.initialize', disk: dataDisk })
-          await settings.delete('Workshop.ProjectsDirectory')
-          await QemuVirtualMachine.createDiskImage(dataDisk, { size: 100 })
-        }
-        try {
-          await rm(systemDisk)
+          const oldDataDisk = join(userData, 'Workshop', 'data.disk')
+          await access(oldDataDisk)
+          await mkdir(workshopDir, { recursive: true })
+          await rename(oldDataDisk, dataDisk)
         } catch (error) {}
-        logHandler({ event: 'workshop.initialize', disk: systemDisk, baseImage })
-        await QemuVirtualMachine.createDiskImage(systemDisk, { base: baseImage })
+
+        // migrate old vm files
+        try {
+          const oldWorkshop = join(userData, 'Workshop')
+          await access(oldWorkshop)
+          await mkdir(dataDir, { recursive: true })
+          await rename(oldWorkshop, vmDir)
+        } catch (error) {}
+
+        await mkdir(vmDir, { recursive: true })
+        await mkdir(workshopDir, { recursive: true })
+        await mkdir(desktopDir, { recursive: true })
+
+        if (process.platform === 'darwin') {
+          const baseImage = await this.workshopVmAsset()
+          try {
+            await stat(baseImage)
+          } catch (cause) {
+            throw new DesktopVmError('Workshop base image not found', { cause })
+          }
+          try {
+            await stat(dataDisk)
+          } catch (error) {
+            logHandler({ event: 'workshop.initialize', disk: dataDisk })
+            await settings.delete('Workshop.ProjectsDirectory')
+          }
+          try {
+            await rm(systemDisk)
+          } catch (error) {}
+          logHandler({ event: 'workshop.initialize', disk: systemDisk, baseImage })
+          await QemuVirtualMachine.createDiskImage(systemDisk, { base: baseImage })
+        } else {
+          logHandler({ event: 'workshop.initialize' })
+        }
+
         await this.#setProjectsDirectory()
 
-        const cpu = this.defaultCpu
-        const memory = this.defaultMemory
-        const ports = [
-          '127.0.0.1:44450-:22', // SSH
-          '127.0.0.1:44451-:441', // Workshop Traffic
-          '127.0.0.1:44452-:442' // Workshop API
-        ]
-        const disks = [systemDisk, dataDisk]
-        const mounts = {
-          Projects: await this.projectsDirectory()
+        let vm
+        if (process.platform === 'darwin') {
+          const cpu = this.defaultCpu
+          const memory = this.defaultMemory
+          const ports = [
+            '127.0.0.1:44450-:22', // SSH
+            '127.0.0.1:44451-:443', // Workshop Traffic
+            '127.0.0.1:44452-:44452' // Workshop API
+          ]
+          const disks = [systemDisk]
+          const mounts = {
+            Host: { path: '/' },
+            Desktop: { path: desktopDir },
+            Workshop: { path: workshopDir, readOnly: false }
+          }
+          const params = { workdir: vmDir, cpu, memory, ports, disks, mounts }
+          logHandler({ event: 'vm.params', ...params })
+          vm = new QemuVirtualMachine(params)
         }
-        const params = { workdir, cpu, memory, ports, disks, mounts }
-        logHandler({ event: 'vm.params', ...params })
-        const vm = new QemuVirtualMachine(params)
+
+        if (process.platform === 'win32') {
+          const tarFile = await this.workshopVmAsset()
+          const params = {
+            tarFile,
+            installDir: vmDir,
+            distroName: 'WorkshopVM',
+            startCmd: 'journalctl --boot --follow --no-tail --no-hostname --output short-monotonic'.split(' '),
+            stopCmd: 'shutdown -h now'.split(' ')
+          }
+          logHandler({ event: 'vm.params', ...params })
+          vm = new WslVirtualMachine(params)
+        }
         this.#vm = vm
         this.#vm.log.on('data', event => {
           if (event.context.message) {
@@ -174,12 +264,12 @@ export default class VM extends EventEmitter {
     }
   }
 
-  async stop (timeout = 20) {
+  async stop (timeout = 30) {
     if (this.isQuitting && this.#restarting) {
       this.#restarting = null
       if (this.#quitting) return
     }
-    if (!this.#vm && !this.#traffic) return true
+
     const now = Date.now()
     this.#lastCmd = now
     this.#quitting = now
@@ -191,71 +281,47 @@ export default class VM extends EventEmitter {
         (async () => {
           if (this.#traffic) {
             logHandler({ event: 'vm.traffic.close.start', sockets: this.#sockets?.size })
-            // const now = Date.now()
-            // this.#lastCmd = now
-            try {
-              const traffic = this.#traffic
-              await Promise.all([
-                ...[...this.#sockets]
-                  .map(async socket => {
-                    try {
-                      socket.destroy()
-                      this.#sockets?.delete(socket)
-                    } catch (error) {
-                      if (error.code !== 'ERR_STREAM_ALREADY_FINISHED') throw error
-                    }
-                    this.#sockets?.delete(socket)
-                  }),
-                (async () => {
-                  try {
-                    await promisify(traffic.close.bind(traffic))()
-                  } catch (error) {
-                    if (error.code !== 'ERR_SERVER_NOT_RUNNING') throw error
-                  }
-                })()
-              ])
-              logHandler({ event: 'vm.traffic.close.end', sockets: this.#sockets?.size })
-              if (this.#traffic === traffic) {
-                this.#sockets = null
-                this.#traffic = null
-              }
-            } catch (error) {
-              logHandler({ event: 'vm.stop.error', error })
-              if (now === this.#lastCmd) {
-                this.handleStatus('STOP_FAILED')
-                throw error
-              }
+            const traffic = this.#traffic
+            const stopServer = promisify(this.#traffic.close.bind(this.#traffic))
+            const serverStopped = stopServer()
+            await Promise.all([
+              ...[...this.#sockets].map(async socket => {
+                if (!socket.destroyed) {
+                  const endSocket = promisify(socket.end.bind(socket))
+                  const ac = new AbortController()
+                  const signal = ac.signal
+                  await Promise.race([wait(1000, null, { signal }), endSocket()])
+                  ac.abort()
+                }
+                if (!socket.destroyed) socket.destroy()
+                this.#sockets.delete(socket)
+              }),
+              serverStopped
+            ])
+            logHandler({ event: 'vm.traffic.close.end', sockets: this.#sockets?.size })
+            if (this.#traffic === traffic) {
+              this.#sockets = null
+              this.#traffic = null
             }
-          } else {
+          } else if (process.platform === 'darwin') {
             logHandler({ event: 'vm.traffic.close.skip', sockets: this.#sockets?.size })
           }
         })(),
         (async () => {
           if (this.#vm) {
             logHandler({ event: 'vm.stop.start' })
-            // const now = Date.now()
-            // this.#lastCmd = now
-            try {
-              const vm = this.#vm
-              if (timeout) {
-                await vm.stop(timeout)
-              } else {
-                vm.kill()
-              }
-              logHandler({ event: 'vm.stop.end' })
-              if (this.#vm === vm) this.#vm = null
-            } catch (error) {
-              logHandler({ event: 'vm.stop.error', error })
-              if (now === this.#lastCmd) {
-                this.handleStatus('STOP_FAILED')
-                throw error
-              }
+            const vm = this.#vm
+            await vm.stop(timeout)
+            logHandler({ event: 'vm.stop.end' })
+            if (this.#vm === vm) {
+              this.#vm = null
+              try {
+                await rm(systemDisk)
+              } catch (error) {}
             }
           } else {
             logHandler({ event: 'vm.stop.skip' })
           }
-          this.#quitting = null
-          this.handleStatus('STOPPED')
         })()
       ])
     } catch (error) {
@@ -274,7 +340,7 @@ export default class VM extends EventEmitter {
     const now = Date.now()
     this.#restarting = now
     try {
-      await this.stop(reset ? 0 : 20)
+      await this.stop(reset ? 0 : 30)
       if (this.isQuitting || this.#quitting) return
       if (reset) {
         await rm(dataDisk)
@@ -284,6 +350,7 @@ export default class VM extends EventEmitter {
       await this.start()
     } catch (error) {
       if (now === this.#restarting) {
+        this.#restarting = null
         this.handleStatus('RESTART_FAILED')
         throw error
       }
@@ -329,10 +396,21 @@ export default class VM extends EventEmitter {
     await settings.set('Workshop.ProjectsDirectory', projectsDir)
   }
 
-  async workshopImage () {
-    return (npmLifecycleEvent === 'serve')
-      ? join(npmConfigLocalPrefix, '../workshop-vm/limaless/prep/disks/noop-workshop-vm-0.0.0-automated.aarch64.disk')
-      : join(resourcesPath, (await readdir(resourcesPath)).find(file => file.startsWith('noop-workshop-vm') && file.endsWith(`.${arch}.disk`)))
+  async workshopVmAsset () {
+    if (npmLifecycleEvent === 'serve') {
+      if (process.platform === 'darwin') {
+        return join(npmConfigLocalPrefix, '../workshop-vm/prep/disks/noop-workshop-vm-0.0.0-automated.aarch64.disk')
+      }
+
+      if (process.platform === 'win32') {
+        return 'C:\\Users\\dfnj1\\Downloads\\noop-workshop-vm-0.8.2-pr10.52.x86_64.tar.gz'
+      }
+    } else if (['darwin', 'win32'].includes(process.platform)) {
+      const files = await readdir(resourcesPath)
+      return join(resourcesPath, files.find(file =>
+        file.startsWith('noop-workshop-vm') &&
+        file.endsWith(`.${arch}.${process.platform === 'darwin' ? 'disk' : 'tar.gz'}`)))
+    }
   }
 
   async projectsDirectory () {
@@ -351,14 +429,23 @@ export default class VM extends EventEmitter {
       this.#sockets.add(outgoing)
       outgoing.once('error', () => {
         this.#sockets?.delete(outgoing)
-        incoming.end(() => this.#sockets?.delete(incoming))
+        incoming.end(() => {
+          if (!incoming.destroyed) incoming.destroy()
+          this.#sockets?.delete(incoming)
+        })
       })
       incoming.once('error', () => {
         this.#sockets?.delete(incoming)
-        outgoing.end(() => this.#sockets?.delete(outgoing))
+        outgoing.end(() => {
+          if (!outgoing.destroyed) outgoing.destroy()
+          this.#sockets?.delete(outgoing)
+        })
       })
     } catch (error) {
-      incoming.end(() => this.#sockets?.delete(incoming))
+      incoming.end(() => {
+        if (!incoming.destroyed) incoming.destroy()
+        this.#sockets?.delete(incoming)
+      })
     }
   }
 
@@ -406,5 +493,11 @@ export default class VM extends EventEmitter {
 
   set isRestarting (isRestarting) {
     this.#isRestarting = isRestarting
+  }
+}
+
+class DesktopVmError extends Error {
+  static get displayName () {
+    return 'DesktopVmError'
   }
 }

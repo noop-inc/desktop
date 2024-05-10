@@ -6,14 +6,19 @@ const { FuseV1Options, FuseVersion } = require('@electron/fuses')
 
 require('dotenv').config()
 
-const arch = process.arch.includes('arm') ? 'aarch64' : 'x86_64'
+const arg = process.argv.includes('--arch')
+  ? process.argv[process.argv.indexOf('--arch') + 1]
+  : null
+const arch = ['x64', 'arm64'].includes(arg)
+  ? { x64: 'x86_64', arm64: 'aarch64' }[arg]
+  : (process.arch.includes('arm') ? 'aarch64' : 'x86_64')
 
 // const spawn = async (...args) => await new Promise((resolve, reject) => {
 //   const spawnArgs = [...args]
 //   spawnArgs[2] = { ...spawnArgs[2], stdio: [process.stdin, process.stdout, process.stderr] }
 //   const cp = spawnCallback(...spawnArgs)
 //   cp.on('close', code => {
-//     code ? reject(new Error('dekstop-lima install error', { code, args })) : resolve()
+//     code ? reject(new Error('dekstop-qemu install error', { code, args })) : resolve()
 //   })
 // })
 
@@ -22,7 +27,7 @@ module.exports = {
     asar: true,
     name: 'Noop',
     appBundleId: 'app.noop.desktop',
-    icon: 'assets/icon',
+    icon: `assets/icons/${process.platform}/icon`,
     protocols: [
       {
         name: 'noop',
@@ -41,9 +46,9 @@ module.exports = {
         ? {}
         : {
             extraResource: [
-              `node_modules/@noop-inc/desktop-lima/dist/lima-and-qemu.macos-${arch}`,
-              `noop-workshop-vm-${process.env.WORKSHOP_VM_VERSION}.${arch}.disk`
-            ]
+              process.platform === 'darwin' ? `node_modules/@noop-inc/desktop-qemu/dist/qemu.macos-${arch}` : null,
+              `noop-workshop-vm-${process.env.WORKSHOP_VM_VERSION}.${arch}.${({ darwin: 'disk', win32: 'tar.gz' })[process.platform]}`
+            ].filter(Boolean)
           }
     ),
     osxSign: {
@@ -61,13 +66,26 @@ module.exports = {
   rebuildConfig: {},
   makers: [
     {
-      name: '@electron-forge/maker-zip'
+      name: '@electron-forge/maker-squirrel',
+      config: {
+        // An URL to an ICO file to use as the application icon (displayed in Control Panel > Programs and Features).
+        iconUrl: 'https://noop.dev/assets/console/img/icons/icon.ico',
+        // The ICO file to use as the icon for the generated Setup.exe
+        setupIcon: `assets/icons/${process.platform}/icon.ico`,
+        name: 'Noop',
+        authors: 'Noop Inc',
+        description: 'Noop Developer Desktop'
+      }
+    },
+    {
+      name: '@electron-forge/maker-zip',
+      platforms: ['darwin']
     },
     {
       name: '@electron-forge/maker-dmg',
       config: {
         // Path to the icon to use for the app in the DMG window
-        icon: 'assets/icon.icns',
+        icon: `assets/icons/${process.platform}/icon.icns`,
         format: 'ULMO',
         additionalDMGOptions: {
           filesystem: 'APFS'
@@ -85,21 +103,21 @@ module.exports = {
           {
             // `entry` is just an alias for `build.lib.entry` in the corresponding file of `config`.
             entry: 'src/main.js',
-            config: 'vite.main.config.mjs'
+            config: 'vite.main.config.js'
           },
           {
             entry: 'src/preload.js',
-            config: 'vite.preload.config.mjs'
+            config: 'vite.preload.config.js'
           }
         ],
         renderer: [
           {
             name: 'main_window',
-            config: 'vite.renderer.config.mjs'
+            config: 'vite.renderer.config.js'
           },
           {
             name: 'eula_window',
-            config: 'renderers/eula/vite.config.mjs'
+            config: 'renderers/eula/vite.config.js'
           }
         ]
       }
@@ -139,19 +157,19 @@ module.exports = {
   //           x64: 'x86_64'
   //         })[arch]
 
-  //         const qemuDistDir = resolve(__dirname, 'node_modules/@noop-inc/desktop-lima/dist')
+  //         const qemuDistDir = resolve(__dirname, 'node_modules/@noop-inc/desktop-qemu/dist')
 
-  //         const qemuX86Zip = resolve(qemuDistDir, 'lima-and-qemu.macos-x86_64.zip')
-  //         const qemuArmZip = resolve(qemuDistDir, 'lima-and-qemu.macos-aarch64.zip')
+  //         const qemuX86Zip = resolve(qemuDistDir, 'qemu.macos-x86_64.zip')
+  //         const qemuArmZip = resolve(qemuDistDir, 'qemu.macos-aarch64.zip')
 
-  //         const qemuX86Dir = resolve(qemuDistDir, 'lima-and-qemu.macos-x86_64')
-  //         const qemuArmDir = resolve(qemuDistDir, 'lima-and-qemu.macos-aarch64')
+  //         const qemuX86Dir = resolve(qemuDistDir, 'qemu.macos-x86_64')
+  //         const qemuArmDir = resolve(qemuDistDir, 'qemu.macos-aarch64')
 
-  //         // const qemuArmZip = resolve(__dirname, 'node_modules/@noop-inc/desktop-lima/dist/lima-and-qemu.macos-aarch64.zip')
+  //         // const qemuArmZip = resolve(__dirname, 'node_modules/@noop-inc/desktop-qemu/dist/qemu.macos-aarch64.zip')
 
-  //         // const qemuX86Dir = resolve(__dirname, 'lima-and-qemu.macos-x86_64')
-  //         // const qemuArmDir = resolve(__dirname, 'lima-and-qemu.macos-aarch64')
-  //         // const qemuDir = resolve(__dirname, 'lima-and-qemu.macos')
+  //         // const qemuX86Dir = resolve(__dirname, 'qemu.macos-x86_64')
+  //         // const qemuArmDir = resolve(__dirname, 'qemu.macos-aarch64')
+  //         // const qemuDir = resolve(__dirname, 'qemu.macos')
 
   //         const workshopVmImageX86 = resolve(__dirname, `noop-workshop-vm-${process.env.WORKSHOP_VM_VERSION}.x86_64.disk`)
   //         const workshopVmImageArm = resolve(__dirname, `noop-workshop-vm-${process.env.WORKSHOP_VM_VERSION}.aarch64.disk`)

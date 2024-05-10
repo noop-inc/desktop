@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite'
-import { pluginExposeRenderer } from './vite.base.config.mjs'
+import { pluginExposeRenderer } from '../../vite.base.config.js'
 import { fileURLToPath, URL } from 'node:url'
-import consoleConfig from '@noop-inc/console/vite.config.mjs'
+import autoprefixer from 'autoprefixer'
 
 // https://vitejs.dev/config
 export default defineConfig((env) => {
@@ -13,23 +13,27 @@ export default defineConfig((env) => {
   /** @type {import('vite').UserConfig} */
   return {
     // root,
+    root: fileURLToPath(new URL('.', import.meta.url)),
     mode,
-    // base: './',
-    ...consoleConfig,
+    base: './',
     build: {
       target: 'esnext',
       minify: 'terser',
-      outDir: fileURLToPath(new URL(`./.vite/renderer/${name}`, import.meta.url)),
-      ...consoleConfig.build
+      outDir: fileURLToPath(new URL(`../../.vite/renderer/${name}`, import.meta.url))
     },
     plugins: [
-      pluginExposeRenderer(name),
-      ...consoleConfig.plugins
+      pluginExposeRenderer(name)
     ],
     resolve: {
-      preserveSymlinks: true,
-      ...consoleConfig.resolve
+      preserveSymlinks: true
     },
-    clearScreen: false
+    clearScreen: false,
+    css: {
+      postcss: {
+        plugins: [
+          autoprefixer()
+        ]
+      }
+    }
   }
 })

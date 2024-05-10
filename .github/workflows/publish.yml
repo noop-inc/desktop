@@ -1,5 +1,7 @@
 name: Publish
 
+run-name: Publish ${{ github.event.inputs.DesktopVersion }} by @${{ github.actor }}
+
 on:
   workflow_dispatch:
     inputs:
@@ -8,15 +10,9 @@ on:
         required: true
 
 jobs:
-  Publish:
-    name: Publish Desktop Release
-    runs-on: ${{matrix.runner}}
-    strategy:
-      matrix:
-        include:
-          - runner: macos-14
-          - runner: macos-14-large
-
+  Bump:
+    name: Create Release
+    runs-on: ubuntu-latest
     steps:
       - name: Code Checkout
         id: code-checkout
@@ -30,13 +26,76 @@ jobs:
           registry-url: 'https://npm.pkg.github.com'
           scope: '@noop-inc'
 
+      - name: Install Node Modules
+        id: install-node-modules
+        run: npm ci
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN }}
+
+      - name: Code Linting
+        id: lint-code
+        run: npm run lint
+
+      - name: Verify Workshop VM Release
+        id: verify-workshop-vm-release
+        run: |
+          # Verify the specified Workshop VM version exists
+          WORKSHOP_VM_VERSION=$(cat package.json | jq -r '."@noop-inc"."workshop-vm"')
+          gh release view "v${WORKSHOP_VM_VERSION}" -R "noop-inc/workshop-vm"
+        env:
+          GITHUB_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN }}
+
+      - name: Bump Version
+        id: bump-version
+        run: node .github/workflows/bump.js
+        env:
+          VERSION_INPUT: ${{ github.event.inputs.DesktopVersion }}
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create Desktop Release
+        id: create-desktop-release
+        run: |
+          # Verify an existing Desktop release, and create new release if needed
+          gh release view "${VERSION_INPUT}" || gh release create "${VERSION_INPUT}" -d -p --verify-tag -t "${VERSION_INPUT}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION_INPUT: ${{ github.event.inputs.DesktopVersion }}
+
+  Publish:
+    needs: Bump
+    name: Publish Release
+    runs-on: ${{matrix.runner}}
+    strategy:
+      matrix:
+        include:
+          - runner: macos-14
+            ext: disk
+          - runner: windows-latest
+            ext: tar.gz
+
+    steps:
+      - name: Code Checkout
+        id: code-checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.DesktopVersion }}
+
+      - name: Setup NodeJS
+        id: setup-nodejs
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@noop-inc'
+
       - name: Setup Python
         id: setup-python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.12'
 
       - name: Install Apple certificate
+        if: ${{ startsWith(matrix.runner, 'macos') }}
         id: install-apple-certificate
         env:
           BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
@@ -70,34 +129,38 @@ jobs:
 
       - name: Download Workshop VM
         id: download-workshop-vm
+        shell: bash
         run: |
           WORKSHOP_VM_VERSION=$(cat package.json | jq -r '."@noop-inc"."workshop-vm"')
-          ARCH=`uname -m`
-          if [[ "$ARCH" == *"arm"* ]]
-          then
-            ARCH="aarch64"
-          else
-            ARCH="x86_64"
-          fi
-          gh release download "v${WORKSHOP_VM_VERSION}" -p "noop-workshop-vm-${WORKSHOP_VM_VERSION}.${ARCH}.disk" -R "noop-inc/workshop-vm"
+          gh release download "v${WORKSHOP_VM_VERSION}" -p "noop-workshop-vm-${WORKSHOP_VM_VERSION}.*.${WORKSHOP_EXT}" -R "noop-inc/workshop-vm"
           echo "WORKSHOP_VM_VERSION=${WORKSHOP_VM_VERSION}" >> "$GITHUB_OUTPUT"
         env:
           GITHUB_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN }}
+          WORKSHOP_EXT: ${{ matrix.ext }}
 
-      - name: Bump Version
-        id: bump-version
-        run: node .github/workflows/bump.mjs
-        env:
-          VERSION_INPUT: ${{ github.event.inputs.DesktopVersion }}
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and Publish Desktop
-        id: build-and-publish-desktop
-        run: npm run publish
+      - name: Build and Publish Desktop (mac)
+        if: ${{ startsWith(matrix.runner, 'macos') }}
+        id: build-and-publish-desktop-mac
+        run: |
+          npm run postinstall --prefix node_modules/@noop-inc/desktop-qemu -- --arch x86_64
+          npm run postinstall --prefix node_modules/@noop-inc/desktop-qemu -- --arch aarch64
+          npm run publish -- --arch x64
+          npm run publish -- --arch arm64
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           TEAM_ID: ${{ secrets.TEAM_ID }}
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN }}
+          WORKSHOP_VM_VERSION: ${{ steps.download-workshop-vm.outputs.WORKSHOP_VM_VERSION }}
+
+      - name: Build and Publish Desktop (windows)
+        if: ${{ startsWith(matrix.runner, 'windows') }}
+        id: build-and-publish-desktop-windows
+        run: |
+          npm run publish -- --arch x64
+          # npm run publish -- --arch arm64
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN }}
           WORKSHOP_VM_VERSION: ${{ steps.download-workshop-vm.outputs.WORKSHOP_VM_VERSION }}
