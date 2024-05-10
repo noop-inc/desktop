@@ -54,7 +54,7 @@
     "@noop-inc/console": "^3.0.41",
     "@noop-inc/desktop-qemu": "^0.0.75",
     "@noop-inc/discovery": "^2.0.55",
-    "@noop-inc/foundation": "2.2.11-pr658.0",
+    "@noop-inc/foundation": "2.2.11",
     "autoprefixer": "^10.4.19",
     "concurrently": "^8.2.2",
     "dot-prop": "^9.0.0",
