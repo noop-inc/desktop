@@ -29,7 +29,8 @@ export default defineConfig(env => {
           ...external,
           'better-sqlite3',
           'node-pty',
-          'chokidar'
+          'chokidar',
+          '@aws-sdk/client-s3'
           // 'electron-squirrel-startup'
           // 'node-cron'
         ]
