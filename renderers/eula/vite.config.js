@@ -19,6 +19,7 @@ export default defineConfig((env) => {
     build: {
       target: 'esnext',
       minify: 'terser',
+      cssMinify: 'lightningcss',
       outDir: fileURLToPath(new URL(`../../.vite/renderer/${name}`, import.meta.url))
     },
     plugins: [

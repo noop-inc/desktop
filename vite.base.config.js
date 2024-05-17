@@ -22,7 +22,9 @@ export const getBuildConfig = (env) => {
       // 🚧 Multiple builds may conflict.
       outDir: fileURLToPath(new URL('./.vite/build', import.meta.url)),
       watch: command === 'serve' ? {} : null,
-      minify: command === 'build'
+      target: 'esnext',
+      minify: (command === 'build') ? 'terser' : false,
+      cssMinify: (command === 'build') ? 'lightningcss' : false
     },
     clearScreen: false
   }
