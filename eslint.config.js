@@ -1,6 +1,7 @@
 import js from '@eslint/js'
 import { FlatCompat } from '@eslint/eslintrc'
 import { fileURLToPath, URL } from 'node:url'
+import stylisticJs from '@stylistic/eslint-plugin-js'
 
 export default [
   {
@@ -11,6 +12,7 @@ export default [
       '**/.env',
       '.vite/**',
       'out/**',
+      'stats*.html',
       '**/*.zip',
       '**/*.qcow2',
       '**/*.disk',
@@ -36,12 +38,15 @@ export default [
       ecmaVersion: 'latest',
       sourceType: 'module'
     },
+    plugins: {
+      '@stylistic/js': stylisticJs
+    },
     rules: {
-      'import/extensions': [
-        2,
-        'always',
-        { ignorePackages: true }
-      ]
+      'import/extensions': ['error', 'always', { ignorePackages: true }],
+      '@stylistic/js/array-bracket-newline': ['error', 'consistent'],
+      '@stylistic/js/arrow-parens': ['error', 'as-needed'],
+      '@stylistic/js/no-mixed-operators': 'error',
+      '@stylistic/js/wrap-regex': 'error'
     }
   }
 ]

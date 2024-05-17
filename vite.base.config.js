@@ -4,13 +4,13 @@ import { fileURLToPath, URL } from 'node:url'
 
 export const builtins = [
   'electron',
-  ...builtinModules.map((m) => [m, `node:${m}`]).flat()
+  ...builtinModules.map(m => [m, `node:${m}`]).flat()
 ]
 
 export const external = [...builtins, ...Object.keys(pkg.dependencies || {})]
 
 /** @type {(env: import('vite').ConfigEnv<'build'>) => import('vite').UserConfig} */
-export const getBuildConfig = (env) => {
+export const getBuildConfig = env => {
   const { root, mode, command } = env
 
   return {
@@ -23,15 +23,14 @@ export const getBuildConfig = (env) => {
       outDir: fileURLToPath(new URL('./.vite/build', import.meta.url)),
       watch: command === 'serve' ? {} : null,
       target: 'esnext',
-      minify: (command === 'build') ? 'terser' : false,
-      cssMinify: (command === 'build') ? 'lightningcss' : false
+      minify: command === 'build'
     },
     clearScreen: false
   }
 }
 
 /** @type {(names: string[]) => { [name: string]: VitePluginRuntimeKeys } }} */
-export const getDefineKeys = (names) => {
+export const getDefineKeys = names => {
   /** @type {{ [name: string]: VitePluginRuntimeKeys }} */
   const define = {}
 
@@ -48,7 +47,7 @@ export const getDefineKeys = (names) => {
 }
 
 /** @type {(env: import('vite').ConfigEnv<'build'>) => Record<string, any>} */
-export const getBuildDefine = (env) => {
+export const getBuildDefine = env => {
   const { command, forgeConfig } = env
   const names = forgeConfig.renderer
     .filter(({ name }) => name != null)
@@ -70,7 +69,7 @@ export const getBuildDefine = (env) => {
 }
 
 /** @type {(name: string) => import('vite').Plugin} */
-export const pluginExposeRenderer = (name) => {
+export const pluginExposeRenderer = name => {
   const { VITE_DEV_SERVER_URL } = getDefineKeys([name])[name]
 
   return {
@@ -93,7 +92,7 @@ export const pluginExposeRenderer = (name) => {
 }
 
 /** @type {(command: 'reload' | 'restart') => import('vite').Plugin} */
-export const pluginHotRestart = (command) => {
+export const pluginHotRestart = command => {
   return {
     name: '@electron-forge/plugin-vite:hot-restart',
     closeBundle () {

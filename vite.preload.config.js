@@ -4,9 +4,14 @@ import {
   external,
   pluginHotRestart
 } from './vite.base.config.js'
+import { readFile } from 'node:fs/promises'
+import { visualizer } from 'rollup-plugin-visualizer'
+
+const packageJsonUrl = new URL('./package.json', import.meta.url)
+const packageJson = JSON.parse(await readFile(packageJsonUrl))
 
 // https://vitejs.dev/config
-export default defineConfig((env) => {
+export default defineConfig(env => {
   /** @type {import('vite').ConfigEnv<'build'>} */
   const forgeEnv = env
   const { forgeConfigSelf } = forgeEnv
@@ -27,7 +32,12 @@ export default defineConfig((env) => {
         }
       }
     },
-    plugins: [pluginHotRestart('reload')]
+    plugins: [
+      pluginHotRestart('reload'),
+      (process.env.npm_lifecycle_event === 'report') && (process.env.npm_package_name === packageJson.name)
+        ? visualizer({ filename: 'stats-preload.html' })
+        : null
+    ].filter(Boolean)
   }
 
   return mergeConfig(getBuildConfig(forgeEnv), config)

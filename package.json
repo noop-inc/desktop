@@ -36,6 +36,7 @@
     "package": "npm run postinstall && electron-forge package",
     "postinstall": "npm run postinstall --prefix node_modules/@noop-inc/desktop-qemu || true",
     "publish": "npm run postinstall && electron-forge publish",
+    "report": "npm run postinstall && electron-forge package",
     "serve": "electron-forge start"
   },
   "dependencies": {
@@ -51,10 +52,11 @@
     "@electron-forge/publisher-github": "^7.4.0",
     "@eslint/eslintrc": "^3.0.2",
     "@eslint/js": "^9.1.1",
-    "@noop-inc/console": "^3.0.42",
+    "@noop-inc/console": "^3.0.43",
     "@noop-inc/desktop-qemu": "^0.0.75",
     "@noop-inc/discovery": "^2.0.55",
     "@noop-inc/foundation": "2.2.14-pr658.0",
+    "@stylistic/eslint-plugin-js": "^2.1.0",
     "autoprefixer": "^10.4.19",
     "concurrently": "^8.2.2",
     "dot-prop": "^9.0.0",
@@ -66,7 +68,6 @@
     "eslint": "^9.2.0",
     "eslint-config-standard": "^17.1.0",
     "ignore": "^5.3.1",
-    "lightningcss": "^1.24.1",
     "marked": "^12.0.2",
     "minimatch": "^9.0.4",
     "node-gyp": "^10.1.0",
@@ -77,7 +78,6 @@
     "stylelint-config-standard": "^36.0.0",
     "tar-fs": "^3.0.6",
     "tar-stream": "^3.1.7",
-    "terser": "^5.31.0",
     "vite": "^5.2.11"
   },
   "overrides": {
@@ -86,9 +86,7 @@
     "@noop-inc/discovery": "$@noop-inc/discovery",
     "@noop-inc/foundation": "$@noop-inc/foundation",
     "eslint": "$eslint",
-    "lightningcss": "$lightningcss",
     "node-gyp": "$node-gyp",
-    "terser": "$terser",
     "vite": "$vite"
   },
   "@noop-inc": {
