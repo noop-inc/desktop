@@ -282,18 +282,36 @@ export default class VM extends EventEmitter {
           if (this.#traffic) {
             logHandler({ event: 'vm.traffic.close.start', sockets: this.#sockets?.size })
             const traffic = this.#traffic
-            const stopServer = promisify(this.#traffic.close.bind(this.#traffic))
+            const stopServer = async () => {
+              try {
+                await promisify(this.#traffic.close.bind(this.#traffic))
+              } catch (error) {
+                if (error.code !== 'ERR_SERVER_NOT_RUNNING') throw error
+              }
+            }
             const serverStopped = stopServer()
             await Promise.all([
               ...[...this.#sockets].map(async socket => {
                 if (!socket.destroyed) {
-                  const endSocket = promisify(socket.end.bind(socket))
+                  const endSocket = async () => {
+                    try {
+                      await promisify(socket.end.bind(socket))
+                    } catch (error) {
+                      if (error.code !== 'ERR_STREAM_ALREADY_FINISHED') throw error
+                    }
+                  }
                   const ac = new AbortController()
                   const signal = ac.signal
                   await Promise.race([wait(1000, null, { signal }), endSocket()])
                   ac.abort()
                 }
-                if (!socket.destroyed) socket.destroy()
+                if (!socket.destroyed) {
+                  try {
+                    socket.destroy()
+                  } catch (error) {
+                    if (error.code !== 'ERR_STREAM_ALREADY_FINISHED') throw error
+                  }
+                }
                 this.#sockets.delete(socket)
               }),
               serverStopped
