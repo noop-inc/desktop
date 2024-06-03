@@ -52,7 +52,7 @@
     "@electron-forge/publisher-github": "^7.4.0",
     "@eslint/eslintrc": "^3.1.0",
     "@eslint/js": "^9.1.1",
-    "@noop-inc/console": "^3.0.46",
+    "@noop-inc/console": "^3.0.47",
     "@noop-inc/desktop-qemu": "^0.0.75",
     "@noop-inc/discovery": "^2.0.55",
     "@noop-inc/foundation": "2.2.22-pr658.0",
