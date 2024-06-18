@@ -55,7 +55,7 @@
     "@noop-inc/console": "^3.0.49",
     "@noop-inc/desktop-qemu": "^0.0.76",
     "@noop-inc/discovery": "^2.0.56",
-    "@noop-inc/foundation": "2.2.31-pr658.1",
+    "@noop-inc/foundation": "2.2.31",
     "@stylistic/eslint-plugin-js": "^2.2.1",
     "ajv": "^8.16.0",
     "ajv-keywords": "^5.1.0",
