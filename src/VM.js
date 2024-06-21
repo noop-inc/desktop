@@ -283,6 +283,7 @@ export default class VM extends EventEmitter {
             logHandler({ event: 'vm.traffic.close.start', sockets: this.#sockets?.size })
             const traffic = this.#traffic
             const stopServer = async () => {
+              if (this.#restarting) return
               try {
                 await promisify(this.#traffic.close.bind(this.#traffic))
               } catch (error) {
@@ -317,6 +318,7 @@ export default class VM extends EventEmitter {
               serverStopped
             ])
             logHandler({ event: 'vm.traffic.close.end', sockets: this.#sockets?.size })
+            if (this.#restarting) return
             if (this.#traffic === traffic) {
               this.#sockets = null
               this.#traffic = null
