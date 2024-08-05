@@ -56,7 +56,7 @@
     "@noop-inc/desktop-qemu": "^0.0.77",
     "@noop-inc/discovery": "^2.0.56",
     "@noop-inc/foundation": "2.2.42-pr658.0",
-    "@stylistic/eslint-plugin-js": "^2.3.0",
+    "@stylistic/eslint-plugin-js": "^2.6.1",
     "ajv": "^8.17.1",
     "ajv-keywords": "^5.1.0",
     "autoprefixer": "^10.4.19",
