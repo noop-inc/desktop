@@ -102,6 +102,6 @@
     "vite": "$vite"
   },
   "@noop-inc": {
-    "workshop-vm": "0.11.0"
+    "workshop-vm": "0.11.1"
   }
 }
