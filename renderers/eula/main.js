@@ -5,8 +5,10 @@ import licence from '../../LICENSE.md?raw'
 
 // Override function
 const renderer = {
-  link: (href, title, text) =>
-    `<a${href ? ` href="${href}"` : ''}${title ? ` title="${title}"` : ''}${href?.startsWith('http') ? ' target="_blank"' : ''}>${text || ''}</a>`
+  link ({ tokens, href, title }) {
+    const text = this.parser.parseInline(tokens)
+    return `<a${href ? ` href="${href}"` : ''}${title ? ` title="${title}"` : ''}${href?.startsWith('http') ? ' target="_blank"' : ''}>${text || ''}</a>`
+  }
 }
 
 marked.use({ renderer })
