@@ -40,47 +40,47 @@
     "serve": "electron-forge start"
   },
   "dependencies": {
-    "chokidar": "^3.6.0"
+    "chokidar": "^4.0.1"
   },
   "devDependencies": {
-    "@electron-forge/cli": "^7.4.0",
-    "@electron-forge/maker-dmg": "^7.4.0",
-    "@electron-forge/maker-squirrel": "^7.4.0",
-    "@electron-forge/maker-zip": "^7.4.0",
-    "@electron-forge/plugin-fuses": "^7.4.0",
-    "@electron-forge/plugin-vite": "^7.4.0",
-    "@electron-forge/publisher-github": "^7.4.0",
+    "@electron-forge/cli": "7.4.0",
+    "@electron-forge/maker-dmg": "7.4.0",
+    "@electron-forge/maker-squirrel": "7.4.0",
+    "@electron-forge/maker-zip": "7.4.0",
+    "@electron-forge/plugin-fuses": "7.4.0",
+    "@electron-forge/plugin-vite": "7.4.0",
+    "@electron-forge/publisher-github": "7.4.0",
     "@eslint/eslintrc": "^3.1.0",
     "@eslint/js": "^9.9.0",
-    "@noop-inc/console": "^3.0.53",
-    "@noop-inc/desktop-qemu": "^0.0.77",
+    "@noop-inc/console": "^3.0.55",
+    "@noop-inc/desktop-qemu": "^0.0.78",
     "@noop-inc/discovery": "^2.0.56",
-    "@noop-inc/foundation": "2.2.58-pr658.0",
-    "@stylistic/eslint-plugin-js": "^2.6.3",
+    "@noop-inc/foundation": "2.2.103-pr658.0",
+    "@stylistic/eslint-plugin-js": "^2.8.0",
     "ajv": "^8.17.1",
     "ajv-keywords": "^5.1.0",
     "autoprefixer": "^10.4.20",
-    "concurrently": "^8.2.2",
+    "concurrently": "^9.0.1",
     "dot-prop": "^9.0.0",
     "dotenv": "^16.4.5",
-    "electron": "^31.4.0",
-    "electron-log": "^5.1.7",
-    "electron-serve": "^2.0.0",
+    "electron": "^32.1.2",
+    "electron-log": "^5.2.0",
+    "electron-serve": "^2.1.1",
     "electron-squirrel-startup": "^1.0.1",
-    "eslint": "^9.9.0",
+    "eslint": "^9.11.1",
     "eslint-config-standard": "^17.1.0",
-    "ignore": "^5.3.2",
-    "marked": "^14.0.0",
+    "ignore": "^6.0.2",
+    "marked": "^14.1.2",
     "minimatch": "^10.0.1",
     "node-gyp": "^10.2.0",
     "prettier": "^3.3.3",
     "rollup-plugin-visualizer": "^5.12.0",
     "strip-ansi": "^7.1.0",
-    "stylelint": "^16.8.2",
+    "stylelint": "^16.9.0",
     "stylelint-config-standard": "^36.0.1",
     "tar-fs": "^3.0.6",
     "tar-stream": "^3.1.7",
-    "vite": "^5.4.1"
+    "vite": "^5.4.8"
   },
   "overrides": {
     "@noop-inc/console": {
@@ -102,6 +102,6 @@
     "vite": "$vite"
   },
   "@noop-inc": {
-    "workshop-vm": "0.11.1"
+    "workshop-vm": "0.12.0"
   }
 }
