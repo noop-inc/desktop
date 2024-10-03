@@ -25,7 +25,8 @@ export default [
       '**/*.yml',
       '**/*.yaml',
       '**/*.scss',
-      '**/*.css'
+      '**/*.css',
+      'bin/vite.main.config.js'
     ]
   },
   js.configs.recommended,

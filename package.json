@@ -22,7 +22,7 @@
     "common-prettier": "prettier \"**/*.{htm,html,json,md,markdown,yml,yaml}\" --cache",
     "common-sequential": "concurrently --raw --max-processes 1",
     "common-stylelint": "stylelint \"**/*.{scss,css}\" --cache --cache-location node_modules/.cache/.stylelintcache",
-    "dev": "electron-forge start",
+    "dev": "npm run postinstall && electron-forge start",
     "fix": "npm run common-sequential -- npm:fix-*",
     "fix-eslint": "npm run common-eslint -- --fix",
     "fix-prettier": "npm run common-prettier -- --write",
@@ -34,25 +34,22 @@
     "make": "npm run postinstall && electron-forge make",
     "noop-link": "npm link @noop-inc/console @noop-inc/foundation",
     "package": "npm run postinstall && electron-forge package",
-    "postinstall": "npm run postinstall --prefix node_modules/@noop-inc/desktop-qemu || true",
+    "postinstall": "npm run postinstall --prefix node_modules/@noop-inc/desktop-qemu || true && node bin/postinstall.js",
     "publish": "npm run postinstall && electron-forge publish",
     "report": "npm run postinstall && electron-forge package",
-    "serve": "electron-forge start"
-  },
-  "dependencies": {
-    "chokidar": "^4.0.1"
+    "serve": "npm run postinstall && electron-forge start"
   },
   "devDependencies": {
-    "@electron-forge/cli": "7.4.0",
-    "@electron-forge/maker-dmg": "7.4.0",
-    "@electron-forge/maker-squirrel": "7.4.0",
-    "@electron-forge/maker-zip": "7.4.0",
-    "@electron-forge/plugin-fuses": "7.4.0",
-    "@electron-forge/plugin-vite": "7.4.0",
-    "@electron-forge/publisher-github": "7.4.0",
+    "@electron-forge/cli": "^7.5.0",
+    "@electron-forge/maker-dmg": "^7.5.0",
+    "@electron-forge/maker-squirrel": "^7.5.0",
+    "@electron-forge/maker-zip": "^7.5.0",
+    "@electron-forge/plugin-fuses": "^7.5.0",
+    "@electron-forge/plugin-vite": "^7.5.0",
+    "@electron-forge/publisher-github": "^7.5.0",
     "@eslint/eslintrc": "^3.1.0",
     "@eslint/js": "^9.9.0",
-    "@noop-inc/console": "^3.0.55",
+    "@noop-inc/console": "^3.0.57",
     "@noop-inc/desktop-qemu": "^0.0.78",
     "@noop-inc/discovery": "^2.0.56",
     "@noop-inc/foundation": "2.2.103-pr658.0",
@@ -60,6 +57,7 @@
     "ajv": "^8.17.1",
     "ajv-keywords": "^5.1.0",
     "autoprefixer": "^10.4.20",
+    "chokidar": "^4.0.1",
     "concurrently": "^9.0.1",
     "dot-prop": "^9.0.0",
     "dotenv": "^16.4.5",
@@ -90,10 +88,12 @@
     "@noop-inc/desktop-qemu": "$@noop-inc/desktop-qemu",
     "@noop-inc/discovery": {
       "@noop-inc/foundation": "$@noop-inc/foundation",
-      "ajv": "$ajv"
+      "ajv": "$ajv",
+      "minimatch": "$minimatch"
     },
     "@noop-inc/foundation": {
-      "ajv": "$ajv"
+      "ajv": "$ajv",
+      "minimatch": "$minimatch"
     },
     "ajv-keywords": "$ajv-keywords",
     "dot-prop": "$dot-prop",
@@ -102,6 +102,6 @@
     "vite": "$vite"
   },
   "@noop-inc": {
-    "workshop-vm": "0.12.0"
+    "workshop-vm": "0.12.1"
   }
 }

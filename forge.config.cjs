@@ -103,11 +103,13 @@ module.exports = {
           {
             // `entry` is just an alias for `build.lib.entry` in the corresponding file of `config`.
             entry: 'src/main.js',
-            config: 'vite.main.config.js'
+            config: 'vite.main.config.js',
+            target: 'main'
           },
           {
             entry: 'src/preload.js',
-            config: 'vite.preload.config.js'
+            config: 'vite.preload.config.js',
+            target: 'preload'
           }
         ],
         renderer: [
