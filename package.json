@@ -34,7 +34,7 @@
     "make": "npm run postinstall && electron-forge make",
     "noop-link": "npm link @noop-inc/console @noop-inc/foundation",
     "package": "npm run postinstall && electron-forge package",
-    "postinstall": "npm run postinstall --prefix node_modules/@noop-inc/desktop-qemu || true && node bin/postinstall.js",
+    "postinstall": "(npm run postinstall --prefix node_modules/@noop-inc/desktop-qemu || true) && node bin/postinstall.js",
     "publish": "npm run postinstall && electron-forge publish",
     "report": "npm run postinstall && electron-forge package",
     "serve": "npm run postinstall && electron-forge start"
