@@ -52,7 +52,7 @@
     "@noop-inc/console": "^3.0.60",
     "@noop-inc/desktop-qemu": "^0.0.78",
     "@noop-inc/discovery": "^2.0.56",
-    "@noop-inc/foundation": "2.2.103-pr658.0",
+    "@noop-inc/foundation": "2.2.106",
     "@stylistic/eslint-plugin-js": "^2.9.0",
     "ajv": "^8.17.1",
     "ajv-keywords": "^5.1.0",
