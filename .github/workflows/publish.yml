@@ -22,7 +22,7 @@ jobs:
         id: setup-nodejs
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           registry-url: 'https://npm.pkg.github.com'
           scope: '@noop-inc'
 
@@ -68,7 +68,7 @@ jobs:
     strategy:
       matrix:
         include:
-          - runner: macos-14
+          - runner: macos-15
             ext: disk
           - runner: windows-latest
             ext: tar.gz
@@ -84,7 +84,7 @@ jobs:
         id: setup-nodejs
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           registry-url: 'https://npm.pkg.github.com'
           scope: '@noop-inc'
 
@@ -92,7 +92,7 @@ jobs:
         id: setup-python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: '3.13'
 
       - name: Install Apple certificate
         if: ${{ startsWith(matrix.runner, 'macos') }}
@@ -138,13 +138,25 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN }}
           WORKSHOP_EXT: ${{ matrix.ext }}
 
-      - name: Build and Publish Desktop (mac)
+      - name: Build and Publish Desktop (mac x86_64)
         if: ${{ startsWith(matrix.runner, 'macos') }}
         id: build-and-publish-desktop-mac
         run: |
           npm run postinstall --prefix node_modules/@noop-inc/desktop-qemu -- --arch x86_64
-          npm run postinstall --prefix node_modules/@noop-inc/desktop-qemu -- --arch aarch64
           npm run publish -- --arch x64
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          TEAM_ID: ${{ secrets.TEAM_ID }}
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN }}
+          WORKSHOP_VM_VERSION: ${{ steps.download-workshop-vm.outputs.WORKSHOP_VM_VERSION }}
+
+      - name: Build and Publish Desktop (mac aarch64)
+        if: ${{ startsWith(matrix.runner, 'macos') }}
+        id: build-and-publish-desktop-mac
+        run: |
+          npm run postinstall --prefix node_modules/@noop-inc/desktop-qemu -- --arch aarch64
           npm run publish -- --arch arm64
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -154,13 +166,22 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN }}
           WORKSHOP_VM_VERSION: ${{ steps.download-workshop-vm.outputs.WORKSHOP_VM_VERSION }}
 
-      - name: Build and Publish Desktop (windows)
+      - name: Build and Publish Desktop (windows x86_64)
         if: ${{ startsWith(matrix.runner, 'windows') }}
         id: build-and-publish-desktop-windows
         run: |
           npm run publish -- --arch x64
-          # npm run publish -- --arch arm64
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN }}
           WORKSHOP_VM_VERSION: ${{ steps.download-workshop-vm.outputs.WORKSHOP_VM_VERSION }}
+
+      # - name: Build and Publish Desktop (windows aarch64)
+      #   if: ${{ startsWith(matrix.runner, 'windows') }}
+      #   id: build-and-publish-desktop-windows
+      #   run: |
+      #     npm run publish -- --arch arm64
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #     NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN }}
+      #     WORKSHOP_VM_VERSION: ${{ steps.download-workshop-vm.outputs.WORKSHOP_VM_VERSION }}
