@@ -51,7 +51,7 @@
     "@eslint/js": "^9.13.0",
     "@noop-inc/console": "^3.0.61",
     "@noop-inc/desktop-qemu": "^0.0.80",
-    "@noop-inc/discovery": "^2.0.56",
+    "@noop-inc/discovery": "^2.0.57",
     "@noop-inc/foundation": "2.4.1-pr658.0",
     "@stylistic/eslint-plugin-js": "^2.9.0",
     "ajv": "^8.17.1",
