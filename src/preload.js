@@ -25,9 +25,7 @@ contextBridge.exposeInMainWorld(
     localRepositories: async repos =>
       await ipcRenderer.invoke('local-repositories', repos || []),
     eula: async accept =>
-      await ipcRenderer.invoke('eula', accept),
-    intercomDesktopLogin: async () =>
-      await ipcRenderer.invoke('intercom-desktop-login')
+      await ipcRenderer.invoke('eula', accept)
   }
 )
 

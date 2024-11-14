@@ -11,7 +11,6 @@ import { pathToFileURL, fileURLToPath } from 'node:url'
 import FileWatcher from './FileWatcher.js'
 import { inspect } from 'node:util'
 import settings from './Settings.js'
-import { arch, cpus, platform, release, totalmem } from 'node:os'
 
 (async () => {
   if ((await import('electron-squirrel-startup')).default) {
@@ -498,20 +497,6 @@ import { arch, cpus, platform, release, totalmem } from 'node:os'
   }
 
   ipcMain.handle('local-repositories', async (_event, repositories) => await handleLocalRepositories(repositories))
-
-  const handleIntercomDesktopLogin = async () => {
-    const payload = {
-      app_version: app.getVersion(),
-      os_arch: arch(),
-      os_cpus: cpus().length,
-      os_platform: platform(),
-      os_release: release(),
-      os_totalmem: totalmem()
-    }
-    return payload
-  }
-
-  ipcMain.handle('intercom-desktop-login', async () => await handleIntercomDesktopLogin())
 
   if (process.defaultApp) {
     if (process.argv.length >= 2) {
