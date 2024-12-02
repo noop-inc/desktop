@@ -18,6 +18,11 @@ export default defineConfig({
         // 'electron-squirrel-startup'
         // 'node-cron'
       ]
+    },
+    lib: {
+      entry: 'src/main.js',
+      fileName: () => '[name].js',
+      formats: ['es']
     }
   },
   plugins: [
