@@ -68,7 +68,7 @@
     "eslint": "^9.16.0",
     "eslint-config-standard": "^17.1.0",
     "ignore": "^6.0.2",
-    "marked": "^15.0.3",
+    "marked": "^15.0.4",
     "minimatch": "^10.0.1",
     "prettier": "^3.4.1",
     "rollup-plugin-visualizer": "^5.12.0",
