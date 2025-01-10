@@ -49,35 +49,35 @@
     "@electron-forge/publisher-github": "^7.6.0",
     "@eslint/eslintrc": "^3.2.0",
     "@eslint/js": "^9.17.0",
-    "@noop-inc/console": "^3.2.1",
-    "@noop-inc/desktop-qemu": "^0.0.80",
-    "@noop-inc/discovery": "^2.0.58",
-    "@noop-inc/foundation": "2.4.3-pr658.0",
+    "@noop-inc/console": "^3.2.2",
+    "@noop-inc/desktop-qemu": "^0.0.81",
+    "@noop-inc/discovery": "^2.1.0",
+    "@noop-inc/foundation": "2.5.2-pr658.0",
     "@stylistic/eslint-plugin-js": "^2.12.1",
     "ajv": "^8.17.1",
     "autoprefixer": "^10.4.20",
-    "chalk": "^5.4.0",
-    "chokidar": "^4.0.2",
-    "concurrently": "^9.1.0",
+    "chalk": "^5.4.1",
+    "chokidar": "^4.0.3",
+    "concurrently": "^9.1.2",
     "dot-prop": "^9.0.0",
     "dotenv": "^16.4.7",
-    "electron": "^33.2.1",
+    "electron": "^33.3.1",
     "electron-log": "^5.2.4",
     "electron-serve": "^2.1.1",
     "electron-squirrel-startup": "^1.0.1",
     "eslint": "^9.17.0",
     "eslint-config-standard": "^17.1.0",
-    "ignore": "^6.0.2",
-    "marked": "^15.0.4",
+    "ignore": "^7.0.0",
+    "marked": "^15.0.6",
     "minimatch": "^10.0.1",
     "prettier": "^3.4.2",
-    "rollup-plugin-visualizer": "^5.12.0",
+    "rollup-plugin-visualizer": "^5.14.0",
     "strip-ansi": "^7.1.0",
     "stylelint": "^16.12.0",
     "stylelint-config-standard": "^36.0.1",
     "tar-fs": "^3.0.6",
     "tar-stream": "^3.1.7",
-    "vite": "^6.0.3"
+    "vite": "^6.0.7"
   },
   "overrides": {
     "@noop-inc/console": "$@noop-inc/console",
@@ -99,6 +99,6 @@
     }
   },
   "@noop-inc": {
-    "workshop-vm": "0.14.0"
+    "workshop-vm": "0.15.0"
   }
 }
