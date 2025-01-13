@@ -73,7 +73,7 @@
     "prettier": "^3.4.2",
     "rollup-plugin-visualizer": "^5.14.0",
     "strip-ansi": "^7.1.0",
-    "stylelint": "^16.12.0",
+    "stylelint": "^16.13.0",
     "stylelint-config-standard": "^36.0.1",
     "tar-fs": "^3.0.6",
     "tar-stream": "^3.1.7",
