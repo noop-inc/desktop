@@ -53,7 +53,7 @@
     "@noop-inc/desktop-qemu": "^0.0.81",
     "@noop-inc/discovery": "^3.0.0",
     "@noop-inc/foundation": "3.0.1-pr658.0",
-    "@stylistic/eslint-plugin-js": "^2.13.0",
+    "@stylistic/eslint-plugin-js": "^3.0.0",
     "ajv": "^8.17.1",
     "autoprefixer": "^10.4.20",
     "chalk": "^5.4.1",
