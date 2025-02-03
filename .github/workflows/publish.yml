@@ -73,7 +73,7 @@ jobs:
             node: 22
           - runner: windows-latest
             ext: tar.gz
-            node: 22
+            node: 20
 
     steps:
       - name: Code Checkout
