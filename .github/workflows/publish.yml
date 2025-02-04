@@ -22,7 +22,7 @@ jobs:
         id: setup-nodejs
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           registry-url: 'https://npm.pkg.github.com'
           scope: '@noop-inc'
 
@@ -70,8 +70,10 @@ jobs:
         include:
           - runner: macos-14
             ext: disk
+            node: 22
           - runner: windows-latest
             ext: tar.gz
+            node: 20
 
     steps:
       - name: Code Checkout
@@ -84,7 +86,7 @@ jobs:
         id: setup-nodejs
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: ${{ matrix.node }}
           registry-url: 'https://npm.pkg.github.com'
           scope: '@noop-inc'
 
@@ -92,7 +94,7 @@ jobs:
         id: setup-python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: '3.13'
 
       - name: Install Apple certificate
         if: ${{ startsWith(matrix.runner, 'macos') }}
