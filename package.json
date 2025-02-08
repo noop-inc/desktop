@@ -48,11 +48,11 @@
     "@electron-forge/plugin-vite": "^7.6.1",
     "@electron-forge/publisher-github": "^7.6.1",
     "@eslint/eslintrc": "^3.2.0",
-    "@eslint/js": "^9.19.0",
-    "@noop-inc/console": "^3.3.1",
+    "@eslint/js": "^9.20.0",
+    "@noop-inc/console": "^3.3.2",
     "@noop-inc/desktop-qemu": "^0.0.81",
     "@noop-inc/discovery": "^3.0.3",
-    "@noop-inc/foundation": "3.0.3-pr658.0",
+    "@noop-inc/foundation": "3.0.6-pr658.0",
     "@stylistic/eslint-plugin-js": "^3.0.1",
     "ajv": "^8.17.1",
     "autoprefixer": "^10.4.20",
@@ -61,11 +61,11 @@
     "concurrently": "^9.1.2",
     "dot-prop": "^9.0.0",
     "dotenv": "^16.4.7",
-    "electron": "^34.0.2",
+    "electron": "^34.1.1",
     "electron-log": "^5.3.0",
     "electron-serve": "^2.1.1",
     "electron-squirrel-startup": "^1.0.1",
-    "eslint": "^9.19.0",
+    "eslint": "^9.20.0",
     "eslint-config-standard": "^17.1.0",
     "ignore": "^7.0.3",
     "marked": "^15.0.6",
@@ -77,7 +77,7 @@
     "stylelint-config-standard": "^37.0.0",
     "tar-fs": "^3.0.8",
     "tar-stream": "^3.1.7",
-    "vite": "^6.0.11"
+    "vite": "^6.1.0"
   },
   "overrides": {
     "@noop-inc/console": "$@noop-inc/console",
@@ -92,6 +92,6 @@
     }
   },
   "@noop-inc": {
-    "workshop-vm": "0.15.0"
+    "workshop-vm": "0.16.0"
   }
 }
