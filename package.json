@@ -55,7 +55,7 @@
     "@noop-inc/foundation": "3.0.6-pr658.0",
     "@stylistic/eslint-plugin-js": "^3.0.1",
     "ajv": "^8.17.1",
-    "autoprefixer": "^10.4.20",
+    "autoprefixer": "^10.4.21",
     "chalk": "^5.4.1",
     "chokidar": "^4.0.3",
     "concurrently": "^9.1.2",
