@@ -50,7 +50,7 @@
     "@eslint/eslintrc": "^3.2.0",
     "@eslint/js": "^9.20.0",
     "@noop-inc/console": "^3.3.2",
-    "@noop-inc/desktop-qemu": "^0.0.81",
+    "@noop-inc/desktop-qemu": "^0.0.82",
     "@noop-inc/discovery": "^3.0.3",
     "@noop-inc/foundation": "3.0.6-pr658.0",
     "@stylistic/eslint-plugin-js": "^3.0.1",
