@@ -40,7 +40,7 @@
     "serve": "npm run postinstall && electron-forge start"
   },
   "devDependencies": {
-    "@electron-forge/cli": "^7.6.1",
+    "@electron-forge/cli": "^7.8.0",
     "@electron-forge/maker-dmg": "^7.6.1",
     "@electron-forge/maker-squirrel": "^7.6.1",
     "@electron-forge/maker-zip": "^7.6.1",
