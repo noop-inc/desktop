@@ -74,7 +74,7 @@
     "rollup-plugin-visualizer": "^5.14.0",
     "strip-ansi": "^7.1.0",
     "stylelint": "^16.14.1",
-    "stylelint-config-standard": "^37.0.0",
+    "stylelint-config-standard": "^38.0.0",
     "tar-fs": "^3.0.8",
     "tar-stream": "^3.1.7",
     "vite": "^6.1.0"
