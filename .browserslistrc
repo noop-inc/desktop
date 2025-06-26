@@ -1,0 +1,13 @@
+
+[production]
+last 2 versions and > 0.1% in US and fully supports es6
+last 1 years and > 0.1% in US and fully supports es6
+last 2 electron versions and fully supports es6
+not dead
+
+[development]
+last 2 chrome versions and fully supports es6
+last 2 firefox versions and fully supports es6
+last 2 safari versions and fully supports es6
+last 2 electron versions and fully supports es6
+not dead
