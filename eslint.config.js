@@ -1,7 +1,7 @@
 import js from '@eslint/js'
 import { FlatCompat } from '@eslint/eslintrc'
 import { fileURLToPath, URL } from 'node:url'
-import stylisticJs from '@stylistic/eslint-plugin-js'
+import stylistic from '@stylistic/eslint-plugin'
 
 export default [
   {
@@ -39,14 +39,14 @@ export default [
       sourceType: 'module'
     },
     plugins: {
-      '@stylistic/js': stylisticJs
+      '@stylistic': stylistic
     },
     rules: {
       'import/extensions': ['error', 'always', { ignorePackages: true }],
-      '@stylistic/js/array-bracket-newline': ['error', 'consistent'],
-      '@stylistic/js/arrow-parens': ['error', 'as-needed'],
-      '@stylistic/js/no-mixed-operators': 'error',
-      '@stylistic/js/wrap-regex': 'error'
+      '@stylistic/array-bracket-newline': ['error', 'consistent'],
+      '@stylistic/arrow-parens': ['error', 'as-needed'],
+      '@stylistic/no-mixed-operators': 'error',
+      '@stylistic/wrap-regex': 'error'
     }
   }
 ]

@@ -1,0 +1,12 @@
+
+[production]
+last 2 chrome versions and fully supports es6
+last 2 electron versions and fully supports es6
+electron >= 37 and fully supports es6
+not dead
+
+[development]
+last 2 chrome versions and fully supports es6
+last 2 electron versions and fully supports es6
+electron >= 37 and fully supports es6
+not dead
