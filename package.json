@@ -83,7 +83,7 @@
   "overrides": {
     "@noop-inc/console": {
       ".": "$@noop-inc/console",
-      "@noop-inc/foundation": "4.0.32"
+      "@noop-inc/foundation": "4.0.35"
     },
     "@noop-inc/desktop-qemu": "$@noop-inc/desktop-qemu",
     "@noop-inc/discovery": "$@noop-inc/discovery",
