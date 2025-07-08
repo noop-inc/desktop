@@ -52,7 +52,7 @@
     "@noop-inc/console": "^3.3.3",
     "@noop-inc/desktop-qemu": "^0.0.84",
     "@noop-inc/discovery": "^4.0.0",
-    "@noop-inc/foundation": "4.0.35-pr1387.1",
+    "@noop-inc/foundation": "4.0.35-pr1387.4",
     "@stylistic/eslint-plugin": "^5.1.0",
     "ajv": "^8.17.1",
     "autoprefixer": "^10.4.21",
@@ -93,6 +93,6 @@
     }
   },
   "@noop-inc": {
-    "workshop-vm": "0.16.0-pr96.1"
+    "workshop-vm": "0.16.0-pr96.2"
   }
 }
