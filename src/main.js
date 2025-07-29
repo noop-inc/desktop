@@ -77,10 +77,14 @@ import settings from './Settings.js'
         minWidth: 640,
         minHeight: 360,
         backgroundColor: '#212121',
-        titleBarStyle: 'hidden',
-        trafficLightPosition: { x: 6, y: 6 },
-        // expose window controls in Windows/Linux
-        ...(process.platform !== 'darwin' ? { titleBarOverlay: true } : {}),
+        ...(
+          (process.platform === 'darwin')
+            ? {
+                titleBarStyle: 'hidden',
+                trafficLightPosition: { x: 6, y: 6 }
+              }
+            : {}
+        ),
         webPreferences: {
           preload: join(__dirname, 'preload.js')
         }
