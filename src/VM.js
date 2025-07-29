@@ -5,7 +5,7 @@ import { readdir, stat, mkdir, rm, access, rename } from 'node:fs/promises'
 import { EventEmitter } from 'node:events'
 import { inspect, promisify } from 'node:util'
 import { app, dialog } from 'electron'
-import { homedir, cpus, totalmem } from 'node:os'
+import { homedir, availableParallelism, totalmem } from 'node:os'
 import settings from './Settings.js'
 import { createServer, createConnection } from 'node:net'
 import stripAnsi from 'strip-ansi'
@@ -470,7 +470,7 @@ export default class VM extends EventEmitter {
   }
 
   get totalCpu () {
-    return cpus().length
+    return availableParallelism()
   }
 
   get totalMemory () {
@@ -479,12 +479,12 @@ export default class VM extends EventEmitter {
 
   get defaultCpu () {
     const { totalCpu } = this
-    return Math.min(totalCpu, Math.max(8, totalCpu))
+    return Math.max(Math.ceil(totalCpu * (3 / 4)), Math.min(8, totalCpu))
   }
 
   get defaultMemory () {
     const { totalMemory } = this
-    return Math.min(totalMemory, Math.max(Math.round(8 * 1024), Math.round(totalMemory / 2)))
+    return Math.max(Math.ceil(totalMemory * (3 / 4)), Math.min((8 * 1024), totalMemory))
   }
 
   get status () {
