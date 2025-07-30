@@ -25,7 +25,9 @@ contextBridge.exposeInMainWorld(
     localRepositories: async repos =>
       await ipcRenderer.invoke('local-repositories', repos || []),
     eula: async accept =>
-      await ipcRenderer.invoke('eula', accept)
+      await ipcRenderer.invoke('eula', accept),
+    isFullscreen: async () =>
+      await ipcRenderer.invoke('is-fullscreen')
   }
 )
 
@@ -38,5 +40,11 @@ ipcRenderer.on('update-route', async (_event, path) => {
 ipcRenderer.on('workshop-vm-status', async (_event, status) => {
   window.dispatchEvent(new CustomEvent('workshop-vm-status', {
     detail: { status }
+  }))
+})
+
+ipcRenderer.on('is-fullscreen', async (_event, fullscreen) => {
+  window.dispatchEvent(new CustomEvent('is-fullscreen', {
+    detail: { fullscreen }
   }))
 })
