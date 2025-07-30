@@ -81,7 +81,7 @@ import settings from './Settings.js'
           (process.platform === 'darwin')
             ? {
                 titleBarStyle: 'hidden',
-                trafficLightPosition: { x: 6, y: 6 }
+                trafficLightPosition: { x: 8, y: 6 }
               }
             : {}
         ),
