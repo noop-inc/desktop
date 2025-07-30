@@ -92,6 +92,15 @@ import settings from './Settings.js'
 
       vm.mainWindow = mainWindow
 
+      mainWindow.on('enter-full-screen', () => {
+        mainWindow.webContents.send('is-fullscreen', true)
+        mainWindow.webContents.send('electron-fullscreen', true)
+      })
+
+      mainWindow.on('leave-full-screen', () => {
+        mainWindow.webContents.send('is-fullscreen', false)
+      })
+
       mainWindow.on('will-resize', (event, newBounds) => {
         if (authWindow) {
           const { width, height } = newBounds
@@ -274,11 +283,18 @@ import settings from './Settings.js'
     if (!agree) {
       app.quit()
     } else {
-      ensureMainWindow()
+      setImmediate(async () => await ensureMainWindow())
     }
   }
 
   ipcMain.handle('eula', handleEula)
+
+  ipcMain.handle('is-fullscreen', async () => {
+    await ensureMainWindow()
+    console.log(mainWindow.isFullScreen())
+    mainWindow.webContents.send('is-fullscreen', mainWindow.isFullScreen())
+    return mainWindow.isFullScreen()
+  })
 
   const handleWorkshopVmStatus = async status => {
     if (status === 'STOPPED') localRepositories = []
@@ -565,7 +581,7 @@ import settings from './Settings.js'
 
       setImmediate(async () => {
         if (githubLoginUrl) {
-          openExternalWindow()
+          setImmediate(async () => await openExternalWindow())
         } else {
           const metadataString = await mainWindow.webContents.executeJavaScript('localStorage.getItem("NOOP_METADATA");')
           const metadataParsed = metadataString ? JSON.parse(metadataString) : {}
