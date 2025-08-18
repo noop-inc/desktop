@@ -63,7 +63,7 @@
     "dot-prop": "^9.0.0",
     "dotenv": "^17.2.1",
     "electron": "^37.2.5",
-    "electron-log": "^5.4.2",
+    "electron-log": "^5.4.3",
     "electron-serve": "^2.1.1",
     "electron-squirrel-startup": "^1.0.1",
     "eslint": "^9.32.0",
