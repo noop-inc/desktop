@@ -48,7 +48,7 @@
     "@electron-forge/plugin-vite": "^7.8.2",
     "@electron-forge/publisher-github": "^7.8.2",
     "@eslint/eslintrc": "^3.3.1",
-    "@eslint/js": "^9.32.0",
+    "@eslint/js": "^9.34.0",
     "@noop-inc/console": "^3.3.9",
     "@noop-inc/desktop-qemu": "^0.0.84",
     "@noop-inc/discovery": "^4.0.1",
