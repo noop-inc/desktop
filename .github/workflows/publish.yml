@@ -16,7 +16,7 @@ jobs:
     steps:
       - name: Code Checkout
         id: code-checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup NodeJS
         id: setup-nodejs
@@ -68,17 +68,17 @@ jobs:
     strategy:
       matrix:
         include:
-          - runner: macos-14
+          - runner: macos-15
             ext: disk
-            node: 22
-          - runner: windows-latest
+            node: 24
+          - runner: windows-2025
             ext: tar.gz
-            node: 20
+            node: 24
 
     steps:
       - name: Code Checkout
         id: code-checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: ${{ github.event.inputs.DesktopVersion }}
 

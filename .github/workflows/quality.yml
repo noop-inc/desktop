@@ -13,12 +13,12 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Code Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install NodeJS
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           registry-url: 'https://npm.pkg.github.com'
           scope: '@noop-inc'
 
