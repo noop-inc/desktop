@@ -22,7 +22,7 @@ jobs:
         id: setup-nodejs
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           registry-url: 'https://npm.pkg.github.com'
           scope: '@noop-inc'
 
@@ -73,7 +73,7 @@ jobs:
             node: 24
           - runner: windows-2025
             ext: tar.gz
-            node: 24
+            node: 20
 
     steps:
       - name: Code Checkout
