@@ -414,7 +414,7 @@ import settings from './Settings.js'
 
   ipcMain.handle('show-log-files', handleShowLogFiles)
 
-  const handleRestartWorkshopVm = async (_event, reset) => {
+  const handleRestartWorkshopVm = async (_event, reset, registries) => {
     if (managingVm) {
       await ensureMainWindow()
       const returnValue = await dialog.showMessageBox(mainWindow, {
@@ -427,15 +427,25 @@ import settings from './Settings.js'
         cancelId: 2
       })
       if (returnValue.response === 0) {
-        vm.isRestarting = true
-        await Promise.all(Object.entries(fileWatchers).map(async ([repoId, watcher]) => {
-          await watcher.stop()
-          watcher.removeAllListeners()
-          delete fileWatchers[repoId]
-        }))
-        await vm.restart(reset)
-        vm.isRestarting = false
-        return true
+        try {
+          vm.isRestarting = true
+          if (registries) {
+            await fetch(`${workshopApiBase}/registry/prune`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(registries)
+            })
+          }
+          await Promise.all(Object.entries(fileWatchers).map(async ([repoId, watcher]) => {
+            await watcher.stop()
+            watcher.removeAllListeners()
+            delete fileWatchers[repoId]
+          }))
+          await vm.restart(reset)
+          return true
+        } finally {
+          vm.isRestarting = false
+        }
       }
     }
   }

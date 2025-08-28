@@ -49,10 +49,10 @@
     "@electron-forge/publisher-github": "^7.8.3",
     "@eslint/eslintrc": "^3.3.1",
     "@eslint/js": "^9.34.0",
-    "@noop-inc/console": "3.3.9-pr1654.0",
+    "@noop-inc/console": "^3.3.10",
     "@noop-inc/desktop-qemu": "^0.0.85",
     "@noop-inc/discovery": "^4.0.4",
-    "@noop-inc/foundation": "4.0.43-pr658.0",
+    "@noop-inc/foundation": "4.0.43-pr658.2",
     "@stylistic/eslint-plugin": "^5.2.3",
     "ajv": "^8.17.1",
     "autoprefixer": "^10.4.21",
@@ -62,14 +62,14 @@
     "concurrently": "^9.2.1",
     "dot-prop": "^9.0.0",
     "dotenv": "^17.2.1",
-    "electron": "^37.3.1",
+    "electron": "^37.4.0",
     "electron-log": "^5.4.3",
     "electron-serve": "^2.1.1",
     "electron-squirrel-startup": "^1.0.1",
     "eslint": "^9.34.0",
     "eslint-config-standard": "^17.1.0",
     "ignore": "^7.0.5",
-    "marked": "^16.2.0",
+    "marked": "^16.2.1",
     "minimatch": "^10.0.3",
     "prettier": "^3.6.2",
     "rollup-plugin-visualizer": "^6.0.3",
@@ -93,6 +93,6 @@
     }
   },
   "@noop-inc": {
-    "workshop-vm": "0.18.0"
+    "workshop-vm": "0.18.4"
   }
 }
