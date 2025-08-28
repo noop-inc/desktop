@@ -419,7 +419,8 @@ export default class VM extends EventEmitter {
   async workshopVmAsset () {
     if (npmLifecycleEvent === 'serve') {
       if (process.platform === 'darwin') {
-        return join(npmConfigLocalPrefix, '../workshop-vm/prep/disks/noop-workshop-vm-0.0.0-automated.aarch64.disk')
+        // return join(npmConfigLocalPrefix, '../workshop-vm/prep/disks/noop-workshop-vm-0.0.0-automated.aarch64.disk')
+        return '/Users/derekwolpert/Desktop/desktop/noop-workshop-vm-0.18.4.aarch64.disk'
       }
 
       if (process.platform === 'win32') {
