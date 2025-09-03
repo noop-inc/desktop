@@ -120,6 +120,15 @@ import settings from './Settings.js'
         mainWindow = null
       })
 
+      mainWindow.webContents.on('will-navigate', (event, url) => {
+        const currentHost = new URL(mainWindow.webContents.getURL()).host
+        const requestedHost = new URL(url).host
+        if (requestedHost && requestedHost !== currentHost) {
+          event.preventDefault()
+          shell.openExternal(url)
+        }
+      })
+
       // and load the index.html of the app.
       if (!packaged) {
         mainWindow.loadURL(mainWindowViteDevServerURL)
@@ -291,7 +300,6 @@ import settings from './Settings.js'
 
   ipcMain.handle('is-fullscreen', async () => {
     await ensureMainWindow()
-    console.log(mainWindow.isFullScreen())
     mainWindow.webContents.send('is-fullscreen', mainWindow.isFullScreen())
     return mainWindow.isFullScreen()
   })
