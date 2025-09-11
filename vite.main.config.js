@@ -52,6 +52,8 @@ const checkIfNodeModulesImport = (id, { getModuleInfo }) => {
 export default defineConfig({
   build: {
     target: 'esnext',
+    modulePreload: { polyfill: false },
+    reportCompressedSize: false,
     rollupOptions: {
       external: [
         'better-sqlite3',

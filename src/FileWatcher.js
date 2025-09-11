@@ -9,7 +9,7 @@ import { minimatch } from 'minimatch'
 import { inspect } from 'node:util'
 import { app } from 'electron'
 
-const mainWindowViteDevServerURL = MAIN_WINDOW_VITE_DEV_SERVER_URL // eslint-disable-line no-undef
+const mainWindowViteDevServerURL = MAIN_WINDOW_VITE_DEV_SERVER_URL
 const packaged = (!mainWindowViteDevServerURL && app.isPackaged)
 
 const formatter = (...messages) =>

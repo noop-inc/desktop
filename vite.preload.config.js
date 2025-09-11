@@ -8,7 +8,9 @@ const packageJson = JSON.parse(await readFile(packageJsonUrl))
 // https://vitejs.dev/config
 export default defineConfig({
   build: {
-    target: 'esnext'
+    target: 'esnext',
+    modulePreload: { polyfill: false },
+    reportCompressedSize: false
   },
   plugins: [
     (process.env.npm_lifecycle_event === 'report') && (process.env.npm_package_name === packageJson.name)

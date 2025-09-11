@@ -15,7 +15,7 @@ marked.use({ renderer })
 
 const html = marked.parse(licence)
 
-document.querySelector('#app').innerHTML = `
+document.querySelector('#app').innerHTML = /* html */ `
   <div class="content">
     <h1 class="header">
       <span>End-User License Agreement</span>
