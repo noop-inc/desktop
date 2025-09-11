@@ -55,6 +55,7 @@
     "@noop-inc/desktop-qemu": "^0.0.86",
     "@noop-inc/discovery": "^4.0.4",
     "@noop-inc/foundation": "4.0.45-pr1694.1",
+    "@types/node": "^24.3.1",
     "ajv": "^8.17.1",
     "autoprefixer": "^10.4.21",
     "browserslist": "^4.25.4",
@@ -95,6 +96,7 @@
     "@noop-inc/desktop-qemu": "$@noop-inc/desktop-qemu",
     "@noop-inc/discovery": "$@noop-inc/discovery",
     "@noop-inc/foundation": "$@noop-inc/foundation",
+    "@types/node": "$@types/node",
     "globals": "$globals"
   },
   "@noop-inc": {
