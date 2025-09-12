@@ -69,9 +69,9 @@ jobs:
     strategy:
       matrix:
         include:
-          # - runner: macos-15
-          #   ext: disk
-          #   node: 24
+          - runner: macos-15
+            ext: disk
+            node: 24
           - runner: windows-2025
             ext: tar.gz
             node: 20
@@ -98,32 +98,32 @@ jobs:
         with:
           python-version: 3.13
 
-      # - name: Install Apple certificate
-      #   if: ${{ startsWith(matrix.runner, 'macos') }}
-      #   id: install-apple-certificate
-      #   env:
-      #     BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
-      #     P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
-      #     KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
-      #     CERTIFICATE_IDENTITY: ${{ secrets.CERTIFICATE_IDENTITY }}
-      #   run: |
-      #     # create variables
-      #     CERTIFICATE_PATH=$RUNNER_TEMP/build_certificate.p12
-      #     KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+      - name: Install Apple certificate
+        if: ${{ startsWith(matrix.runner, 'macos') }}
+        id: install-apple-certificate
+        env:
+          BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+          P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+          CERTIFICATE_IDENTITY: ${{ secrets.CERTIFICATE_IDENTITY }}
+        run: |
+          # create variables
+          CERTIFICATE_PATH=$RUNNER_TEMP/build_certificate.p12
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
 
-      #     # import certificate from secrets
-      #     echo -n "$BUILD_CERTIFICATE_BASE64" | base64 --decode -o $CERTIFICATE_PATH
+          # import certificate from secrets
+          echo -n "$BUILD_CERTIFICATE_BASE64" | base64 --decode -o $CERTIFICATE_PATH
 
-      #     # create temporary keychain
-      #     security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
-      #     security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
-      #     security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          # create temporary keychain
+          security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
 
-      #     # import certificate to keychain
-      #     security import $CERTIFICATE_PATH -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
-      #     security list-keychain -d user -s $KEYCHAIN_PATH
+          # import certificate to keychain
+          security import $CERTIFICATE_PATH -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
+          security list-keychain -d user -s $KEYCHAIN_PATH
 
-      #     security find-identity -p codesigning -v
+          security find-identity -p codesigning -v
 
       - name: Install Node Modules
         id: install-node-modules
@@ -142,33 +142,33 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN }}
           WORKSHOP_EXT: ${{ matrix.ext }}
 
-      # - name: Build and Publish Desktop (mac x86_64)
-      #   if: ${{ startsWith(matrix.runner, 'macos') }}
-      #   id: build-and-publish-desktop-mac-x86_64
-      #   run: |
-      #     npm run postinstall --prefix node_modules/@noop-inc/desktop-qemu -- --arch x86_64
-      #     npm run publish -- --arch x64
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      #     APPLE_ID: ${{ secrets.APPLE_ID }}
-      #     APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-      #     TEAM_ID: ${{ secrets.TEAM_ID }}
-      #     NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN }}
-      #     WORKSHOP_VM_VERSION: ${{ steps.download-workshop-vm.outputs.WORKSHOP_VM_VERSION }}
+      - name: Build and Publish Desktop (mac x86_64)
+        if: ${{ startsWith(matrix.runner, 'macos') }}
+        id: build-and-publish-desktop-mac-x86_64
+        run: |
+          npm run postinstall --prefix node_modules/@noop-inc/desktop-qemu -- --arch x86_64
+          npm run publish -- --arch x64
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          TEAM_ID: ${{ secrets.TEAM_ID }}
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN }}
+          WORKSHOP_VM_VERSION: ${{ steps.download-workshop-vm.outputs.WORKSHOP_VM_VERSION }}
 
-      # - name: Build and Publish Desktop (mac aarch64)
-      #   if: ${{ startsWith(matrix.runner, 'macos') }}
-      #   id: build-and-publish-desktop-mac-aarch64
-      #   run: |
-      #     npm run postinstall --prefix node_modules/@noop-inc/desktop-qemu -- --arch aarch64
-      #     npm run publish -- --arch arm64
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      #     APPLE_ID: ${{ secrets.APPLE_ID }}
-      #     APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-      #     TEAM_ID: ${{ secrets.TEAM_ID }}
-      #     NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN }}
-      #     WORKSHOP_VM_VERSION: ${{ steps.download-workshop-vm.outputs.WORKSHOP_VM_VERSION }}
+      - name: Build and Publish Desktop (mac aarch64)
+        if: ${{ startsWith(matrix.runner, 'macos') }}
+        id: build-and-publish-desktop-mac-aarch64
+        run: |
+          npm run postinstall --prefix node_modules/@noop-inc/desktop-qemu -- --arch aarch64
+          npm run publish -- --arch arm64
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          TEAM_ID: ${{ secrets.TEAM_ID }}
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN }}
+          WORKSHOP_VM_VERSION: ${{ steps.download-workshop-vm.outputs.WORKSHOP_VM_VERSION }}
 
       - name: Build and Publish Desktop (windows x86_64)
         if: ${{ startsWith(matrix.runner, 'windows') }}
