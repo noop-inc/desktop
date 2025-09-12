@@ -28,11 +28,11 @@ import settings from './Settings.js'
     npm_lifecycle_event: npmLifecycleEvent
   } = process.env
 
-  const mainWindowViteDevServerURL = MAIN_WINDOW_VITE_DEV_SERVER_URL // eslint-disable-line no-undef
-  const mainWindowViteName = MAIN_WINDOW_VITE_NAME // eslint-disable-line no-undef
+  const mainWindowViteDevServerURL = MAIN_WINDOW_VITE_DEV_SERVER_URL
+  const mainWindowViteName = MAIN_WINDOW_VITE_NAME
 
-  const eulaWindowViteDevServerURL = EULA_WINDOW_VITE_DEV_SERVER_URL // eslint-disable-line no-undef
-  const eulaWindowViteName = EULA_WINDOW_VITE_NAME // eslint-disable-line no-undef
+  const eulaWindowViteDevServerURL = EULA_WINDOW_VITE_DEV_SERVER_URL
+  const eulaWindowViteName = EULA_WINDOW_VITE_NAME
 
   const packaged = (!mainWindowViteDevServerURL && app.isPackaged)
   const managingVm = (packaged || (npmLifecycleEvent === 'serve'))

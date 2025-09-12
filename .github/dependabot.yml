@@ -7,25 +7,25 @@ registries:
     token: ${{ secrets.PACKAGES_READ_TOKEN }}
 
 updates:
-  - package-ecosystem: 'github-actions'
-    directory: '/'
+  - package-ecosystem: github-actions
+    directory: /
     schedule:
-      interval: 'weekly'
-      day: 'monday'
+      interval: weekly
+      day: monday
       time: '12:00'
     labels:
-      - 'dependabot'
+      - dependabot
     open-pull-requests-limit: 50
 
-  - package-ecosystem: 'npm'
-    directory: '/'
+  - package-ecosystem: npm
+    directory: /
     registries:
       - npm-github
     schedule:
-      interval: 'weekly'
-      day: 'monday'
+      interval: weekly
+      day: monday
       time: '12:00'
     labels:
-      - 'dependabot'
+      - dependabot
     open-pull-requests-limit: 50
-    versioning-strategy: 'increase'
+    versioning-strategy: increase

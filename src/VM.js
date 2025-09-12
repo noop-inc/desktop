@@ -3,12 +3,11 @@ import { QemuVirtualMachine, WslVirtualMachine } from '@noop-inc/foundation/lib/
 import Error from '@noop-inc/foundation/lib/Error.js'
 import { readdir, stat, mkdir, rm, access, rename } from 'node:fs/promises'
 import { EventEmitter } from 'node:events'
-import { inspect, promisify } from 'node:util'
+import { inspect, promisify, stripVTControlCharacters } from 'node:util'
 import { app, dialog } from 'electron'
 import { homedir, availableParallelism, totalmem } from 'node:os'
 import settings from './Settings.js'
 import { createServer, createConnection } from 'node:net'
-import stripAnsi from 'strip-ansi'
 import { setTimeout as wait } from 'node:timers/promises'
 
 const arch = process.arch.includes('arm') ? 'aarch64' : 'x86_64'
@@ -39,7 +38,7 @@ if (process.platform === 'darwin') {
     : join(resourcesPath, `qemu.macos-${arch}`)
 }
 
-const mainWindowViteDevServerURL = MAIN_WINDOW_VITE_DEV_SERVER_URL // eslint-disable-line no-undef
+const mainWindowViteDevServerURL = MAIN_WINDOW_VITE_DEV_SERVER_URL
 const packaged = (!mainWindowViteDevServerURL && app.isPackaged)
 
 const logHandler = ({ message, ...log }) => {
@@ -47,7 +46,7 @@ const logHandler = ({ message, ...log }) => {
     const workshopMessage = /^\[[\s\d.]+\][\s]+(node)\[[\d]+\]:[\s]+/
     const vmMessage = /^\[[\s\d.]+\][\s]+/
 
-    message = stripAnsi(message).trim()
+    message = stripVTControlCharacters(message).trim()
 
     if (message.includes(']: {"timestamp":')) {
       message = message

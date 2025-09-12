@@ -54,6 +54,8 @@ export default defineConfig({
   root: fileURLToPath(new URL('.', import.meta.url)),
   build: {
     target: 'esnext',
+    modulePreload: { polyfill: false },
+    reportCompressedSize: false,
     outDir: fileURLToPath(new URL('../../.vite/renderer/eula_window', import.meta.url)),
     rollupOptions: {
       output: {

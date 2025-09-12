@@ -14,8 +14,8 @@
     "url": "https://github.com/noop-inc/desktop.git"
   },
   "engines": {
-    "node": ">=22",
-    "npm": ">=10"
+    "node": ">=24",
+    "npm": ">=11"
   },
   "scripts": {
     "common-eslint": "eslint --cache --cache-location node_modules/.cache/.eslintcache",
@@ -40,59 +40,63 @@
     "serve": "npm run postinstall && electron-forge start"
   },
   "devDependencies": {
-    "@electron-forge/cli": "^7.8.3",
-    "@electron-forge/maker-dmg": "^7.8.3",
-    "@electron-forge/maker-squirrel": "^7.8.3",
-    "@electron-forge/maker-zip": "^7.8.3",
-    "@electron-forge/plugin-fuses": "^7.8.3",
-    "@electron-forge/plugin-vite": "^7.8.3",
-    "@electron-forge/publisher-github": "^7.8.3",
-    "@eslint/eslintrc": "^3.3.1",
-    "@eslint/js": "^9.34.0",
-    "@noop-inc/console": "^3.3.11",
-    "@noop-inc/desktop-qemu": "^0.0.85",
+    "@electron-forge/cli": "^7.9.0",
+    "@electron-forge/maker-dmg": "^7.9.0",
+    "@electron-forge/maker-squirrel": "^7.9.0",
+    "@electron-forge/maker-zip": "^7.9.0",
+    "@electron-forge/plugin-fuses": "^7.9.0",
+    "@electron-forge/plugin-vite": "^7.9.0",
+    "@electron-forge/publisher-github": "^7.9.0",
+    "@eslint/js": "^9.35.0",
+    "@eslint/json": "^0.13.2",
+    "@eslint/markdown": "^7.2.0",
+    "@html-eslint/eslint-plugin": "^0.46.2",
+    "@noop-inc/console": "^3.3.13",
+    "@noop-inc/desktop-qemu": "^0.0.86",
     "@noop-inc/discovery": "^4.0.4",
-    "@noop-inc/foundation": "4.0.43-pr658.2",
-    "@stylistic/eslint-plugin": "^5.3.1",
+    "@noop-inc/foundation": "4.0.45-pr658.0",
+    "@types/node": "^24.3.2",
     "ajv": "^8.17.1",
     "autoprefixer": "^10.4.21",
-    "browserslist": "^4.25.4",
-    "chalk": "^5.6.0",
+    "browserslist": "^4.26.0",
+    "chalk": "^5.6.2",
     "chokidar": "^4.0.3",
     "concurrently": "^9.2.1",
     "dot-prop": "^9.0.0",
     "dotenv": "^17.2.2",
-    "electron": "^38.0.0",
+    "electron": "^38.1.0",
     "electron-log": "^5.4.3",
     "electron-serve": "^2.1.1",
     "electron-squirrel-startup": "^1.0.1",
-    "eslint": "^9.34.0",
-    "eslint-config-standard": "^17.1.0",
+    "encoding": "^0.1.13",
+    "eslint": "^9.35.0",
+    "eslint-plugin-yml": "^1.18.0",
+    "globals": "^16.4.0",
     "ignore": "^7.0.5",
     "marked": "^16.2.1",
     "minimatch": "^10.0.3",
+    "neostandard": "^0.12.2",
     "prettier": "^3.6.2",
     "rollup-plugin-visualizer": "^6.0.3",
-    "strip-ansi": "^7.1.0",
-    "stylelint": "^16.23.1",
+    "sass": "^1.92.1",
+    "stylelint": "^16.24.0",
     "stylelint-config-standard": "^39.0.0",
     "tar-fs": "^3.1.0",
     "tar-stream": "^3.1.7",
-    "vite": "^7.1.4"
+    "vite": "^7.1.5"
   },
   "overrides": {
     "@noop-inc/console": "$@noop-inc/console",
     "@noop-inc/desktop-qemu": "$@noop-inc/desktop-qemu",
     "@noop-inc/discovery": "$@noop-inc/discovery",
     "@noop-inc/foundation": "$@noop-inc/foundation",
-    "eslint-config-standard": {
-      "eslint": "$eslint"
-    },
-    "@electron-forge/plugin-vite": {
-      "vite": "$vite"
-    }
+    "@types/node": "$@types/node",
+    "encoding": "$encoding",
+    "globals": "$globals",
+    "sass": "$sass",
+    "vite": "$vite"
   },
   "@noop-inc": {
-    "workshop-vm": "0.18.4"
+    "workshop-vm": "0.18.5"
   }
 }

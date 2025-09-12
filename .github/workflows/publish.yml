@@ -18,11 +18,12 @@ jobs:
         id: code-checkout
         uses: actions/checkout@v5
 
-      - name: Setup NodeJS
-        id: setup-nodejs
-        uses: actions/setup-node@v4
+      - name: Install NodeJS
+        uses: actions/setup-node@v5
         with:
           node-version: 24
+          cache: npm
+          cache-dependency-path: package-lock.json
           registry-url: 'https://npm.pkg.github.com'
           scope: '@noop-inc'
 
@@ -82,11 +83,12 @@ jobs:
         with:
           ref: ${{ github.event.inputs.DesktopVersion }}
 
-      - name: Setup NodeJS
-        id: setup-nodejs
-        uses: actions/setup-node@v4
+      - name: Install NodeJS
+        uses: actions/setup-node@v5
         with:
           node-version: ${{ matrix.node }}
+          cache: npm
+          cache-dependency-path: package-lock.json
           registry-url: 'https://npm.pkg.github.com'
           scope: '@noop-inc'
 
@@ -94,7 +96,7 @@ jobs:
         id: setup-python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
+          python-version: 3.13
 
       - name: Install Apple certificate
         if: ${{ startsWith(matrix.runner, 'macos') }}
