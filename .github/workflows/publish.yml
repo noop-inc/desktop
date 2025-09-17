@@ -80,10 +80,8 @@ jobs:
         include:
           - runner: macos-15
             ext: disk
-            node: 24
           - runner: windows-2025
             ext: tar.gz
-            node: 20
 
     steps:
       - name: Code Checkout
@@ -95,7 +93,7 @@ jobs:
       - name: Install NodeJS
         uses: actions/setup-node@v5
         with:
-          node-version: ${{ matrix.node }}
+          node-version: 24
           cache: npm
           cache-dependency-path: package-lock.json
           registry-url: 'https://npm.pkg.github.com'
@@ -166,8 +164,8 @@ jobs:
         run: |
           CLI_VERSION=`node -e "console.log(JSON.parse(fs.readFileSync('${PWD}/package.json').toString())['@noop-inc'].cli)"`
           OS_PLATFORM=`node -e "console.log(os.platform())"`
-          ditto "noop-cli-v${CLI_VERSION}-${OS_PLATFORM}-x64.zip" ./
-          ditto "noop-cli-v${CLI_VERSION}-${OS_PLATFORM}-arm64.zip" ./
+          ditto -x -k "noop-cli-v${CLI_VERSION}-${OS_PLATFORM}-x64.zip" ./
+          ditto -x -k "noop-cli-v${CLI_VERSION}-${OS_PLATFORM}-arm64.zip" ./
           rm -f "noop-cli-v${CLI_VERSION}-${OS_PLATFORM}-x64.zip"
           rm -f "noop-cli-v${CLI_VERSION}-${OS_PLATFORM}-arm64.zip"
 
@@ -201,7 +199,7 @@ jobs:
         if: ${{ startsWith(matrix.runner, 'windows') }}
         id: decompress-cli-windows
         run: |
-          CLI_VERSION = node -e "console.log(JSON.parse(fs.readFileSync('${PWD}/package.json').toString())['@noop-inc'].cli)"
+          $CLI_VERSION = node -e "console.log(JSON.parse(fs.readFileSync('${PWD}/package.json').toString())['@noop-inc'].cli)"
           $OS_PLATFORM = node -e "console.log(require('os').platform())"
           Expand-Archive -Path "noop-cli-v${CLI_VERSION}-${OS_PLATFORM}-x64.zip" -DestinationPath ./
           # Expand-Archive -Path "noop-cli-v${CLI_VERSION}-${OS_PLATFORM}-arm64.zip" -DestinationPath ./
