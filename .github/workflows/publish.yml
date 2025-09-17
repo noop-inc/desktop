@@ -41,7 +41,7 @@ jobs:
         id: verify-workshop-vm-release
         run: |
           # Verify the specified Workshop VM version exists
-          WORKSHOP_VM_VERSION=`node -e "console.log(JSON.parse(fs.readFileSync('${PWD}/package.json').toString())['@noop-inc']['workshop-vm'])"`
+          WORKSHOP_VM_VERSION=`node -e "console.log(JSON.parse(fs.readFileSync(path.resolve('./package.json')).toString())['@noop-inc']['workshop-vm'])"`
           gh release view "v${WORKSHOP_VM_VERSION}" -R "noop-inc/workshop-vm"
         env:
           GITHUB_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN }}
@@ -50,7 +50,7 @@ jobs:
         id: verify-cli-release
         run: |
           # Verify the specified Workshop VM version exists
-          CLI_VERSION=`node -e "console.log(JSON.parse(fs.readFileSync('${PWD}/package.json').toString())['@noop-inc'].cli)"`
+          CLI_VERSION=`node -e "console.log(JSON.parse(fs.readFileSync(path.resolve('./package.json')).toString())['@noop-inc'].cli)"`
           gh release view "v${CLI_VERSION}" -R "noop-inc/cli"
         env:
           GITHUB_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN }}
@@ -142,7 +142,7 @@ jobs:
         id: download-workshop-vm
         shell: bash
         run: |
-          WORKSHOP_VM_VERSION=`node -e "console.log(JSON.parse(fs.readFileSync('${PWD}/package.json').toString())['@noop-inc']['workshop-vm'])"`
+          WORKSHOP_VM_VERSION=`node -e "console.log(JSON.parse(fs.readFileSync(path.resolve('./package.json')).toString())['@noop-inc']['workshop-vm'])"`
           gh release download "v${WORKSHOP_VM_VERSION}" -p "noop-workshop-vm-v${WORKSHOP_VM_VERSION}-*.${WORKSHOP_EXT}" -R "noop-inc/workshop-vm"
         env:
           GITHUB_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN }}
@@ -152,7 +152,7 @@ jobs:
         id: download-cli
         shell: bash
         run: |
-          CLI_VERSION=`node -e "console.log(JSON.parse(fs.readFileSync('${PWD}/package.json').toString())['@noop-inc'].cli)"`
+          CLI_VERSION=`node -e "console.log(JSON.parse(fs.readFileSync(path.resolve('./package.json')).toString())['@noop-inc'].cli)"`
           OS_PLATFORM=`node -e "console.log(os.platform())"`
           gh release download "v${CLI_VERSION}" -p "noop-cli-v${CLI_VERSION}-${OS_PLATFORM}-*.zip" -R "noop-inc/cli"
         env:
@@ -162,7 +162,7 @@ jobs:
         if: ${{ startsWith(matrix.runner, 'macos') }}
         id: decompress-cli-mac
         run: |
-          CLI_VERSION=`node -e "console.log(JSON.parse(fs.readFileSync('${PWD}/package.json').toString())['@noop-inc'].cli)"`
+          CLI_VERSION=`node -e "console.log(JSON.parse(fs.readFileSync(path.resolve('./package.json')).toString())['@noop-inc'].cli)"`
           OS_PLATFORM=`node -e "console.log(os.platform())"`
           ditto -x -k "noop-cli-v${CLI_VERSION}-${OS_PLATFORM}-x64.zip" ./
           ditto -x -k "noop-cli-v${CLI_VERSION}-${OS_PLATFORM}-arm64.zip" ./
@@ -199,7 +199,7 @@ jobs:
         if: ${{ startsWith(matrix.runner, 'windows') }}
         id: decompress-cli-windows
         run: |
-          $CLI_VERSION = node -e "console.log(JSON.parse(fs.readFileSync('${PWD}/package.json').toString())['@noop-inc'].cli)"
+          $CLI_VERSION = node -e "console.log(JSON.parse(fs.readFileSync(path.resolve('./package.json')).toString())['@noop-inc'].cli)"
           $OS_PLATFORM = node -e "console.log(require('os').platform())"
           Expand-Archive -Path "noop-cli-v${CLI_VERSION}-${OS_PLATFORM}-x64.zip" -DestinationPath ./
           # Expand-Archive -Path "noop-cli-v${CLI_VERSION}-${OS_PLATFORM}-arm64.zip" -DestinationPath ./
