@@ -96,11 +96,11 @@ out/
 *.disk
 *.tar.gz
 stats*.html
+noop-*
 
 **/*.js
 **/*.mjs
 **/*.cjs
-**/*.ts
 
 **/*.scss
 **/*.css

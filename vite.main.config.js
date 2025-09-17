@@ -55,14 +55,6 @@ export default defineConfig({
     modulePreload: { polyfill: false },
     reportCompressedSize: false,
     rollupOptions: {
-      external: [
-        'better-sqlite3',
-        'node-pty',
-        '@aws-sdk/client-s3'
-        // 'chokidar'
-        // 'electron-squirrel-startup'
-        // 'node-cron'
-      ],
       output: {
         manualChunks (id, { getModuleInfo }) {
           const result = checkIfNotDynamicallyImported(id, { getModuleInfo })

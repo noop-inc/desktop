@@ -27,7 +27,9 @@ contextBridge.exposeInMainWorld(
     eula: async accept =>
       await ipcRenderer.invoke('eula', accept),
     isFullscreen: async () =>
-      await ipcRenderer.invoke('is-fullscreen')
+      await ipcRenderer.invoke('is-fullscreen'),
+    installCli: async () =>
+      await ipcRenderer.invoke('install-cli')
   }
 )
 

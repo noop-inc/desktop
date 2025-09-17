@@ -10,7 +10,7 @@ const {
   npm_lifecycle_event: npmLifecycleEvent
 } = process.env
 
-const mainWindowViteDevServerURL = MAIN_WINDOW_VITE_DEV_SERVER_URL
+const mainWindowViteDevServerURL = MAIN_WINDOW_VITE_DEV_SERVER_URL // eslint-disable-line no-undef
 const packaged = (!mainWindowViteDevServerURL && app.isPackaged)
 
 const managingVm = (packaged || (npmLifecycleEvent === 'serve'))

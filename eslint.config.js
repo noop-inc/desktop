@@ -13,20 +13,19 @@ export default defineConfig([
     ]
   },
   {
-    files: ['**/*.js', '**/*.cjs', '**/*.mjs', '**/*.ts'],
+    files: ['**/*.js', '**/*.cjs', '**/*.mjs'],
     plugins: { js },
     extends: ['js/recommended']
   },
   ...neostandard({
     noJsx: true,
     semi: false,
-    ts: true,
-    env: ['node', 'es2026']
+    env: ['node', 'es2026', 'browser']
   })
     .filter(config => !config.name.includes('modernization'))
-    .map(config => ({ ...config, files: ['**/*.js', '**/*.cjs', '**/*.mjs', '**/*.ts'] })),
+    .map(config => ({ ...config, files: ['**/*.js', '**/*.cjs', '**/*.mjs'] })),
   {
-    files: ['**/*.js', '**/*.cjs', '**/*.mjs', '**/*.ts'],
+    files: ['**/*.js', '**/*.cjs', '**/*.mjs'],
     plugins: { html },
     extends: ['html/recommended'],
     languageOptions: {

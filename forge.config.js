@@ -1,17 +1,18 @@
-const { FusesPlugin } = require('@electron-forge/plugin-fuses')
-const { FuseV1Options, FuseVersion } = require('@electron/fuses')
+import { FusesPlugin } from '@electron-forge/plugin-fuses'
+import { FuseV1Options, FuseVersion } from '@electron/fuses'
+import packageJson from './package.json' with { type: 'json' }
+import packageLockJson from './package-lock.json' with { type: 'json' }
 // const { spawn: spawnCallback } = require('node:child_process')
 // const { rm, cp, rename } = require('node:fs/promises')
 // const { resolve } = require('node:path')
 
-require('dotenv').config()
+process.loadEnvFile()
 
 const arg = process.argv.includes('--arch')
   ? process.argv[process.argv.indexOf('--arch') + 1]
   : null
-const arch = ['x64', 'arm64'].includes(arg)
-  ? { x64: 'x86_64', arm64: 'aarch64' }[arg]
-  : (process.arch.includes('arm') ? 'aarch64' : 'x86_64')
+
+const nodeArch = { x64: 'x86_64', arm64: 'aarch64' }[arg] || process.arch
 
 // const spawn = async (...args) => await new Promise((resolve, reject) => {
 //   const spawnArgs = [...args]
@@ -22,7 +23,7 @@ const arch = ['x64', 'arm64'].includes(arg)
 //   })
 // })
 
-module.exports = {
+export default {
   packagerConfig: {
     asar: true,
     name: 'Noop',
@@ -46,8 +47,9 @@ module.exports = {
         ? {}
         : {
             extraResource: [
-              process.platform === 'darwin' ? `node_modules/@noop-inc/desktop-qemu/dist/qemu.macos-${arch}` : null,
-              `noop-workshop-vm-${process.env.WORKSHOP_VM_VERSION}.${arch}.${({ darwin: 'disk', win32: 'tar.gz' })[process.platform]}`
+              process.platform === 'darwin' ? `node_modules/@noop-inc/desktop-qemu/dist/noop-desktop-qemu-v${packageLockJson.packages['node_modules/@noop-inc/desktop-qemu'].version}-${process.platform}-${nodeArch}` : null,
+              `noop-workshop-vm-v${packageJson['@noop-inc']['workshop-vm']}-${nodeArch}.${({ darwin: 'disk', win32: 'tar.gz' })[process.platform]}`,
+              `noop-cli-v${packageJson['@noop-inc'].cli}-${process.platform}-${nodeArch}${process.platform === 'win32' ? '.exe' : ''}`
             ].filter(Boolean)
           }
     ),

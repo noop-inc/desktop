@@ -96,3 +96,4 @@ out/
 *.disk
 *.tar.gz
 stats*.html
+noop-*

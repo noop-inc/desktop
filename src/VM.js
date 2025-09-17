@@ -1,7 +1,7 @@
 import { join } from 'node:path'
 import { QemuVirtualMachine, WslVirtualMachine } from '@noop-inc/foundation/lib/VirtualMachine.js'
 import Error from '@noop-inc/foundation/lib/Error.js'
-import { readdir, stat, mkdir, rm, access, rename } from 'node:fs/promises'
+import { stat, mkdir, rm, access, rename } from 'node:fs/promises'
 import { EventEmitter } from 'node:events'
 import { inspect, promisify, stripVTControlCharacters } from 'node:util'
 import { app, dialog } from 'electron'
@@ -9,8 +9,8 @@ import { homedir, availableParallelism, totalmem } from 'node:os'
 import settings from './Settings.js'
 import { createServer, createConnection } from 'node:net'
 import { setTimeout as wait } from 'node:timers/promises'
-
-const arch = process.arch.includes('arm') ? 'aarch64' : 'x86_64'
+import packageJson from '../package.json' with { type: 'json' }
+import packageLockJson from '../package-lock.json' with { type: 'json' }
 
 const userData = app.getPath('userData')
 const dataDir = join(userData, 'data')
@@ -27,18 +27,18 @@ const {
   resourcesPath,
   env: {
     npm_lifecycle_event: npmLifecycleEvent,
-    // WORKSHOP_VM_VERSION: workshopVmVersion,
     npm_config_local_prefix: npmConfigLocalPrefix
   }
 } = process
 
 if (process.platform === 'darwin') {
+  const folder = `noop-desktop-qemu-v${packageLockJson.packages['node_modules/@noop-inc/desktop-qemu'].version}-${process.platform}-${process.arch}`
   QemuVirtualMachine.path = (npmLifecycleEvent === 'serve')
-    ? join(npmConfigLocalPrefix, `node_modules/@noop-inc/desktop-qemu/dist/qemu.macos-${arch}`)
-    : join(resourcesPath, `qemu.macos-${arch}`)
+    ? join(npmConfigLocalPrefix, `node_modules/@noop-inc/desktop-qemu/dist/${folder}`)
+    : join(resourcesPath, folder)
 }
 
-const mainWindowViteDevServerURL = MAIN_WINDOW_VITE_DEV_SERVER_URL
+const mainWindowViteDevServerURL = MAIN_WINDOW_VITE_DEV_SERVER_URL // eslint-disable-line no-undef
 const packaged = (!mainWindowViteDevServerURL && app.isPackaged)
 
 const logHandler = ({ message, ...log }) => {
@@ -418,17 +418,17 @@ export default class VM extends EventEmitter {
   async workshopVmAsset () {
     if (npmLifecycleEvent === 'serve') {
       if (process.platform === 'darwin') {
-        return join(npmConfigLocalPrefix, '../workshop-vm/prep/disks/noop-workshop-vm-0.0.0-automated.aarch64.disk')
+        return join(npmConfigLocalPrefix, '../workshop-vm/prep/disks/noop-workshop-vm-v0.0.0-automated-arm64.disk')
       }
 
       if (process.platform === 'win32') {
         return 'C:\\Users\\dfnj1\\Downloads\\noop-workshop-vm-0.8.2-pr10.52.x86_64.tar.gz'
       }
     } else if (['darwin', 'win32'].includes(process.platform)) {
-      const files = await readdir(resourcesPath)
-      return join(resourcesPath, files.find(file =>
-        file.startsWith('noop-workshop-vm') &&
-        file.endsWith(`.${arch}.${process.platform === 'darwin' ? 'disk' : 'tar.gz'}`)))
+      const file = `noop-workshop-vm-v${packageJson['@noop-inc']['workshop-vm']}-${process.arch}.${({ darwin: 'disk', win32: 'tar.gz' })[process.platform]}`
+      const path = join(resourcesPath, file)
+      await access(path)
+      return path
     }
   }
 

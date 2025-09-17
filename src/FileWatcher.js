@@ -4,12 +4,12 @@ import { readdir, readFile, access, constants, stat } from 'node:fs/promises'
 import { join, relative, sep, normalize, posix, basename } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { EventEmitter } from 'node:events'
-import { Discovery } from '@noop-inc/discovery'
+import Discovery from '@noop-inc/discovery/lib/Discovery.js'
 import { minimatch } from 'minimatch'
 import { inspect } from 'node:util'
 import { app } from 'electron'
 
-const mainWindowViteDevServerURL = MAIN_WINDOW_VITE_DEV_SERVER_URL
+const mainWindowViteDevServerURL = MAIN_WINDOW_VITE_DEV_SERVER_URL // eslint-disable-line no-undef
 const packaged = (!mainWindowViteDevServerURL && app.isPackaged)
 
 const formatter = (...messages) =>

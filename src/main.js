@@ -6,16 +6,17 @@ import log from 'electron-log/main'
 import { extract } from 'tar-fs'
 import { Readable } from 'node:stream'
 import { finished } from 'node:stream/promises'
-import { readdir, mkdir } from 'node:fs/promises'
+import { readdir, mkdir, access, realpath } from 'node:fs/promises'
 import { pathToFileURL, fileURLToPath } from 'node:url'
 import FileWatcher from './FileWatcher.js'
 import { inspect } from 'node:util'
 import settings from './Settings.js'
+import started from 'electron-squirrel-startup'
+import packageJson from '../package.json' with { type: 'json' }
+import { exec } from '@expo/sudo-prompt'
 
 (async () => {
-  if ((await import('electron-squirrel-startup')).default) {
-    app.quit()
-  }
+  if (started) app.quit()
 
   const __dirname = fileURLToPath(new URL('.', import.meta.url))
 
@@ -25,14 +26,18 @@ import settings from './Settings.js'
   Object.assign(console, log.functions)
 
   const {
-    npm_lifecycle_event: npmLifecycleEvent
-  } = process.env
+    resourcesPath,
+    env: {
+      npm_lifecycle_event: npmLifecycleEvent,
+      npm_config_local_prefix: npmConfigLocalPrefix
+    }
+  } = process
 
-  const mainWindowViteDevServerURL = MAIN_WINDOW_VITE_DEV_SERVER_URL
-  const mainWindowViteName = MAIN_WINDOW_VITE_NAME
+  const mainWindowViteDevServerURL = MAIN_WINDOW_VITE_DEV_SERVER_URL // eslint-disable-line no-undef
+  const mainWindowViteName = MAIN_WINDOW_VITE_NAME // eslint-disable-line no-undef
 
-  const eulaWindowViteDevServerURL = EULA_WINDOW_VITE_DEV_SERVER_URL
-  const eulaWindowViteName = EULA_WINDOW_VITE_NAME
+  const eulaWindowViteDevServerURL = EULA_WINDOW_VITE_DEV_SERVER_URL // eslint-disable-line no-undef
+  const eulaWindowViteName = EULA_WINDOW_VITE_NAME // eslint-disable-line no-undef
 
   const packaged = (!mainWindowViteDevServerURL && app.isPackaged)
   const managingVm = (packaged || (npmLifecycleEvent === 'serve'))
@@ -537,6 +542,48 @@ import settings from './Settings.js'
   }
 
   ipcMain.handle('local-repositories', async (_event, repositories) => await handleLocalRepositories(repositories))
+
+  const handleInstallCli = async () => {
+    const cliVersion = packageJson['@noop-inc'].cli
+    const packaged = (!mainWindowViteDevServerURL && app.isPackaged)
+
+    let executablePath
+
+    if (process.platform === 'darwin') {
+      executablePath = packaged
+        ? join(resourcesPath, `noop-cli-v${cliVersion}-${process.platform}-${process.arch}`)
+        : join(npmConfigLocalPrefix, `../cli/dist/noop-cli-v0.0.0-automated-${process.platform}-${process.arch}`)
+
+      await access(executablePath)
+
+      try {
+        const existingPath = await realpath('/usr/local/bin/noop')
+        if (existingPath === executablePath) return true
+      } catch (err) {
+        // swallow for now...
+      }
+
+      return await new Promise((resolve, reject) => {
+        exec(
+          `rm -f /usr/local/bin/noop && ln -s ${executablePath.replaceAll(' ', '\\ ')} /usr/local/bin/noop`,
+          {
+            name: app.name,
+            icns: packaged
+              ? join(resourcesPath, 'electron.icns')
+              : join(npmConfigLocalPrefix, 'assets/icons/darwin/icon.icns')
+          },
+          (error, stdout, stderr) => {
+            if (error) reject(error)
+            resolve(true)
+          }
+        )
+      })
+    } else if (process.platform === 'win32') {
+      // TODO - Add windows implimentation...
+    }
+  }
+
+  ipcMain.handle('install-cli', async () => await handleInstallCli())
 
   if (process.defaultApp) {
     if (process.argv.length >= 2) {
