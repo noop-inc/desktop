@@ -2,11 +2,17 @@ import { FusesPlugin } from '@electron-forge/plugin-fuses'
 import { FuseV1Options, FuseVersion } from '@electron/fuses'
 import packageJson from './package.json' with { type: 'json' }
 import packageLockJson from './package-lock.json' with { type: 'json' }
+import { fileURLToPath } from 'node:url'
 // const { spawn: spawnCallback } = require('node:child_process')
 // const { rm, cp, rename } = require('node:fs/promises')
 // const { resolve } = require('node:path')
 
-process.loadEnvFile()
+try {
+  process.loadEnvFile(fileURLToPath(new URL('./.env', import.meta.url)))
+} catch {
+  // process.loadEnvFile() throws an error if .env does not exist.
+  // swallow error and proceed...
+}
 
 const arg = process.argv.includes('--arch')
   ? process.argv[process.argv.indexOf('--arch') + 1]
