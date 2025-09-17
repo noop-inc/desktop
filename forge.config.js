@@ -18,7 +18,7 @@ const arg = process.argv.includes('--arch')
   ? process.argv[process.argv.indexOf('--arch') + 1]
   : null
 
-const nodeArch = { x64: 'x86_64', arm64: 'aarch64' }[arg] || process.arch
+const selectedArch = arg || process.arch
 
 // const spawn = async (...args) => await new Promise((resolve, reject) => {
 //   const spawnArgs = [...args]
@@ -53,9 +53,9 @@ export default {
         ? {}
         : {
             extraResource: [
-              process.platform === 'darwin' ? `node_modules/@noop-inc/desktop-qemu/dist/noop-desktop-qemu-v${packageLockJson.packages['node_modules/@noop-inc/desktop-qemu'].version}-${process.platform}-${nodeArch}` : null,
-              `noop-workshop-vm-v${packageJson['@noop-inc']['workshop-vm']}-${nodeArch}.${({ darwin: 'disk', win32: 'tar.gz' })[process.platform]}`,
-              `noop-cli-v${packageJson['@noop-inc'].cli}-${process.platform}-${nodeArch}${process.platform === 'win32' ? '.exe' : ''}`
+              process.platform === 'darwin' ? `node_modules/@noop-inc/desktop-qemu/dist/noop-desktop-qemu-v${packageLockJson.packages['node_modules/@noop-inc/desktop-qemu'].version}-${process.platform}-${selectedArch}` : null,
+              `noop-workshop-vm-v${packageJson['@noop-inc']['workshop-vm']}-${selectedArch}.${({ darwin: 'disk', win32: 'tar.gz' })[process.platform]}`,
+              `noop-cli-v${packageJson['@noop-inc'].cli}-${process.platform}-${selectedArch}${process.platform === 'win32' ? '.exe' : ''}`
             ].filter(Boolean)
           }
     ),
