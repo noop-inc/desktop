@@ -14,6 +14,7 @@ import settings from './Settings.js'
 import started from 'electron-squirrel-startup'
 import packageJson from '../package.json' with { type: 'json' }
 import { exec } from '@expo/sudo-prompt'
+import { setStorage, api, createProxyServer } from './api.js'
 
 (async () => {
   if (started) app.quit()
@@ -58,7 +59,7 @@ import { exec } from '@expo/sudo-prompt'
     ? serve({ directory: `./.vite/renderer/${mainWindowViteName}` })
     : null
 
-  const workshopApiBase = 'https://workshop.local.noop.app:44452'
+  // const workshopApiBase = 'https://workshop.local.noop.app:44452'
   const noopProtocal = 'noop'
   let githubLoginUrl
   let mainWindow
@@ -67,6 +68,8 @@ import { exec } from '@expo/sudo-prompt'
   let updaterInterval
   let localRepositories = []
   const fileWatchers = {}
+
+  let proxyCleanup = await createProxyServer()
 
   const createMainWindow = async () => {
     await app.whenReady()
@@ -370,18 +373,7 @@ import { exec } from '@expo/sudo-prompt'
       throw Error('Selected directory must be scoped within the current Projects Directory.')
     }
     await ensureMainWindow()
-    const cloneResponse = await fetch(`${workshopApiBase}/local/repos/clone`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ repositoryUrl })
-    })
-    if (!cloneResponse.ok) {
-      if (cloneResponse.headers.get('content-type') === 'application/json') {
-        throw await cloneResponse.json()
-      } else {
-        throw cloneResponse.body
-      }
-    }
+    const response = await api.post('/local/repos/clone', { repositoryUrl }, { raw: true })
     const directoryName = repositoryUrl.split('/').at(-1).split('.git')[0]
     const files = await readdir(subdirectory)
     let num = 1
@@ -390,23 +382,11 @@ import { exec } from '@expo/sudo-prompt'
     }
     const foundDirectory = join(subdirectory, `${directoryName}${num === 1 ? '' : `-${num}`}`)
     await mkdir(foundDirectory, { recursive: true })
-    const tarStream = Readable.fromWeb(cloneResponse.body)
+    const tarStream = Readable.fromWeb(response.body)
     const tarExtractor = extract(foundDirectory)
     await finished(tarStream.pipe(tarExtractor))
     const url = pathToFileURL(foundDirectory).href
-    const repoResponse = await fetch(`${workshopApiBase}/local/repos`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url })
-    })
-    if (!repoResponse.ok) {
-      if (repoResponse.headers.get('content-type') === 'application/json') {
-        throw await repoResponse.json()
-      } else {
-        throw repoResponse.body
-      }
-    }
-    return await repoResponse.json()
+    return await api.post('/local/repos', { url })
   }
 
   ipcMain.handle('clone-repository', handleCloneRepository)
@@ -443,11 +423,7 @@ import { exec } from '@expo/sudo-prompt'
         try {
           vm.isRestarting = true
           if (registries) {
-            await fetch(`${workshopApiBase}/registry/prune`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(registries)
-            })
+            await api.post('/registry/prune', registries)
           }
           await Promise.all(Object.entries(fileWatchers).map(async ([repoId, watcher]) => {
             await watcher.stop()
@@ -489,19 +465,7 @@ import { exec } from '@expo/sudo-prompt'
         const changeHandler = async files => {
           formatter({ event: 'repo.update', repoId, path, files })
           try {
-            const createEvent = await fetch(`${workshopApiBase}${repoId}/events`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({})
-            })
-            if (!createEvent.ok) {
-              if (createEvent.headers.get('content-type') === 'application/json') {
-                throw await createEvent.json()
-              } else {
-                throw createEvent.body
-              }
-            }
-            const response = await createEvent.json()
+            const response = await api.post(`${repoId}/events`)
             formatter({ event: 'repo.updated', repoId, path, response })
             return response
           } catch (error) {
@@ -512,19 +476,7 @@ import { exec } from '@expo/sudo-prompt'
         const deleteHandler = async files => {
           formatter({ event: 'repo.destroy', repoId, path, files })
           try {
-            const deleteRepo = await fetch(`${workshopApiBase}${repoId}`, {
-              method: 'DELETE',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({})
-            })
-            if (!deleteRepo.ok) {
-              if (deleteRepo.headers.get('content-type') === 'application/json') {
-                throw await deleteRepo.json()
-              } else {
-                throw deleteRepo.body
-              }
-            }
-            const response = await deleteRepo.json()
+            const response = await api.del(repoId)
             formatter({ event: 'repo.destroyed', repoId, path, response })
             watcher.removeAllListeners()
             return response
@@ -584,6 +536,14 @@ import { exec } from '@expo/sudo-prompt'
   }
 
   ipcMain.handle('install-cli', async () => await handleInstallCli())
+
+  const handleSetStorage = storage => {
+    setStorage(storage)
+    api.get('/orgs')
+      .then(orgs => console.log(orgs))
+  }
+
+  ipcMain.handle('set-storage', async (_event, storage) => await handleSetStorage(storage))
 
   if (process.defaultApp) {
     if (process.argv.length >= 2) {
@@ -670,6 +630,10 @@ import { exec } from '@expo/sudo-prompt'
       }))
       await vm.stop()
       app.quit()
+    }
+    if (proxyCleanup) {
+      await proxyCleanup()
+      proxyCleanup = null
     }
   })
 

@@ -29,7 +29,9 @@ contextBridge.exposeInMainWorld(
     isFullscreen: async () =>
       await ipcRenderer.invoke('is-fullscreen'),
     installCli: async () =>
-      await ipcRenderer.invoke('install-cli')
+      await ipcRenderer.invoke('install-cli'),
+    setStorage: async storage =>
+      await ipcRenderer.invoke('set-storage', storage)
   }
 )
 
