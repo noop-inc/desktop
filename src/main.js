@@ -423,7 +423,7 @@ import { setStorage, api, createProxyServer } from './api.js'
         try {
           vm.isRestarting = true
           if (registries) {
-            await api.post('/registry/prune', registries)
+            await api.post('/local/registry/prune', registries)
           }
           await Promise.all(Object.entries(fileWatchers).map(async ([repoId, watcher]) => {
             await watcher.stop()
@@ -539,8 +539,7 @@ import { setStorage, api, createProxyServer } from './api.js'
 
   const handleSetStorage = storage => {
     setStorage(storage)
-    api.get('/orgs')
-      .then(orgs => console.log(orgs))
+    console.log(storage)
   }
 
   ipcMain.handle('set-storage', async (_event, storage) => await handleSetStorage(storage))

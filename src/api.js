@@ -6,8 +6,6 @@ import { createServer } from 'node:http'
 import { access, unlink } from 'node:fs/promises'
 import { Readable } from 'node:stream'
 import { ReadableStream } from 'node:stream/web'
-import { promises } from './stream.js'
-import { setTimeout as wait } from 'node:timers/promises'
 import { promisify } from 'node:util'
 
 export const storage = {}
@@ -28,7 +26,7 @@ const sha256 = async text => {
   return bufferToHex(hashBuffer)
 }
 
-const hmacSha256 = async (text, secret) => {
+const hmacSha256 = async (text, secret = storage.secret) => {
   const encoder = new TextEncoder()
   const algorithm = { name: 'HMAC', hash: 'SHA-256' }
   const key = await webcrypto.subtle.importKey('raw', encoder.encode(secret), algorithm, false, ['sign', 'verify'])
@@ -58,9 +56,16 @@ const normalizeArguments = (args, defaults = []) => {
 const prepareSign = async (...args) => {
   let { path, method, body, settings } = normalizeArguments(args, [['path'], ['method', 'GET'], ['body', null], ['settings', {}]])
   if (!body && !['GET', 'CONNECT'].includes(method)) body = {}
-  const local = !!((path === '/local') || path.startsWith('/local/') || (path === '/registry/prune'))
+  const local = !!((path === '/local') || path.startsWith('/local/'))
   const base = local ? 'https://workshop.local.noop.app:44452' : storage.apiBase
   const url = new URL(path, base)
+  const sign =
+    !local &&
+    (url.origin === base) &&
+    storage.token &&
+    storage.secret &&
+    !((method === 'GET') && ['/_health', '/metadata', '/workshop/logs/events'].includes(url.pathname)) &&
+    !((method === 'POST') && ['/sessions'].includes(url.pathname))
   if (method === 'CONNECT') url.protocol = url.protocol.replace('http', 'ws')
   if (settings.query && ((typeof settings.query) === 'object')) {
     for (const [key, value] of Object.entries(settings.query)) {
@@ -74,20 +79,20 @@ const prepareSign = async (...args) => {
   }
   if (body) options.body = body
   if (settings.duplex) options.duplex = settings.duplex
-  if (!local) {
+  if (sign) {
     const date = Date.now()
     const token = storage.token
     const canonical = [method, url.host, url.pathname, token, date]
     if ((typeof options.body) === 'string') canonical.push(await sha256(options.body))
     const hash = await sha256(canonical.join('\n'))
-    const signature = await hmacSha256(hash, storage.secret)
+    const signature = await hmacSha256(hash)
     Object.assign(options.headers, {
       'x-noop-date': date,
       'x-noop-token': token,
       'x-noop-signature': signature
     })
   }
-  options.headers.host = url.host
+  if (options.headers.host) options.headers.host = url.host
   return { url, options }
 }
 
@@ -114,7 +119,14 @@ const handleRequest = async (...args) => {
   const contentType = response.headers.get('content-type')
   if (!response.ok) {
     if (contentType === 'application/json') throw await response.json()
-    const message = await response.text()
+    let message
+    try {
+      message = await response.text()
+      message = JSON.parse(message)
+    } catch (error) {
+      // swallow for now...
+    }
+    if ((typeof message) === 'object') throw message
     /* eslint-disable no-throw-literal */
     throw {
       code: 'Error',
@@ -123,9 +135,17 @@ const handleRequest = async (...args) => {
     }
     /* eslint-enable no-throw-literal */
   }
-  if (args[0]?.settings?.raw || args.at(-1)?.raw) return response
+  const raw = args[0]?.settings?.raw || args.at(-1)?.raw
+  if (raw) return response
   if (contentType === 'application/json') return await response.json()
-  return await response.text()
+  let content
+  try {
+    content = await response.text()
+    content = JSON.parse(content)
+  } catch (error) {
+    // swallow for now...
+  }
+  return content
 }
 
 const handleEvents = async (...args) => {
@@ -176,7 +196,7 @@ export const put = async (...args) => {
 
 export const post = async (...args) => {
   const normalized = normalizeArguments(args, [['path'], ['body'], ['settings']])
-  return await handleRequest({ ...normalized, method: 'PUT' })
+  return await handleRequest({ ...normalized, method: 'POST' })
 }
 
 export const del = async (...args) => {
@@ -215,35 +235,7 @@ export const createProxyServer = async () => {
     // swallow...
   }
 
-  const controller = new AbortController()
-  const { signal } = controller
-
-  const sockets = new Set()
-  const handleProxySockets = (req, res) => {
-    sockets.add(req.socket)
-    sockets.add(res.socket)
-    req.socket.once('error', () => {
-      sockets?.delete(req.socket)
-      if (res.socket.destroyed) {
-        res.socket.end(() => {
-          if (!res.socket.destroyed) res.socket.destroy()
-          sockets?.delete(res.socket)
-        })
-      }
-    })
-    res.socket.once('error', () => {
-      sockets?.delete(res.socket)
-      if (!req.socket.destroyed) {
-        req.socket.end(() => {
-          if (!req.socket.destroyed) req.socket.destroy()
-          sockets?.delete(req.socket)
-        })
-      }
-    })
-  }
-
   const server = createServer(async (req, res) => {
-    handleProxySockets(req, res)
     const path = req.url
     const method = req.method
     const settings = { headers: { ...req.headers } }
@@ -294,11 +286,7 @@ export const createProxyServer = async () => {
     const [href, options] = await proxySign({ path, method, body, settings })
     const repsonse = await fetch(href, options)
     res.writeHead(repsonse.status, Object.fromEntries(repsonse.headers.entries()))
-    try {
-      await promises.pipeline(Readable.fromWeb(repsonse.body), res, { signal, end: true })
-    } catch (error) {
-      if (!signal.aborted) throw error
-    }
+    Readable.fromWeb(repsonse.body).pipe(res)
   })
 
   server.listen(socketPath, () => {
@@ -318,34 +306,7 @@ export const createProxyServer = async () => {
           if (error.code !== 'ERR_SERVER_NOT_RUNNING') throw error
         }
       }
-      const serverStopped = stopServer()
-      await Promise.all([
-        ...[...sockets].map(async socket => {
-          if (!socket.destroyed) {
-            const endSocket = async () => {
-              try {
-                await promisify(socket.end.bind(socket))
-              } catch (error) {
-                if (error.code !== 'ERR_STREAM_ALREADY_FINISHED') throw error
-              }
-            }
-            const ac = new AbortController()
-            const signal = ac.signal
-            await Promise.race([wait(1000, null, { signal }), endSocket()])
-            ac.abort()
-          }
-          if (!socket.destroyed) {
-            try {
-              socket.destroy()
-            } catch (error) {
-              if (error.code !== 'ERR_STREAM_ALREADY_FINISHED') throw error
-            }
-          }
-          sockets.delete(socket)
-        }),
-        // controller.abort(),
-        serverStopped
-      ])
+      await stopServer()
     } finally {
       try {
         await access(socketPath)
