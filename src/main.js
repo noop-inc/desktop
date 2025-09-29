@@ -14,7 +14,7 @@ import settings from './Settings.js'
 import started from 'electron-squirrel-startup'
 import packageJson from '../package.json' with { type: 'json' }
 import { exec } from '@expo/sudo-prompt'
-import { setStorage, api, ProxyServer } from './api.js'
+import { setStorage, api, Proxy } from './api.js'
 
 (async () => {
   if (started) app.quit()
@@ -68,7 +68,7 @@ import { setStorage, api, ProxyServer } from './api.js'
   let updaterInterval
   let localRepositories = []
   const fileWatchers = {}
-  const proxy = new ProxyServer()
+  const proxy = new Proxy()
 
   const createMainWindow = async () => {
     await app.whenReady()

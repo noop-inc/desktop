@@ -238,7 +238,7 @@ export const api = {
   eventsource
 }
 
-export class ProxyServer {
+export class Proxy {
   sockets
   server
 
