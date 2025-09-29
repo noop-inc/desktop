@@ -14,7 +14,7 @@ import settings from './Settings.js'
 import started from 'electron-squirrel-startup'
 import packageJson from '../package.json' with { type: 'json' }
 import { exec } from '@expo/sudo-prompt'
-import { setStorage, api, createProxyServer } from './api.js'
+import { setStorage, api, ProxyServer } from './api.js'
 
 (async () => {
   if (started) app.quit()
@@ -68,8 +68,7 @@ import { setStorage, api, createProxyServer } from './api.js'
   let updaterInterval
   let localRepositories = []
   const fileWatchers = {}
-
-  let proxyCleanup = await createProxyServer()
+  const proxy = new ProxyServer()
 
   const createMainWindow = async () => {
     await app.whenReady()
@@ -151,6 +150,8 @@ import { setStorage, api, createProxyServer } from './api.js'
         vm.on('status', handleWorkshopVmStatus)
         await vm.start()
       }
+
+      await proxy.start()
 
       const version = app.getVersion()
 
@@ -538,8 +539,8 @@ import { setStorage, api, createProxyServer } from './api.js'
   ipcMain.handle('install-cli', async () => await handleInstallCli())
 
   const handleSetStorage = storage => {
+    // console.log(storage)
     setStorage(storage)
-    console.log(storage)
   }
 
   ipcMain.handle('set-storage', async (_event, storage) => await handleSetStorage(storage))
@@ -619,20 +620,19 @@ import { setStorage, api, createProxyServer } from './api.js'
 
   app.on('before-quit', async event => {
     vm.isQuitting = true
-    if (managingVm && !['PENDING', 'STOPPED'].includes(vm.status)) {
+    if (proxy.running || (managingVm && !['PENDING', 'STOPPED'].includes(vm.status))) {
       event.preventDefault()
-      clearInterval(updaterInterval)
-      await Promise.all(Object.entries(fileWatchers).map(async ([repoId, watcher]) => {
-        await watcher.stop()
-        watcher.removeAllListeners()
-        delete fileWatchers[repoId]
-      }))
-      await vm.stop()
-      app.quit()
-    }
-    if (proxyCleanup) {
-      await proxyCleanup()
-      proxyCleanup = null
+      if (proxy.running) await proxy.stop()
+      if (managingVm && !['PENDING', 'STOPPED'].includes(vm.status)) {
+        clearInterval(updaterInterval)
+        await Promise.all(Object.entries(fileWatchers).map(async ([repoId, watcher]) => {
+          await watcher.stop()
+          watcher.removeAllListeners()
+          delete fileWatchers[repoId]
+        }))
+        await vm.stop()
+        app.quit()
+      }
     }
   })
 
