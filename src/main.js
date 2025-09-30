@@ -196,6 +196,7 @@ import { setStorage, api, Proxy } from './api.js'
             cancelId: 2
           })
           if (returnValue.response === 0) {
+            await proxy.stop()
             vm.isQuitting = true
             clearInterval(updaterInterval)
             await Promise.all(Object.entries(fileWatchers).map(async ([repoId, watcher]) => {
@@ -203,9 +204,7 @@ import { setStorage, api, Proxy } from './api.js'
               watcher.removeAllListeners()
               delete fileWatchers[repoId]
             }))
-
             await vm.stop()
-
             autoUpdater.quitAndInstall()
           }
         })
@@ -622,7 +621,7 @@ import { setStorage, api, Proxy } from './api.js'
     vm.isQuitting = true
     if (proxy.running || (managingVm && !['PENDING', 'STOPPED'].includes(vm.status))) {
       event.preventDefault()
-      if (proxy.running) await proxy.stop()
+      await proxy.stop()
       if (managingVm && !['PENDING', 'STOPPED'].includes(vm.status)) {
         clearInterval(updaterInterval)
         await Promise.all(Object.entries(fileWatchers).map(async ([repoId, watcher]) => {

@@ -249,10 +249,6 @@ export class Proxy {
     return socketPath
   }
 
-  get running () {
-    return !!this.sockets && !!this.server
-  }
-
   async start () {
     logHandler({ event: 'proxy.server.start' })
     if (this.server) {
@@ -260,95 +256,89 @@ export class Proxy {
     } else {
       await this.cleanup()
     }
-
     this.sockets = new Set()
-
-    this.server = createServer(async (req, res) => {
-      logHandler({ event: 'proxy.server.request' })
-      this.handleSocket(req.socket)
-      this.handleSocket(res.socket)
-      try {
-        const path = req.url
-        const method = req.method
-        const settings = { headers: { ...req.headers } }
-        let body = null
-        if (!['GET', 'HEAD'].includes(req.method)) {
-          if (req.headers['content-type'] === 'application/json') {
-            body = await new Promise((resolve, reject) => {
-              let rawBody = ''
-              const cleanup = () => {
-                req.off('data', dataHandler)
-                req.off('error', errorHandler)
-                req.off('end', endHandler)
-              }
-              const dataHandler = chunk => {
-                rawBody += chunk.toString()
-              }
-              const errorHandler = error => {
-                cleanup()
-                reject(error)
-              }
-              const endHandler = () => {
-                cleanup()
-                try {
-                  resolve(JSON.parse(rawBody))
-                } catch (error) {
-                  errorHandler(error)
-                }
-              }
-              req.on('data', dataHandler)
-              req.on('error', errorHandler)
-              req.on('end', endHandler)
-            })
-          } else {
-            body = Readable.toWeb(req)
-            settings.duplex = 'half'
-          }
-        }
-
-        const proxySign =
-          (method === 'GET') &&
-          (
-            (req.headers.accept === 'text/event-stream') ||
-            Object.entries(req.headers).some(([key, value]) => key?.includes('websocket') || value?.includes('websocket'))
-          )
-            ? eventsSign
-            : requestSign
-
-        const [href, options] = await proxySign({ path, method, body, settings })
-        const repsonse = await fetch(href, options)
-        res.writeHead(repsonse.status, Object.fromEntries(repsonse.headers.entries()))
-        Readable.fromWeb(repsonse.body).pipe(res)
-      } catch (error) {
-        const wrapped = Error.wrap(error)
-        logHandler({ event: 'proxy.request.error', error: wrapped })
-        if (!res.headersSent) {
-          const stringified = JSON.stringify(wrapped)
-          const parsed = JSON.parsed(stringified)
-          const statusCode = parsed.statusCode || 500
-          const headers = {
-            'content-type': 'application/json',
-            'content-length': stringified.length
-          }
-          res.writeHead(statusCode, headers)
-          res.end(stringified)
-        }
-      }
-    })
-
-    this.server.listen(this.socketPath, () => {
-      logHandler({ event: 'proxy.server.started', socketPath: this.socketPath })
-    })
-
-    this.server.once('error', async error => {
-      logHandler({ event: 'proxy.server.error', error: Error.wrap(error) })
-      await this.stop()
-      await this.start()
-    })
+    this.server = createServer(async (req, res) => await this.handleProxyRequest(req, res))
+    await promisify(this.server.listen.bind(this.server))(this.socketPath)
+    logHandler({ event: 'proxy.server.started', socketPath: this.socketPath })
   }
 
-  handleSocket (socket) {
+  async handleProxyRequest (req, res) {
+    logHandler({ event: 'proxy.server.request' })
+    this.handleProxySocket(req.socket)
+    this.handleProxySocket(res.socket)
+    try {
+      const path = req.url
+      const method = req.method
+      const settings = { headers: { ...req.headers } }
+      let body = null
+      if (!['GET', 'HEAD'].includes(req.method)) {
+        if (req.headers['content-type'] === 'application/json') {
+          body = await new Promise((resolve, reject) => {
+            let rawBody = ''
+            const cleanup = () => {
+              req.off('data', dataHandler)
+              req.off('error', errorHandler)
+              req.off('end', endHandler)
+            }
+            const dataHandler = chunk => {
+              rawBody += chunk.toString()
+            }
+            const errorHandler = error => {
+              cleanup()
+              reject(error)
+            }
+            const endHandler = () => {
+              cleanup()
+              try {
+                resolve(JSON.parse(rawBody))
+              } catch (error) {
+                errorHandler(error)
+              }
+            }
+            req.on('data', dataHandler)
+            req.on('error', errorHandler)
+            req.on('end', endHandler)
+          })
+        } else {
+          body = Readable.toWeb(req)
+          settings.duplex = 'half'
+        }
+      }
+
+      const proxySign =
+        (method === 'GET') &&
+        (
+          (req.headers.accept === 'text/event-stream') ||
+          Object.entries(req.headers).some(([key, value]) => key?.includes('websocket') || value?.includes('websocket'))
+        )
+          ? eventsSign
+          : requestSign
+
+      const [href, options] = await proxySign({ path, method, body, settings })
+      const repsonse = await fetch(href, options)
+      res.writeHead(repsonse.status, Object.fromEntries(repsonse.headers.entries()))
+      Readable.fromWeb(repsonse.body).pipe(res)
+    } catch (error) {
+      const wrapped = Error.wrap(error)
+      logHandler({ event: 'proxy.request.error', error: wrapped })
+      if (!res.headersSent) {
+        const stringified = JSON.stringify(wrapped)
+        const parsed = JSON.parsed(stringified)
+        const statusCode = parsed.statusCode || 500
+        const headers = {
+          'content-type': 'application/json',
+          'content-length': stringified.length
+        }
+        res.writeHead(statusCode, headers)
+        res.end(stringified)
+      }
+    }
+  }
+
+  handleProxySocket (socket) {
     if (!this.sockets.has(socket)) {
+      const sockets = this.sockets
+      sockets.add(socket)
       // logHandler({ event: 'proxy.server.socket' })
       const cleanup = error => {
         socket.off('end', handleEnd)
@@ -359,52 +349,69 @@ export class Proxy {
         cleanup()
       }
       const handleError = error => {
-        logHandler({ event: 'proxy.server.socket.error', error: Error.wrap(error) })
+        // logHandler({ event: 'proxy.server.socket.error', error: Error.wrap(error) })
         cleanup(error)
       }
       const handleClose = () => {
         // logHandler({ event: 'proxy.socket.closed' })
-        this.sockets.delete(socket)
+        sockets.delete(socket)
       }
       socket.once('end', handleEnd)
       socket.once('error', handleError)
       socket.once('close', handleClose)
-      this.sockets.add(socket)
     }
   }
 
   async stop () {
-    logHandler({ event: 'proxy.server.close', sockets: this.sockets?.size || 0 })
-    await Promise.all([
-      ...[...this.sockets].map(async socket => {
+    if (this.server) {
+      const server = this.server
+      const sockets = this.sockets
+      logHandler({ event: 'proxy.server.close', sockets: sockets?.size })
+      const stopServer = async () => {
         try {
-          const ac = new AbortController()
-          const handleTimeout = async () => {
-            try {
-              await wait(1_000, null, { ref: false, signal: ac.signal })
-            } catch (error) {
-              if (error.code !== 'ABORT_ERR') throw error
-            }
-          }
-          const handleEnd = async () => {
-            if (!socket.destroyed) {
-              await promisify(socket.end.bind(socket))()
-              ac.abort()
-            }
-          }
-          await Promise.all([
-            handleTimeout(),
-            handleEnd()
-          ])
-        } finally {
-          if (!socket.destroyed) socket.destroy()
-          this.sockets.delete(socket)
+          await promisify(server.close.bind(server))()
+        } catch (error) {
+          if (error.code !== 'ERR_SERVER_NOT_RUNNING') throw error
         }
-      }),
-      promisify(this.server.close.bind(this.server))()
-    ])
-    logHandler({ event: 'proxy.server.closed', sockets: this.sockets?.size || 0 })
-    await this.cleanup()
+      }
+      const serverStopped = stopServer()
+      await Promise.all([
+        ...[...(sockets || [])].map(async socket => {
+          try {
+            const ac = new AbortController()
+            const handleTimeout = async () => {
+              try {
+                await wait(1_000, null, { ref: false, signal: ac.signal })
+              } catch (error) {
+                if (error.code !== 'ABORT_ERR') throw error
+              }
+            }
+            const handleEnd = async () => {
+              if (!socket.destroyed) {
+                await promisify(socket.end.bind(socket))()
+                ac.abort()
+              }
+            }
+            await Promise.all([
+              handleTimeout(),
+              handleEnd()
+            ])
+          } finally {
+            if (!socket.destroyed) socket.destroy()
+            sockets.delete(socket)
+          }
+        }),
+        serverStopped
+      ])
+      logHandler({ event: 'proxy.server.closed', sockets: sockets?.size })
+      await this.cleanup()
+      if (this.server === server) {
+        this.sockets = null
+        this.server = null
+      }
+    } else {
+      logHandler({ event: 'proxy.server.close.skip' })
+    }
   }
 
   async cleanup () {
@@ -413,9 +420,6 @@ export class Proxy {
       await unlink(this.socketPath)
     } catch (error) {
       // swallow...
-    } finally {
-      this.server = null
-      this.sockets = null
     }
   }
 }

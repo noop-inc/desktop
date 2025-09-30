@@ -279,51 +279,54 @@ export default class VM extends EventEmitter {
       await Promise.all([
         (async () => {
           if (this.#traffic) {
-            logHandler({ event: 'vm.traffic.close.start', sockets: this.#sockets?.size })
             const traffic = this.#traffic
+            const sockets = this.#sockets
+            logHandler({ event: 'vm.traffic.close.start', sockets: sockets?.size })
             const stopServer = async () => {
               if (this.#restarting) return
               try {
-                await promisify(this.#traffic.close.bind(this.#traffic))
+                await promisify(traffic.close.bind(traffic))()
               } catch (error) {
                 if (error.code !== 'ERR_SERVER_NOT_RUNNING') throw error
               }
             }
             const serverStopped = stopServer()
             await Promise.all([
-              ...[...this.#sockets].map(async socket => {
-                if (!socket.destroyed) {
-                  const endSocket = async () => {
+              ...[...sockets].map(async socket => {
+                try {
+                  const ac = new AbortController()
+                  const handleTimeout = async () => {
                     try {
-                      await promisify(socket.end.bind(socket))
+                      await wait(1_000, null, { ref: false, signal: ac.signal })
                     } catch (error) {
-                      if (error.code !== 'ERR_STREAM_ALREADY_FINISHED') throw error
+                      if (error.code !== 'ABORT_ERR') throw error
                     }
                   }
-                  const ac = new AbortController()
-                  const signal = ac.signal
-                  await Promise.race([wait(1000, null, { signal }), endSocket()])
-                  ac.abort()
-                }
-                if (!socket.destroyed) {
-                  try {
-                    socket.destroy()
-                  } catch (error) {
-                    if (error.code !== 'ERR_STREAM_ALREADY_FINISHED') throw error
+                  const handleEnd = async () => {
+                    if (!socket.destroyed) {
+                      await promisify(socket.end.bind(socket))()
+                      ac.abort()
+                    }
                   }
+                  await Promise.all([
+                    handleTimeout(),
+                    handleEnd()
+                  ])
+                } finally {
+                  if (!socket.destroyed) socket.destroy()
+                  sockets.delete(socket)
                 }
-                this.#sockets.delete(socket)
               }),
               serverStopped
             ])
-            logHandler({ event: 'vm.traffic.close.end', sockets: this.#sockets?.size })
+            logHandler({ event: 'vm.traffic.close.end', sockets: sockets?.size })
             if (this.#restarting) return
             if (this.#traffic === traffic) {
               this.#sockets = null
               this.#traffic = null
             }
           } else if (process.platform === 'darwin') {
-            logHandler({ event: 'vm.traffic.close.skip', sockets: this.#sockets?.size })
+            logHandler({ event: 'vm.traffic.close.skip' })
           }
         })(),
         (async () => {
@@ -437,34 +440,47 @@ export default class VM extends EventEmitter {
   }
 
   handleTrafficSocket (incoming) {
-    this.#sockets.add(incoming)
-    const host = '127.0.0.1'
-    const port = 44451
     try {
-      const outgoing = createConnection({ host, port }, () => {
-        incoming.pipe(outgoing)
-        outgoing.pipe(incoming)
-      })
-      this.#sockets.add(outgoing)
-      outgoing.once('error', () => {
-        this.#sockets?.delete(outgoing)
-        incoming.end(() => {
-          if (!incoming.destroyed) incoming.destroy()
-          this.#sockets?.delete(incoming)
+      this.handleSocketEvents(incoming)
+      const host = '127.0.0.1'
+      const port = 44451
+      const outgoing = createConnection({ host, port })
+      try {
+        this.handleSocketEvents(outgoing)
+        outgoing.once('connect', () => {
+          incoming.pipe(outgoing)
+          outgoing.pipe(incoming)
         })
-      })
-      incoming.once('error', () => {
-        this.#sockets?.delete(incoming)
-        outgoing.end(() => {
-          if (!outgoing.destroyed) outgoing.destroy()
-          this.#sockets?.delete(outgoing)
-        })
-      })
+      } catch (error) {
+        if (!outgoing.destroyed) outgoing.destroy(error)
+        throw error
+      }
     } catch (error) {
-      incoming.end(() => {
-        if (!incoming.destroyed) incoming.destroy()
-        this.#sockets?.delete(incoming)
-      })
+      if (!incoming.destroyed) incoming.destroy(error)
+    }
+  }
+
+  handleSocketEvents (socket) {
+    if (!this.#sockets.has(socket)) {
+      const sockets = this.#sockets
+      sockets.add(socket)
+      const cleanup = error => {
+        socket.off('end', handleEnd)
+        socket.off('error', handleError)
+        if (!socket.destroyed) socket.destroy(error)
+      }
+      const handleEnd = () => {
+        cleanup()
+      }
+      const handleError = error => {
+        cleanup(error)
+      }
+      const handleClose = () => {
+        sockets.delete(socket)
+      }
+      socket.once('end', handleEnd)
+      socket.once('error', handleError)
+      socket.once('close', handleClose)
     }
   }
 
