@@ -440,6 +440,7 @@ export default class VM extends EventEmitter {
   }
 
   handleTrafficSocket (incoming) {
+    const sockets = this.#sockets
     try {
       this.handleSocketEvents(incoming)
       const host = '127.0.0.1'
@@ -453,10 +454,12 @@ export default class VM extends EventEmitter {
         })
       } catch (error) {
         if (!outgoing.destroyed) outgoing.destroy(error)
+        sockets.delete(outgoing)
         throw error
       }
     } catch (error) {
       if (!incoming.destroyed) incoming.destroy(error)
+      sockets.delete(incoming)
     }
   }
 
@@ -468,6 +471,7 @@ export default class VM extends EventEmitter {
         socket.off('end', handleEnd)
         socket.off('error', handleError)
         if (!socket.destroyed) socket.destroy(error)
+        sockets.delete(socket)
       }
       const handleEnd = () => {
         cleanup()

@@ -344,6 +344,7 @@ export class Proxy {
         socket.off('end', handleEnd)
         socket.off('error', handleError)
         if (!socket.destroyed) socket.destroy(error)
+        sockets.delete(socket)
       }
       const handleEnd = () => {
         cleanup()
