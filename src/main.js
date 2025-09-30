@@ -619,9 +619,9 @@ import { setStorage, api, Proxy } from './api.js'
 
   app.on('before-quit', async event => {
     vm.isQuitting = true
-    if (proxy.running || (managingVm && !['PENDING', 'STOPPED'].includes(vm.status))) {
+    if ((proxy.server) || (managingVm && !['PENDING', 'STOPPED'].includes(vm.status))) {
       event.preventDefault()
-      await proxy.stop()
+      if (proxy.server) await proxy.stop()
       if (managingVm && !['PENDING', 'STOPPED'].includes(vm.status)) {
         clearInterval(updaterInterval)
         await Promise.all(Object.entries(fileWatchers).map(async ([repoId, watcher]) => {
@@ -630,8 +630,8 @@ import { setStorage, api, Proxy } from './api.js'
           delete fileWatchers[repoId]
         }))
         await vm.stop()
-        app.quit()
       }
+      app.quit()
     }
   })
 
