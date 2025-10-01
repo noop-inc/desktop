@@ -59,7 +59,6 @@ import { setStorage, api, Proxy } from './api.js'
     ? serve({ directory: `./.vite/renderer/${mainWindowViteName}` })
     : null
 
-  // const workshopApiBase = 'https://workshop.local.noop.app:44452'
   const noopProtocal = 'noop'
   let githubLoginUrl
   let mainWindow
@@ -619,7 +618,7 @@ import { setStorage, api, Proxy } from './api.js'
 
   app.on('before-quit', async event => {
     vm.isQuitting = true
-    if ((proxy.server) || (managingVm && !['PENDING', 'STOPPED'].includes(vm.status))) {
+    if (proxy.server || (managingVm && !['PENDING', 'STOPPED'].includes(vm.status))) {
       event.preventDefault()
       if (proxy.server) await proxy.stop()
       if (managingVm && !['PENDING', 'STOPPED'].includes(vm.status)) {

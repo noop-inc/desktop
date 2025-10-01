@@ -11,6 +11,7 @@ import { createServer, createConnection } from 'node:net'
 import { setTimeout as wait } from 'node:timers/promises'
 import packageJson from '../package.json' with { type: 'json' }
 import packageLockJson from '../package-lock.json' with { type: 'json' }
+import { api } from './api.js'
 
 const userData = app.getPath('userData')
 const dataDir = join(userData, 'data')
@@ -144,6 +145,9 @@ export default class VM extends EventEmitter {
     if ((process.platform === 'darwin') && !this.#traffic) {
       this.#sockets = new Set()
       this.#traffic = createServer(socket => this.handleTrafficSocket(socket))
+      this.#traffic.on('error', error => {
+        logHandler({ event: 'traffic.server.error', error: Error.wrap(error) })
+      })
       await promisify(this.#traffic.listen.bind(this.#traffic))({ port: 443, host: '0.0.0.0' })
     }
     if (now === this.#lastCmd) {
@@ -232,7 +236,10 @@ export default class VM extends EventEmitter {
           if (event.context.message) {
             if (VM.signalPattern.test(event.context.message)) {
               const [, signal] = VM.signalPattern.exec(event.context.message)
-              if ((signal === 'RUNNING') && !this.isQuitting) {
+              if (
+                ((signal === 'RUNNING') && !this.isQuitting) ||
+                ((signal === 'STOPPED') && this.isQuitting)
+              ) {
                 this.handleStatus(signal)
               }
             }
@@ -240,7 +247,7 @@ export default class VM extends EventEmitter {
           logHandler({ event: 'vm.output', message: event.context?.message || event.context })
         })
       } catch (error) {
-        logHandler({ event: 'vm.create.error', error })
+        logHandler({ event: 'vm.create.error', error: Error.wrap(error) })
         if (now === this.#lastCmd) {
           this.handleStatus('CREATE_FAILED')
           throw error
@@ -254,7 +261,7 @@ export default class VM extends EventEmitter {
       try {
         await this.#vm.start()
       } catch (error) {
-        logHandler({ event: 'vm.start.error', error })
+        logHandler({ event: 'vm.start.error', error: Error.wrap(error) })
         if (now === this.#lastCmd) {
           this.handleStatus('START_FAILED')
           throw error
@@ -272,6 +279,8 @@ export default class VM extends EventEmitter {
     const now = Date.now()
     this.#lastCmd = now
     this.#quitting = now
+
+    const wasRunning = this.status === 'RUNNING'
 
     this.handleStatus(this.#restarting ? 'RESTARTING' : 'STOPPING')
 
@@ -333,7 +342,54 @@ export default class VM extends EventEmitter {
           if (this.#vm) {
             logHandler({ event: 'vm.stop.start' })
             const vm = this.#vm
-            await vm.stop(timeout)
+            let apiStopError = false
+            if (timeout) {
+              const ac = new AbortController()
+              const { signal } = ac
+              const handleTimeout = async () => {
+                try {
+                  await wait((timeout * 1_000), null, { ref: false, signal })
+                } catch (error) {
+                  if (error.code !== 'ABORT_ERR') throw error
+                } finally {
+                  ac.abort()
+                }
+              }
+              const handleStop = async () => {
+                const waitForStopped = new Promise(resolve => {
+                  const cleanup = () => {
+                    this.off('status', handleStop)
+                    signal.removeEventListener('abort', cleanup)
+                    resolve()
+                  }
+                  const handleStop = status => {
+                    if (status === 'STOPPED') cleanup()
+                  }
+                  this.on('status', handleStop)
+                  signal.addEventListener('abort', cleanup, { once: true })
+                })
+                try {
+                  try {
+                    await api.post('/local/workshop/stop')
+                  } catch (error) {
+                    apiStopError = true
+                    throw error
+                  }
+                  await waitForStopped
+                } finally {
+                  ac.abort()
+                }
+              }
+              try {
+                await Promise.all([
+                  handleTimeout(),
+                  handleStop()
+                ])
+              } catch (error) {
+                if (wasRunning) logHandler({ event: 'vm.stop.api.error', error: Error.wrap(error) })
+              }
+            }
+            await vm.stop((timeout && !apiStopError && (this.status === 'STOPPED')) ? Math.min(5, timeout) : timeout)
             logHandler({ event: 'vm.stop.end' })
             if (this.#vm === vm) {
               this.#vm = null
@@ -347,7 +403,7 @@ export default class VM extends EventEmitter {
         })()
       ])
     } catch (error) {
-      logHandler({ event: 'vm.stop.error', error })
+      logHandler({ event: 'vm.stop.error', error: Error.wrap(error) })
       if (now === this.#lastCmd) {
         this.handleStatus('STOP_FAILED')
         throw error

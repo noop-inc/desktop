@@ -8,6 +8,7 @@ import Discovery from '@noop-inc/discovery/lib/Discovery.js'
 import { minimatch } from 'minimatch'
 import { inspect } from 'node:util'
 import { app } from 'electron'
+import Error from '@noop-inc/foundation/lib/Error.js'
 
 const mainWindowViteDevServerURL = MAIN_WINDOW_VITE_DEV_SERVER_URL // eslint-disable-line no-undef
 const packaged = (!mainWindowViteDevServerURL && app.isPackaged)
@@ -57,7 +58,7 @@ export default class FileWatcher extends EventEmitter {
       }
       formatter({ event: `watcher.${this.shouldRestart ? 'restarted' : 'started'}`, path: this.path })
     } catch (error) {
-      formatter({ event: `watcher.${this.shouldRestart ? 'restart' : 'start'}.error`, path: this.path, error })
+      formatter({ event: `watcher.${this.shouldRestart ? 'restart' : 'start'}.error`, path: this.path, error: Error.wrap(error) })
       await this.stop()
     }
     this.shouldRestart = false
@@ -77,7 +78,7 @@ export default class FileWatcher extends EventEmitter {
       this.running = false
       formatter({ event: 'watcher.stopped', path: this.path })
     } catch (error) {
-      formatter({ event: 'watcher.stop.error', path: this.path, error })
+      formatter({ event: 'watcher.stop.error', path: this.path, error: Error.wrap(error) })
     }
   }
 
@@ -124,7 +125,7 @@ export default class FileWatcher extends EventEmitter {
       formatter({ event: 'watcher.patterns', path: this.path, patterns })
       this.patterns = patterns
     } catch (error) {
-      formatter({ event: 'watcher.patterns.error', path: this.path, error })
+      formatter({ event: 'watcher.patterns.error', path: this.path, error: Error.wrap(error) })
       this.patterns = {}
     }
   }

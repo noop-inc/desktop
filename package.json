@@ -56,11 +56,11 @@
     "@noop-inc/desktop-qemu": "^0.0.87",
     "@noop-inc/discovery": "^4.0.4",
     "@noop-inc/foundation": "4.0.45-pr658.3",
-    "@types/node": "^24.6.0",
+    "@types/node": "^24.6.1",
     "@vscode/sudo-prompt": "^9.3.1",
     "ajv": "^8.17.1",
     "autoprefixer": "^10.4.21",
-    "browserslist": "^4.26.2",
+    "browserslist": "^4.26.3",
     "chalk": "^5.6.2",
     "chokidar": "^4.0.3",
     "concurrently": "^9.2.1",
@@ -100,6 +100,6 @@
   },
   "@noop-inc": {
     "cli": "0.0.1",
-    "workshop-vm": "0.19.1"
+    "workshop-vm": "0.20.0"
   }
 }

@@ -258,6 +258,9 @@ export class Proxy {
     }
     this.sockets = new Set()
     this.server = createServer(async (req, res) => await this.handleProxyRequest(req, res))
+    this.server.on('error', error => {
+      logHandler({ event: 'proxy.server.error', error: Error.wrap(error) })
+    })
     await promisify(this.server.listen.bind(this.server))(this.socketPath)
     logHandler({ event: 'proxy.server.started', socketPath: this.socketPath })
   }
@@ -377,7 +380,7 @@ export class Proxy {
       }
       const serverStopped = stopServer()
       await Promise.all([
-        ...[...(sockets || [])].map(async socket => {
+        ...[...sockets].map(async socket => {
           try {
             const ac = new AbortController()
             const handleTimeout = async () => {
