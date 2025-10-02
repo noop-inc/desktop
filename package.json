@@ -99,7 +99,7 @@
     "vite": "$vite"
   },
   "@noop-inc": {
-    "cli": "0.0.1-pr6.0",
+    "cli": "0.0.1-pr6.1",
     "workshop-vm": "0.20.0"
   }
 }
