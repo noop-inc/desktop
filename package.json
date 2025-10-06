@@ -63,7 +63,7 @@
     "chokidar": "^4.0.3",
     "concurrently": "^9.2.1",
     "dot-prop": "^9.0.0",
-    "dotenv": "^17.2.2",
+    "dotenv": "^17.2.3",
     "electron": "^38.1.0",
     "electron-log": "^5.4.3",
     "electron-serve": "^2.1.1",
