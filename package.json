@@ -83,7 +83,7 @@
     "stylelint-config-standard": "^39.0.0",
     "tar-fs": "^3.1.0",
     "tar-stream": "^3.1.7",
-    "vite": "^7.1.5"
+    "vite": "^7.1.9"
   },
   "overrides": {
     "@noop-inc/console": "$@noop-inc/console",
