@@ -19,7 +19,7 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Install NodeJS
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         with:
           node-version: 24
           cache: npm
@@ -84,7 +84,7 @@ jobs:
           ref: ${{ github.event.inputs.DesktopVersion }}
 
       - name: Install NodeJS
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node }}
           cache: npm
