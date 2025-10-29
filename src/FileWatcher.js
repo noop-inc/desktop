@@ -17,7 +17,7 @@ const formatter = (...messages) =>
   console[messages[0].event.includes('.error') ? 'error' : 'log'](
     ...messages.map(message =>
       inspect(
-        message,
+        JSON.parse(JSON.stringify(message)),
         { breakLength: 10000, colors: !packaged, compact: true, depth: null }
       )
     )

@@ -12,6 +12,7 @@ import { setTimeout as wait } from 'node:timers/promises'
 import packageJson from '../package.json' with { type: 'json' }
 import packageLockJson from '../package-lock.json' with { type: 'json' }
 import { api } from './api.js'
+import { settlePromises } from '@noop-inc/foundation/lib/Helpers.js'
 
 const userData = app.getPath('userData')
 const dataDir = join(userData, 'data')
@@ -71,7 +72,7 @@ const formatter = (...messages) =>
   console[messages[0].event.includes('.error') ? 'error' : (messages[0].event.includes('.initialize') ? 'warn' : 'log')](
     ...messages.map(message =>
       inspect(
-        message,
+        JSON.parse(JSON.stringify(message)),
         { breakLength: 10000, colors: !packaged, compact: true, depth: null }
       )
     )
@@ -291,43 +292,58 @@ export default class VM extends EventEmitter {
             const traffic = this.#traffic
             const sockets = this.#sockets
             logHandler({ event: 'vm.traffic.close.start', sockets: sockets?.size })
-            const stopServer = async () => {
-              if (this.#restarting) return
+
+            const closeServer = async () => {
               try {
-                await promisify(traffic.close.bind(traffic))()
+                if (traffic) await promisify(traffic.close.bind(traffic))()
               } catch (error) {
                 if (error.code !== 'ERR_SERVER_NOT_RUNNING') throw error
               }
             }
-            const serverStopped = stopServer()
-            await Promise.all([
-              ...[...sockets].map(async socket => {
+
+            const destroySocket = async socket => {
+              const ac = new AbortController()
+              const handleTimeout = async () => {
                 try {
-                  const ac = new AbortController()
-                  const handleTimeout = async () => {
-                    try {
-                      await wait(1_000, null, { ref: false, signal: ac.signal })
-                    } catch (error) {
-                      if (error.code !== 'ABORT_ERR') throw error
-                    }
-                  }
-                  const handleEnd = async () => {
-                    if (!socket.destroyed) {
-                      await promisify(socket.end.bind(socket))()
-                      ac.abort()
-                    }
-                  }
-                  await Promise.all([
-                    handleTimeout(),
-                    handleEnd()
-                  ])
+                  await wait(1_000, null, { ref: false, signal: ac.signal })
+                } catch (error) {
+                  if (error.code !== 'ABORT_ERR') throw error
                 } finally {
-                  if (!socket.destroyed) socket.destroy()
-                  sockets.delete(socket)
+                  ac.abort()
                 }
-              }),
-              serverStopped
+              }
+              const handleEnd = async () => {
+                try {
+                  if (!socket.destroyed) await promisify(socket.end.bind(socket))()
+                } finally {
+                  ac.abort()
+                }
+              }
+              try {
+                await Promise.all([
+                  handleTimeout(),
+                  handleEnd()
+                ])
+              } finally {
+                try {
+                  if (!socket.destroyed) socket.destroy()
+                } finally {
+                  ac.abort()
+                }
+              }
+            }
+
+            const { errors: stopErrors } = await settlePromises([
+              ...[...sockets].map(async socket => await destroySocket(socket))
             ])
+            const { errors: closeErrors } = await settlePromises([
+              closeServer(),
+              ...[...sockets].map(async socket => await destroySocket(socket))
+            ])
+            const errors = [...stopErrors, ...closeErrors].map(error => Error.wrap(error))
+
+            if (errors?.length) logHandler({ event: 'vm.traffic.close.error', errors })
+
             logHandler({ event: 'vm.traffic.close.end', sockets: sockets?.size })
             if (this.#restarting) return
             if (this.#traffic === traffic) {
@@ -343,7 +359,7 @@ export default class VM extends EventEmitter {
             logHandler({ event: 'vm.stop.start' })
             const vm = this.#vm
             let apiStopError = false
-            if (timeout) {
+            if (timeout && wasRunning) {
               const ac = new AbortController()
               const { signal } = ac
               const handleTimeout = async () => {
@@ -389,7 +405,11 @@ export default class VM extends EventEmitter {
                 if (wasRunning) logHandler({ event: 'vm.stop.api.error', error: Error.wrap(error) })
               }
             }
-            await vm.stop((timeout && !apiStopError && (this.status === 'STOPPED')) ? Math.min(5, timeout) : timeout)
+            await vm.stop(
+              (timeout && wasRunning && !apiStopError && (this.status === 'STOPPED'))
+                ? Math.min(5, timeout)
+                : wasRunning ? timeout : 5
+            )
             logHandler({ event: 'vm.stop.end' })
             if (this.#vm === vm) {
               this.#vm = null
@@ -509,12 +529,13 @@ export default class VM extends EventEmitter {
           outgoing.pipe(incoming)
         })
       } catch (error) {
-        if (!outgoing.destroyed) outgoing.destroy(error)
+        if (!outgoing.destroyed) outgoing.destroy()
         sockets.delete(outgoing)
         throw error
       }
     } catch (error) {
-      if (!incoming.destroyed) incoming.destroy(error)
+      logHandler({ event: 'traffic.pipe.error', error: Error.wrap(error) })
+      if (!incoming.destroyed) incoming.destroy()
       sockets.delete(incoming)
     }
   }
@@ -526,7 +547,10 @@ export default class VM extends EventEmitter {
       const cleanup = error => {
         socket.off('end', handleEnd)
         socket.off('error', handleError)
-        if (!socket.destroyed) socket.destroy(error)
+        if (error) {
+          logHandler({ event: 'traffic.socket.error', error: Error.wrap(error) })
+        }
+        if (!socket.destroyed) socket.destroy()
         sockets.delete(socket)
       }
       const handleEnd = () => {

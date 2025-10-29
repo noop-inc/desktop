@@ -6,15 +6,18 @@ import log from 'electron-log/main'
 import { extract } from 'tar-fs'
 import { Readable } from 'node:stream'
 import { finished } from 'node:stream/promises'
-import { readdir, mkdir, access, realpath } from 'node:fs/promises'
+import { readdir, mkdir, access, realpath, symlink, rm, readFile, writeFile } from 'node:fs/promises'
 import { pathToFileURL, fileURLToPath } from 'node:url'
 import FileWatcher from './FileWatcher.js'
 import { inspect } from 'node:util'
 import settings from './Settings.js'
 import started from 'electron-squirrel-startup'
 import packageJson from '../package.json' with { type: 'json' }
-import { exec } from '@expo/sudo-prompt'
 import { setStorage, api, Proxy } from './api.js'
+import { deepEquals } from '@noop-inc/foundation/lib/Helpers.js'
+import Error from '@noop-inc/foundation/lib/Error.js'
+
+import { EOL } from 'node:os'
 
 (async () => {
   if (started) app.quit()
@@ -49,7 +52,7 @@ import { setStorage, api, Proxy } from './api.js'
     console[messages[0].event.includes('.error') ? 'error' : 'log'](
       ...messages.map(message =>
         inspect(
-          message,
+          JSON.parse(JSON.stringify(message)),
           { breakLength: 10000, colors: !packaged, compact: true, depth: null }
         )
       )
@@ -135,84 +138,133 @@ import { setStorage, api, Proxy } from './api.js'
         }
       })
 
-      // and load the index.html of the app.
-      if (!packaged) {
-        mainWindow.loadURL(mainWindowViteDevServerURL)
-        // Open the DevTools.
-        mainWindow.webContents.openDevTools()
-      } else {
-        await loadURL(mainWindow)
-      }
+      setImmediate(async () => {
+        // and load the index.html of the app.
+        if (!packaged) {
+          mainWindow.loadURL(mainWindowViteDevServerURL)
+          // Open the DevTools.
+          mainWindow.webContents.openDevTools()
+        } else {
+          await loadURL(mainWindow)
+        }
+      })
 
-      if (managingVm) {
-        await handleWorkshopVmStatus()
-        vm.on('status', handleWorkshopVmStatus)
-        await vm.start()
-      }
+      setImmediate(async () => {
+        if (managingVm) {
+          await handleWorkshopVmStatus()
+          vm.on('status', handleWorkshopVmStatus)
+          await vm.start()
+        }
+      })
 
-      await proxy.start()
+      setImmediate(async () => {
+        await proxy.start()
+      })
 
-      const version = app.getVersion()
+      setImmediate(async () => {
+        const version = app.getVersion()
 
-      if (packaged && !version.includes('-')) {
-        const server = 'https://update.electronjs.org'
-        const repo = 'noop-inc/desktop'
-        const platform = process.platform
-        const arch = process.arch
-        const url = `${server}/${repo}/${platform}-${arch}/${version}`
+        if (packaged && !version.includes('-')) {
+          const server = 'https://update.electronjs.org'
+          const repo = 'noop-inc/desktop'
+          const platform = process.platform
+          const arch = process.arch
+          const url = `${server}/${repo}/${platform}-${arch}/${version}`
 
-        console.log('Auto Updater Feed URL', url)
+          console.log('Auto Updater Feed URL', url)
 
-        autoUpdater.setFeedURL({ url })
+          autoUpdater.setFeedURL({ url })
 
-        autoUpdater.on('error', error => {
-          console.log('updater error')
-          console.error(error)
-        })
-        autoUpdater.on('checking-for-update', () => {
-          console.log('checking-for-update')
-        })
-        autoUpdater.on('update-available', () => {
-          console.log('update-available; downloading...')
-        })
-        autoUpdater.on('update-not-available', () => {
-          console.log('update-not-available')
-        })
-        autoUpdater.on('before-quit-for-update', () => {
-          vm.isQuitting = true
-          console.log('before-quit-for-update')
-        })
-
-        autoUpdater.on('update-downloaded', async (event, releaseNotes, releaseName, releaseDate, updateURL) => {
-          console.log('update-downloaded', [event, releaseNotes, releaseName, releaseDate, updateURL])
-          await ensureMainWindow()
-          const returnValue = await dialog.showMessageBox(mainWindow, {
-            type: 'info',
-            buttons: ['Restart', 'Later'],
-            title: 'Application Update',
-            message: process.platform === 'win32' ? releaseNotes : releaseName,
-            detail: 'A new version has been downloaded. Restart the application to apply the updates.',
-            cancelId: 2
+          autoUpdater.on('error', error => {
+            console.log('updater error')
+            console.error(error)
           })
-          if (returnValue.response === 0) {
-            await proxy.stop()
+          autoUpdater.on('checking-for-update', () => {
+            console.log('checking-for-update')
+          })
+          autoUpdater.on('update-available', () => {
+            console.log('update-available; downloading...')
+          })
+          autoUpdater.on('update-not-available', () => {
+            console.log('update-not-available')
+          })
+          autoUpdater.on('before-quit-for-update', () => {
             vm.isQuitting = true
-            clearInterval(updaterInterval)
-            await Promise.all(Object.entries(fileWatchers).map(async ([repoId, watcher]) => {
-              await watcher.stop()
-              watcher.removeAllListeners()
-              delete fileWatchers[repoId]
-            }))
-            await vm.stop()
-            autoUpdater.quitAndInstall()
-          }
-        })
+            console.log('before-quit-for-update')
+          })
 
-        autoUpdater.checkForUpdates()
-        updaterInterval = setInterval(() => {
+          autoUpdater.on('update-downloaded', async (event, releaseNotes, releaseName, releaseDate, updateURL) => {
+            console.log('update-downloaded', [event, releaseNotes, releaseName, releaseDate, updateURL])
+            await ensureMainWindow()
+            const returnValue = await dialog.showMessageBox(mainWindow, {
+              type: 'info',
+              buttons: ['Restart', 'Later'],
+              title: 'Application Update',
+              message: process.platform === 'win32' ? releaseNotes : releaseName,
+              detail: 'A new version has been downloaded. Restart the application to apply the updates.',
+              cancelId: 2
+            })
+            if (returnValue.response === 0) {
+              await proxy.stop()
+              vm.isQuitting = true
+              clearInterval(updaterInterval)
+              await Promise.all(Object.entries(fileWatchers).map(async ([repoId, watcher]) => {
+                await watcher.stop()
+                watcher.removeAllListeners()
+                delete fileWatchers[repoId]
+              }))
+              await vm.stop()
+              autoUpdater.quitAndInstall()
+            }
+          })
+
           autoUpdater.checkForUpdates()
-        }, 1000 * 60 * 10)
+          updaterInterval = setInterval(() => {
+            autoUpdater.checkForUpdates()
+          }, 1000 * 60 * 10)
+        }
+      })
+
+      setImmediate(async () => {
+        await ensureCli()
+      })
+    }
+  }
+
+  const ensureCli = async () => {
+    const cliVersion = packageJson['@noop-inc'].cli
+    const packaged = (!mainWindowViteDevServerURL && app.isPackaged)
+
+    let executablePath
+
+    if (process.platform === 'darwin') {
+      executablePath = packaged
+        ? join(resourcesPath, `noop-cli-v${cliVersion}-${process.platform}-${process.arch}`)
+        : join(npmConfigLocalPrefix, `../cli/dist/noop-cli-v0.0.0-automated-${process.platform}-${process.arch}`)
+
+      await access(executablePath)
+
+      const userData = app.getPath('userData')
+      const dataDir = join(userData, 'data')
+      await mkdir(dataDir, { recursive: true })
+      const cliDir = join(dataDir, 'CLI')
+      await mkdir(cliDir, { recursive: true })
+      const symlinkPath = join(cliDir, 'noop')
+
+      try {
+        const existingPath = await realpath(symlinkPath)
+        if (existingPath === executablePath) return true
+      } catch (err) {
+        // swallow for now...
       }
+
+      await rm(symlinkPath, { recursive: true, force: true })
+      await symlink(executablePath, symlinkPath)
+      await access(symlinkPath)
+
+      return true
+    } else if (process.platform === 'win32') {
+      // TODO - Add windows implimentation...
     }
   }
 
@@ -468,7 +520,7 @@ import { setStorage, api, Proxy } from './api.js'
             formatter({ event: 'repo.updated', repoId, path, response })
             return response
           } catch (error) {
-            formatter({ event: 'repo.update.error', repoId, error, path })
+            formatter({ event: 'repo.update.error', repoId, error: Error.wrap(error), path })
             // throw error
           }
         }
@@ -480,7 +532,7 @@ import { setStorage, api, Proxy } from './api.js'
             watcher.removeAllListeners()
             return response
           } catch (error) {
-            formatter({ event: 'repo.destroy.error', repoId, error, path })
+            formatter({ event: 'repo.destroy.error', repoId, error: Error.wrap(error), path })
             // throw error
           }
         }
@@ -494,47 +546,56 @@ import { setStorage, api, Proxy } from './api.js'
 
   ipcMain.handle('local-repositories', async (_event, repositories) => await handleLocalRepositories(repositories))
 
-  const handleInstallCli = async () => {
-    const cliVersion = packageJson['@noop-inc'].cli
-    const packaged = (!mainWindowViteDevServerURL && app.isPackaged)
-
-    let executablePath
-
+  const installClaudeDesktop = async () => {
     if (process.platform === 'darwin') {
-      executablePath = packaged
-        ? join(resourcesPath, `noop-cli-v${cliVersion}-${process.platform}-${process.arch}`)
-        : join(npmConfigLocalPrefix, `../cli/dist/noop-cli-v0.0.0-automated-${process.platform}-${process.arch}`)
-
-      await access(executablePath)
-
+      // const homeDir = app.getPath('home')
+      const appDir = app.getPath('appData')
+      const claudeDir = join(appDir, 'Claude')
+      const claudeDesktopConfigPath = join(claudeDir, 'claude_desktop_config.json')
       try {
-        const existingPath = await realpath('/usr/local/bin/noop')
-        if (existingPath === executablePath) return true
-      } catch (err) {
-        // swallow for now...
+        await access(claudeDir)
+      } catch (error) {
+        return false
       }
 
-      return await new Promise((resolve, reject) => {
-        exec(
-          `rm -f /usr/local/bin/noop && ln -s ${executablePath.replaceAll(' ', '\\ ')} /usr/local/bin/noop`,
-          {
-            name: app.name,
-            icns: packaged
-              ? join(resourcesPath, 'electron.icns')
-              : join(npmConfigLocalPrefix, 'assets/icons/darwin/icon.icns')
-          },
-          (error, stdout, stderr) => {
-            if (error) reject(error)
-            resolve(true)
-          }
-        )
-      })
+      let claudeDesktopConfigString
+      let claudeDesktopConfigParsed
+      try {
+        await access(claudeDesktopConfigPath)
+        claudeDesktopConfigString = (await readFile(claudeDesktopConfigPath)).toString()
+        claudeDesktopConfigParsed = JSON.parse(claudeDesktopConfigString)
+      } catch (error) {
+        if (((typeof claudeDesktopConfigString) === 'string') && (claudeDesktopConfigParsed === undefined)) return false
+      }
+      if (!claudeDesktopConfigParsed) claudeDesktopConfigParsed = {}
+      if (!claudeDesktopConfigParsed.mcpServers) claudeDesktopConfigParsed.mcpServers = {}
+
+      const userData = app.getPath('userData')
+      const dataDir = join(userData, 'data')
+      const cliDir = join(dataDir, 'CLI')
+      const symlinkPath = join(cliDir, 'noop')
+
+      const noopCliConfig = {
+        command: symlinkPath,
+        args: ['mcp']
+      }
+
+      if (!deepEquals(claudeDesktopConfigParsed.mcpServers.noop, noopCliConfig)) {
+        claudeDesktopConfigParsed.mcpServers.noop = noopCliConfig
+
+        await writeFile(claudeDesktopConfigPath, `${JSON.stringify(claudeDesktopConfigParsed, null, 2)}${EOL}`)
+      }
     } else if (process.platform === 'win32') {
       // TODO - Add windows implimentation...
     }
   }
 
-  ipcMain.handle('install-cli', async () => await handleInstallCli())
+  const handleInstallMcp = async () => {
+    await ensureCli()
+    await installClaudeDesktop()
+  }
+
+  ipcMain.handle('install-mcp', async () => await handleInstallMcp())
 
   const handleSetStorage = storage => {
     // console.log(storage)

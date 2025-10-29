@@ -9,6 +9,7 @@ import { ReadableStream } from 'node:stream/web'
 import { inspect, promisify } from 'node:util'
 import Error from '@noop-inc/foundation/lib/Error.js'
 import { setTimeout as wait } from 'node:timers/promises'
+import { settlePromises } from '@noop-inc/foundation/lib/Helpers.js'
 
 const mainWindowViteDevServerURL = MAIN_WINDOW_VITE_DEV_SERVER_URL // eslint-disable-line no-undef
 const packaged = (!mainWindowViteDevServerURL && app.isPackaged)
@@ -17,7 +18,7 @@ const logHandler = (...messages) =>
   console[(messages[0].event.includes('.error') || messages[0].error) ? 'error' : 'log'](
     ...messages.map(message =>
       inspect(
-        message,
+        JSON.parse(JSON.stringify(message)),
         { breakLength: 10000, colors: !packaged, compact: true, depth: null }
       )
     )
@@ -346,14 +347,16 @@ export class Proxy {
       const cleanup = error => {
         socket.off('end', handleEnd)
         socket.off('error', handleError)
-        if (!socket.destroyed) socket.destroy(error)
+        if (error) {
+          logHandler({ event: 'proxy.socket.error', error: Error.wrap(error) })
+        }
+        if (!socket.destroyed) socket.destroy()
         sockets.delete(socket)
       }
       const handleEnd = () => {
         cleanup()
       }
       const handleError = error => {
-        // logHandler({ event: 'proxy.server.socket.error', error: Error.wrap(error) })
         cleanup(error)
       }
       const handleClose = () => {
@@ -371,42 +374,58 @@ export class Proxy {
       const server = this.server
       const sockets = this.sockets
       logHandler({ event: 'proxy.server.close', sockets: sockets?.size })
-      const stopServer = async () => {
+
+      const closeServer = async () => {
         try {
-          await promisify(server.close.bind(server))()
+          if (server) await promisify(server.close.bind(server))()
         } catch (error) {
           if (error.code !== 'ERR_SERVER_NOT_RUNNING') throw error
         }
       }
-      const serverStopped = stopServer()
-      await Promise.all([
-        ...[...sockets].map(async socket => {
+
+      const destroySocket = async socket => {
+        const ac = new AbortController()
+        const handleTimeout = async () => {
           try {
-            const ac = new AbortController()
-            const handleTimeout = async () => {
-              try {
-                await wait(1_000, null, { ref: false, signal: ac.signal })
-              } catch (error) {
-                if (error.code !== 'ABORT_ERR') throw error
-              }
-            }
-            const handleEnd = async () => {
-              if (!socket.destroyed) {
-                await promisify(socket.end.bind(socket))()
-                ac.abort()
-              }
-            }
-            await Promise.all([
-              handleTimeout(),
-              handleEnd()
-            ])
+            await wait(1_000, null, { ref: false, signal: ac.signal })
+          } catch (error) {
+            if (error.code !== 'ABORT_ERR') throw error
           } finally {
-            if (!socket.destroyed) socket.destroy()
-            sockets.delete(socket)
+            ac.abort()
           }
-        }),
-        serverStopped
+        }
+        const handleEnd = async () => {
+          try {
+            if (!socket.destroyed) await promisify(socket.end.bind(socket))()
+          } finally {
+            ac.abort()
+          }
+        }
+        try {
+          await Promise.all([
+            handleTimeout(),
+            handleEnd()
+          ])
+        } finally {
+          try {
+            if (!socket.destroyed) socket.destroy()
+          } finally {
+            ac.abort()
+          }
+        }
+      }
+
+      const { errors: stopErrors } = await settlePromises([
+        ...[...sockets].map(async socket => await destroySocket(socket))
       ])
+      const { errors: closeErrors } = await settlePromises([
+        closeServer(),
+        ...[...sockets].map(async socket => await destroySocket(socket))
+      ])
+      const errors = [...stopErrors, ...closeErrors].map(error => Error.wrap(error))
+
+      if (errors?.length) logHandler({ event: 'proxy.close.error', errors })
+
       logHandler({ event: 'proxy.server.closed', sockets: sockets?.size })
       await this.cleanup()
       if (this.server === server) {
