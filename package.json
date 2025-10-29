@@ -70,6 +70,7 @@
     "eslint-plugin-yml": "^1.19.0",
     "globals": "^16.4.0",
     "ignore": "^7.0.5",
+    "linguist-js": "^2.9.2",
     "marked": "^16.4.1",
     "minimatch": "^10.1.1",
     "neostandard": "^0.12.2",
@@ -93,7 +94,7 @@
     "vite": "$vite"
   },
   "@noop-inc": {
-    "cli": "0.0.1",
+    "cli": "0.0.1-pr6.1",
     "workshop-vm": "0.20.0"
   }
 }

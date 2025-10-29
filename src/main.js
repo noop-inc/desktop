@@ -16,7 +16,6 @@ import packageJson from '../package.json' with { type: 'json' }
 import { setStorage, api, Proxy } from './api.js'
 import { deepEquals } from '@noop-inc/foundation/lib/Helpers.js'
 import Error from '@noop-inc/foundation/lib/Error.js'
-
 import { EOL } from 'node:os'
 
 (async () => {
@@ -692,6 +691,15 @@ import { EOL } from 'node:os'
         await vm.stop()
       }
       app.quit()
+    }
+  })
+
+  app.on('certificate-error', (event, webContents, url, error, certificate, callback) => {
+    if ((url === 'https://localhost:13443') || url.startsWith('https://localhost:13443/')) {
+      event.preventDefault()
+      callback(true) // eslint-disable-line n/no-callback-literal
+    } else {
+      callback(false) // eslint-disable-line n/no-callback-literal
     }
   })
 

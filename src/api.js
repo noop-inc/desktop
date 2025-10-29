@@ -1,4 +1,4 @@
-import { fetch, WebSocket, EventSource, FormData } from 'undici'
+import { fetch, WebSocket, EventSource, FormData, Agent } from 'undici'
 import { webcrypto } from 'node:crypto'
 import { app } from 'electron'
 import { join } from 'node:path'
@@ -10,6 +10,7 @@ import { inspect, promisify } from 'node:util'
 import Error from '@noop-inc/foundation/lib/Error.js'
 import { setTimeout as wait } from 'node:timers/promises'
 import { settlePromises } from '@noop-inc/foundation/lib/Helpers.js'
+import SourceInventory from './inference/SourceInventory.js'
 
 const mainWindowViteDevServerURL = MAIN_WINDOW_VITE_DEV_SERVER_URL // eslint-disable-line no-undef
 const packaged = (!mainWindowViteDevServerURL && app.isPackaged)
@@ -89,6 +90,11 @@ const prepareSign = async (...args) => {
     }
   }
   const options = { method, headers: settings.headers || {} }
+
+  if (base === 'https://localhost:13443') {
+    options.dispatcher = new Agent({ connect: { rejectUnauthorized: false } })
+  }
+
   if (body && !(body instanceof FormData) && !(body instanceof ReadableStream)) {
     body = JSON.stringify(body)
     options.headers['content-type'] = 'application/json'
@@ -127,6 +133,16 @@ const eventsSign = async (...args) => {
   }
   if (!Object.keys(options.headers).length) delete options.headers
   return [url.href, options]
+}
+
+const handleDesktopRequest = async (path, method, body) => {
+  if (path === '/desktop/identity') {
+    return { identity: storage.identity || null }
+  } else if (path === '/desktop/inference/inventory' && method === 'POST') {
+    return SourceInventory.scan(body.dir)
+  } else {
+    throw new Error('DesktopRouteNotFound', { path, method })
+  }
 }
 
 const handleRequest = async (...args) => {
@@ -267,7 +283,7 @@ export class Proxy {
   }
 
   async handleProxyRequest (req, res) {
-    logHandler({ event: 'proxy.server.request' })
+    logHandler({ event: 'proxy.server.request', path: req.url })
     this.handleProxySocket(req.socket)
     this.handleProxySocket(res.socket)
     try {
@@ -309,6 +325,17 @@ export class Proxy {
         }
       }
 
+      if (req.url.startsWith('/desktop/')) {
+        const result = await handleDesktopRequest(path, method, body)
+        const stringified = JSON.stringify(result)
+        const headers = {
+          'content-type': 'application/json',
+          'content-length': stringified.length
+        }
+        res.writeHead(200, headers)
+        return res.end(stringified)
+      }
+
       const proxySign =
         (method === 'GET') &&
         (
@@ -319,15 +346,15 @@ export class Proxy {
           : requestSign
 
       const [href, options] = await proxySign({ path, method, body, settings })
-      const repsonse = await fetch(href, options)
-      res.writeHead(repsonse.status, Object.fromEntries(repsonse.headers.entries()))
-      Readable.fromWeb(repsonse.body).pipe(res)
+      const response = await fetch(href, options)
+      res.writeHead(response.status, Object.fromEntries(response.headers.entries()))
+      Readable.fromWeb(response.body).pipe(res)
     } catch (error) {
       const wrapped = Error.wrap(error)
       logHandler({ event: 'proxy.request.error', error: wrapped })
       if (!res.headersSent) {
         const stringified = JSON.stringify(wrapped)
-        const parsed = JSON.parsed(stringified)
+        const parsed = JSON.parse(stringified)
         const statusCode = parsed.statusCode || 500
         const headers = {
           'content-type': 'application/json',
