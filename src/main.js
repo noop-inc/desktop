@@ -267,7 +267,7 @@ import { setProperty } from 'dot-prop'
         await symlink(executablePath, symlinkPath)
         await access(symlinkPath)
         const homeDir = app.getPath('home')
-        formatter({ event: 'cli.ensure', path: symlinkPath.replace(homeDir, '~') })
+        formatter({ event: 'cli.ensure', path: symlinkPath })
         return symlinkPath
       } else if (process.platform === 'win32') {
         // TODO - Add windows implimentation...
@@ -601,7 +601,7 @@ import { setProperty } from 'dot-prop'
           await writeFile(configPath, JSON.stringify(newConfig, null, 2))
           formatter({ event: 'mcp.install', path: configPath })
         }
-        return configPath.replace(homeDir, '~')
+        return configPath
       } else if (process.platform === 'win32') {
         // TODO - Add windows implimentation...
       }
