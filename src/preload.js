@@ -28,10 +28,10 @@ contextBridge.exposeInMainWorld(
       await ipcRenderer.invoke('eula', accept),
     isFullscreen: async () =>
       await ipcRenderer.invoke('is-fullscreen'),
-    installMcp: async () =>
-      await ipcRenderer.invoke('install-mcp'),
     setStorage: async storage =>
-      await ipcRenderer.invoke('set-storage', storage)
+      await ipcRenderer.invoke('set-storage', storage),
+    mcpServer: async install =>
+      await ipcRenderer.invoke('mcp-server', install)
   }
 )
 

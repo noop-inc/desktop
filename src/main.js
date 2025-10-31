@@ -13,7 +13,7 @@ import { inspect } from 'node:util'
 import settings from './Settings.js'
 import started from 'electron-squirrel-startup'
 import packageJson from '../package.json' with { type: 'json' }
-import { setStorage, api, Proxy } from './api.js'
+import { setStorage, api, ProxyServer } from './api.js'
 import { deepEquals } from '@noop-inc/foundation/lib/Helpers.js'
 import Error from '@noop-inc/foundation/lib/Error.js'
 import TransactionQueue from '@noop-inc/foundation/lib/TransactionQueue.js'
@@ -70,7 +70,7 @@ import { setProperty } from 'dot-prop'
   let updaterInterval
   let localRepositories = []
   const fileWatchers = {}
-  const proxy = new Proxy()
+  const proxy = new ProxyServer()
 
   const createMainWindowTransactions = new TransactionQueue()
   const createMainWindow = async () => {
@@ -266,7 +266,6 @@ import { setProperty } from 'dot-prop'
         await rm(symlinkPath, { recursive: true, force: true })
         await symlink(executablePath, symlinkPath)
         await access(symlinkPath)
-        const homeDir = app.getPath('home')
         formatter({ event: 'cli.ensure', path: symlinkPath })
         return symlinkPath
       } else if (process.platform === 'win32') {
@@ -571,7 +570,7 @@ import { setProperty } from 'dot-prop'
 
   ipcMain.handle('local-repositories', async (_event, repositories) => await handleLocalRepositories(repositories))
 
-  const installMcpConfig = async (configPath, configProperty, configContent) => {
+  const handleMcpConfig = async (configPath, configProperty, configContent, install) => {
     try {
       if (process.platform === 'darwin') {
         const homeDir = app.getPath('home')
@@ -580,7 +579,7 @@ import { setProperty } from 'dot-prop'
         try {
           await access([homeDir, appDir].includes(parentDir) ? configPath : parentDir)
         } catch (error) {
-          return null
+          return { configPath, installed: false }
         }
         let existingConfigString
         let existingConfigParsed
@@ -598,69 +597,92 @@ import { setProperty } from 'dot-prop'
           configContent
         )
         if (!deepEquals(existingConfigParsed, newConfig)) {
+          if (!install) return { configPath, installed: false }
           await writeFile(configPath, JSON.stringify(newConfig, null, 2))
           formatter({ event: 'mcp.install', path: configPath })
         }
-        return configPath
+        return { configPath, installed: true }
       } else if (process.platform === 'win32') {
         // TODO - Add windows implimentation...
       }
     } catch (error) {
       formatter({ event: 'mcp.install.error', error: Error.wrap(error) })
+      return { configPath, installed: false }
     }
   }
 
-  const installClaudeDesktop = async () => {
+  const handleClaudeDesktopConfig = async install => {
     const cliPath = await ensureCli()
-    if (!cliPath) return null
-    return await installMcpConfig(
-      join(app.getPath('appData'), 'Claude', 'claude_desktop_config.json'),
+    const configPath = join(app.getPath('appData'), 'Claude', 'claude_desktop_config.json')
+    if (!cliPath) return { configPath, installed: false }
+    return await handleMcpConfig(
+      configPath,
       'mcpServers.noop',
-      { command: cliPath, args: ['mcp'], env: {} }
+      { command: cliPath, args: ['mcp'], env: {} },
+      install
     )
   }
 
-  const installClaudeCode = async () => {
+  const handleClaudeCodeConfig = async install => {
     const cliPath = await ensureCli()
-    if (!cliPath) return null
-    return await installMcpConfig(
-      join(app.getPath('home'), '.claude.json'),
+    const configPath = join(app.getPath('home'), '.claude.json')
+    if (!cliPath) return { configPath, installed: false }
+    return await handleMcpConfig(
+      configPath,
       'mcpServers.noop',
-      { type: 'stdio', command: cliPath, args: ['mcp'], env: {} }
+      { type: 'stdio', command: cliPath, args: ['mcp'], env: {} },
+      install
     )
   }
 
-  const installVsCode = async () => {
+  const handleVsCodeConfig = async install => {
     const cliPath = await ensureCli()
-    if (!cliPath) return null
-    return await installMcpConfig(
-      join(app.getPath('appData'), 'Code', 'User', 'mcp.json'),
+    const configPath = join(app.getPath('appData'), 'Code', 'User', 'mcp.json')
+    if (!cliPath) return { configPath, installed: false }
+    return await handleMcpConfig(
+      configPath,
       'servers.noop',
-      { type: 'stdio', command: cliPath, args: ['mcp'], env: {} }
+      { type: 'stdio', command: cliPath, args: ['mcp'], env: {} },
+      install
     )
   }
 
-  const installCursor = async () => {
+  const handleCursorConfig = async install => {
     const cliPath = await ensureCli()
-    if (!cliPath) return null
-    return await installMcpConfig(
-      join(app.getPath('home'), '.cursor', 'mcp.json'),
+    const configPath = join(app.getPath('home'), '.cursor', 'mcp.json')
+    if (!cliPath) return { configPath, installed: false }
+    return await handleMcpConfig(
+      configPath,
       'mcpServers.noop',
-      { command: cliPath, args: ['mcp'], env: {} }
+      { command: cliPath, args: ['mcp'], env: {} },
+      install
     )
   }
 
-  const handleInstallMcp = async () => {
-    const [claudeDesktop, claudeCode, vsCode, cursor] = await Promise.all([
-      installClaudeDesktop(),
-      installClaudeCode(),
-      installVsCode(),
-      installCursor()
+  const handleMcpServer = async install => {
+    const result = {
+      mcpConfig: null,
+      claudeDesktop: null,
+      claudeCode: null,
+      vsCode: null,
+      cursor: null
+    }
+    const cliPath = await ensureCli()
+    if (cliPath) result.mcpConfig = { type: 'stdio', command: cliPath, args: ['mcp'], env: {} }
+    const [claudeCode, claudeDesktop, cursor, vsCode] = await Promise.all([
+      handleClaudeCodeConfig(install),
+      handleClaudeDesktopConfig(install),
+      handleCursorConfig(install),
+      handleVsCodeConfig(install)
     ])
-    return { claudeDesktop, claudeCode, vsCode, cursor }
+    result.claudeCode = claudeCode
+    result.claudeDesktop = claudeDesktop
+    result.cursor = cursor
+    result.vsCode = vsCode
+    return result
   }
 
-  ipcMain.handle('install-mcp', async () => await handleInstallMcp())
+  ipcMain.handle('mcp-server', async (_event, install) => await handleMcpServer(install))
 
   const handleSetStorage = storage => {
     // console.log(storage)
