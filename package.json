@@ -95,6 +95,6 @@
   },
   "@noop-inc": {
     "cli": "0.0.1-pr6.2",
-    "workshop-vm": "0.20.4"
+    "workshop-vm": "0.20.5"
   }
 }
