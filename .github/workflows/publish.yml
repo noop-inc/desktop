@@ -78,7 +78,7 @@ jobs:
     strategy:
       matrix:
         include:
-          - runner: macos-15
+          - runner: macos-26
             ext: disk
           - runner: windows-2025
             ext: tar.gz
@@ -103,7 +103,7 @@ jobs:
         id: setup-python
         uses: actions/setup-python@v5
         with:
-          python-version: 3.13
+          python-version: 3.14
 
       - name: Install Apple certificate
         if: ${{ startsWith(matrix.runner, 'macos') }}
