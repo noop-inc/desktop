@@ -74,7 +74,7 @@
     "globals": "^16.4.0",
     "ignore": "^7.0.5",
     "marked": "^16.2.1",
-    "minimatch": "^10.0.3",
+    "minimatch": "^10.1.1",
     "neostandard": "^0.12.2",
     "prettier": "^3.6.2",
     "rollup-plugin-visualizer": "^6.0.3",
