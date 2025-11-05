@@ -86,18 +86,6 @@ export default {
       }
     },
     {
-      name: '@electron-forge/maker-msix',
-      config: {
-        manifestVariables: {
-          appDisplayName: 'Noop',
-          publisherDisplayName: 'Noop Inc',
-          packageDisplayName: 'Noop',
-          packageDescription: 'Noop Developer Desktop',
-          packageBackgroundColor: '#212121'
-        }
-      }
-    },
-    {
       name: '@electron-forge/maker-zip',
       platforms: ['darwin']
     },
