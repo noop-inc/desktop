@@ -31,7 +31,10 @@ contextBridge.exposeInMainWorld(
     setStorage: async storage =>
       await ipcRenderer.invoke('set-storage', storage),
     mcpServer: async install =>
-      await ipcRenderer.invoke('mcp-server', install)
+      await ipcRenderer.invoke('mcp-server', install),
+    unhandledError: async () => {
+      await ipcRenderer.invoke('unhandled-error')
+    }
   }
 )
 

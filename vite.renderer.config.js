@@ -67,7 +67,8 @@ export default mergeConfig(consoleConfig, defineConfig({
           return null
         }
       }
-    }
+    },
+    sourcemap: true
   },
   plugins: [
     (process.env.npm_lifecycle_event === 'report') && (process.env.npm_package_name === packageJson.name)

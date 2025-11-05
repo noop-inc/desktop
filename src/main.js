@@ -5,7 +5,7 @@ import VM from './VM.js'
 import log from 'electron-log/main'
 import { extract } from 'tar-fs'
 import { Readable } from 'node:stream'
-import { finished } from 'node:stream/promises'
+import { pipeline } from 'node:stream/promises'
 import { readdir, mkdir, access, realpath, symlink, rm, readFile, writeFile } from 'node:fs/promises'
 import { pathToFileURL, fileURLToPath } from 'node:url'
 import FileWatcher from './FileWatcher.js'
@@ -459,7 +459,7 @@ import { setProperty } from 'dot-prop'
     await mkdir(foundDirectory, { recursive: true })
     const tarStream = Readable.fromWeb(response.body)
     const tarExtractor = extract(foundDirectory)
-    await finished(tarStream.pipe(tarExtractor))
+    await pipeline(tarStream, tarExtractor)
     const url = pathToFileURL(foundDirectory).href
     return await api.post('/local/repos', { url })
   }
@@ -690,6 +690,12 @@ import { setProperty } from 'dot-prop'
   }
 
   ipcMain.handle('set-storage', async (_event, storage) => await handleSetStorage(storage))
+
+  ipcMain.handle('unhandled-error', async () => {
+    setImmediate(() => {
+      throw new Error('Unhandled Error')
+    })
+  })
 
   if (process.defaultApp) {
     if (process.argv.length >= 2) {

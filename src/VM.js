@@ -13,6 +13,7 @@ import packageJson from '../package.json' with { type: 'json' }
 import packageLockJson from '../package-lock.json' with { type: 'json' }
 import { api } from './api.js'
 import { settlePromises } from '@noop-inc/foundation/lib/Helpers.js'
+import { pipeline } from 'node:stream'
 
 const userData = app.getPath('userData')
 const dataDir = join(userData, 'data')
@@ -525,8 +526,12 @@ export default class VM extends EventEmitter {
       try {
         this.handleSocketEvents(outgoing)
         outgoing.once('connect', () => {
-          incoming.pipe(outgoing)
-          outgoing.pipe(incoming)
+          pipeline(incoming, outgoing, error => {
+            if (error) logHandler({ event: 'traffic.incoming.pipe.error', error: Error.wrap(error) })
+          })
+          pipeline(outgoing, incoming, error => {
+            if (error) logHandler({ event: 'traffic.outgoing.pipe.error', error: Error.wrap(error) })
+          })
         })
       } catch (error) {
         if (!outgoing.destroyed) outgoing.destroy()
@@ -544,27 +549,22 @@ export default class VM extends EventEmitter {
     if (!this.#sockets.has(socket)) {
       const sockets = this.#sockets
       sockets.add(socket)
-      const cleanup = error => {
-        socket.off('end', handleEnd)
+      const handleError = error => {
+        logHandler({ event: 'traffic.socket.error', error: Error.wrap(error) })
+      }
+      // const handleEnd = () => {
+      //   if (!socket.destroyed) socket.end()
+      // }
+      const handleClose = () => {
         socket.off('error', handleError)
-        if (error) {
-          logHandler({ event: 'traffic.socket.error', error: Error.wrap(error) })
-        }
+        // socket.off('end', handleEnd)
+        socket.off('close', handleClose)
         if (!socket.destroyed) socket.destroy()
         sockets.delete(socket)
       }
-      const handleEnd = () => {
-        cleanup()
-      }
-      const handleError = error => {
-        cleanup(error)
-      }
-      const handleClose = () => {
-        sockets.delete(socket)
-      }
-      socket.once('end', handleEnd)
-      socket.once('error', handleError)
-      socket.once('close', handleClose)
+      socket.on('error', handleError)
+      // socket.on('end', handleEnd)
+      socket.on('close', handleClose)
     }
   }
 

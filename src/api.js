@@ -4,7 +4,7 @@ import { app } from 'electron'
 import { join } from 'node:path'
 import { createServer } from 'node:http'
 import { access, unlink } from 'node:fs/promises'
-import { Readable } from 'node:stream'
+import { Readable, pipeline } from 'node:stream'
 import { ReadableStream } from 'node:stream/web'
 import { inspect, promisify } from 'node:util'
 import Error from '@noop-inc/foundation/lib/Error.js'
@@ -286,6 +286,15 @@ export class ProxyServer {
     logHandler({ event: 'proxy.server.request', path: req.url })
     this.handleProxySocket(req.socket)
     this.handleProxySocket(res.socket)
+
+    req.on('error', error => {
+      logHandler({ event: 'proxy.request.error', error: Error.wrap(error) })
+    })
+
+    res.on('error', error => {
+      logHandler({ event: 'proxy.response.error', error: Error.wrap(error) })
+    })
+
     try {
       const path = req.url
       const method = req.method
@@ -348,10 +357,12 @@ export class ProxyServer {
       const [href, options] = await proxySign({ path, method, body, settings })
       const response = await fetch(href, options)
       res.writeHead(response.status, Object.fromEntries(response.headers.entries()))
-      Readable.fromWeb(response.body).pipe(res)
+      pipeline(Readable.fromWeb(response.body), res, error => {
+        if (error) logHandler({ event: 'proxy.body.error', error: Error.wrap(error) })
+      })
     } catch (error) {
       const wrapped = Error.wrap(error)
-      logHandler({ event: 'proxy.request.error', error: wrapped })
+      logHandler({ event: 'proxy.fetch.error', error: wrapped })
       if (!res.headersSent) {
         const stringified = JSON.stringify(wrapped)
         const parsed = JSON.parse(stringified)
@@ -370,29 +381,22 @@ export class ProxyServer {
     if (!this.sockets.has(socket)) {
       const sockets = this.sockets
       sockets.add(socket)
-      // logHandler({ event: 'proxy.server.socket' })
-      const cleanup = error => {
-        socket.off('end', handleEnd)
+      const handleError = error => {
+        logHandler({ event: 'proxy.socket.error', error: Error.wrap(error) })
+      }
+      // const handleEnd = () => {
+      //   if (!socket.destroyed) socket.end()
+      // }
+      const handleClose = () => {
         socket.off('error', handleError)
-        if (error) {
-          logHandler({ event: 'proxy.socket.error', error: Error.wrap(error) })
-        }
+        // socket.off('end', handleEnd)
+        socket.off('close', handleClose)
         if (!socket.destroyed) socket.destroy()
         sockets.delete(socket)
       }
-      const handleEnd = () => {
-        cleanup()
-      }
-      const handleError = error => {
-        cleanup(error)
-      }
-      const handleClose = () => {
-        // logHandler({ event: 'proxy.socket.closed' })
-        sockets.delete(socket)
-      }
-      socket.once('end', handleEnd)
-      socket.once('error', handleError)
-      socket.once('close', handleClose)
+      socket.on('error', handleError)
+      // socket.on('end', handleEnd)
+      socket.on('close', handleClose)
     }
   }
 
