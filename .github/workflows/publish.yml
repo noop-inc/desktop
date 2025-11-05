@@ -78,8 +78,8 @@ jobs:
     strategy:
       matrix:
         include:
-          - runner: macos-26
-            ext: disk
+          # - runner: macos-26
+          #   ext: disk
           - runner: windows-2025
             ext: tar.gz
 

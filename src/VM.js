@@ -438,7 +438,7 @@ export default class VM extends EventEmitter {
     const now = Date.now()
     this.#restarting = now
     try {
-      await this.stop(reset ? 0 : 30)
+      await this.stop(reset ? 5 : 30)
       if (this.isQuitting || this.#quitting) return
       if (reset) {
         await rm(dataDisk)

@@ -62,7 +62,7 @@
     "chokidar": "^4.0.3",
     "concurrently": "^9.2.1",
     "dot-prop": "^10.1.0",
-    "electron": "^39.0.0",
+    "electron": "^39.1.0",
     "electron-log": "^5.4.3",
     "electron-serve": "^3.0.0",
     "electron-squirrel-startup": "^1.0.1",
@@ -82,7 +82,7 @@
     "tar-fs": "^3.1.1",
     "tar-stream": "^3.1.7",
     "undici": "^7.16.0",
-    "vite": "^7.1.12"
+    "vite": "^7.2.0"
   },
   "overrides": {
     "@noop-inc/console": "$@noop-inc/console",
@@ -95,6 +95,6 @@
   },
   "@noop-inc": {
     "cli": "0.0.1-pr6.2",
-    "workshop-vm": "0.20.6"
+    "workshop-vm": "0.20.6-pr146.0"
   }
 }
