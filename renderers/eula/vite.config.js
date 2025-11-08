@@ -70,7 +70,8 @@ export default defineConfig({
         }
       }
     },
-    sourcemap: true
+    sourcemap: true,
+    minify: false
   },
   plugins: [
     (process.env.npm_lifecycle_event === 'report') && (process.env.npm_package_name === packageJson.name)

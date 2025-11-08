@@ -13,7 +13,7 @@ import packageJson from '../package.json' with { type: 'json' }
 import packageLockJson from '../package-lock.json' with { type: 'json' }
 import { api } from './api.js'
 import { settlePromises } from '@noop-inc/foundation/lib/Helpers.js'
-import { pipeline } from 'node:stream'
+import Stream from '@noop-inc/foundation/lib/Stream.js'
 
 const userData = app.getPath('userData')
 const dataDir = join(userData, 'data')
@@ -526,10 +526,10 @@ export default class VM extends EventEmitter {
       try {
         this.handleSocketEvents(outgoing)
         outgoing.once('connect', () => {
-          pipeline(incoming, outgoing, error => {
+          Stream.pipeline(incoming, outgoing, error => {
             if (error) logHandler({ event: 'traffic.incoming.pipe.error', error: Error.wrap(error) })
           })
-          pipeline(outgoing, incoming, error => {
+          Stream.pipeline(outgoing, incoming, error => {
             if (error) logHandler({ event: 'traffic.outgoing.pipe.error', error: Error.wrap(error) })
           })
         })
@@ -552,18 +552,13 @@ export default class VM extends EventEmitter {
       const handleError = error => {
         logHandler({ event: 'traffic.socket.error', error: Error.wrap(error) })
       }
-      // const handleEnd = () => {
-      //   if (!socket.destroyed) socket.end()
-      // }
       const handleClose = () => {
         socket.off('error', handleError)
-        // socket.off('end', handleEnd)
         socket.off('close', handleClose)
         if (!socket.destroyed) socket.destroy()
         sockets.delete(socket)
       }
       socket.on('error', handleError)
-      // socket.on('end', handleEnd)
       socket.on('close', handleClose)
     }
   }

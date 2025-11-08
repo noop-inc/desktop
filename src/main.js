@@ -5,7 +5,6 @@ import VM from './VM.js'
 import log from 'electron-log/main'
 import { extract } from 'tar-fs'
 import { Readable } from 'node:stream'
-import { pipeline } from 'node:stream/promises'
 import { readdir, mkdir, access, realpath, symlink, rm, readFile, writeFile } from 'node:fs/promises'
 import { pathToFileURL, fileURLToPath } from 'node:url'
 import FileWatcher from './FileWatcher.js'
@@ -15,9 +14,10 @@ import started from 'electron-squirrel-startup'
 import packageJson from '../package.json' with { type: 'json' }
 import { setStorage, api, ProxyServer } from './api.js'
 import { deepEquals } from '@noop-inc/foundation/lib/Helpers.js'
-import Error from '@noop-inc/foundation/lib/Error.js'
+import NoopError from '@noop-inc/foundation/lib/Error.js'
 import TransactionQueue from '@noop-inc/foundation/lib/TransactionQueue.js'
 import { setProperty } from 'dot-prop'
+import Stream from '@noop-inc/foundation/lib/Stream.js'
 
 (async () => {
   if (started) app.quit()
@@ -272,7 +272,7 @@ import { setProperty } from 'dot-prop'
         // TODO - Add windows implimentation...
       }
     } catch (error) {
-      formatter({ event: 'cli.ensure.error', error: Error.wrap(error) })
+      formatter({ event: 'cli.ensure.error', error: NoopError.wrap(error) })
     } finally {
       ensureCliTransactions.advance()
     }
@@ -459,7 +459,7 @@ import { setProperty } from 'dot-prop'
     await mkdir(foundDirectory, { recursive: true })
     const tarStream = Readable.fromWeb(response.body)
     const tarExtractor = extract(foundDirectory)
-    await pipeline(tarStream, tarExtractor)
+    await Stream.promises.pipeline(tarStream, tarExtractor)
     const url = pathToFileURL(foundDirectory).href
     return await api.post('/local/repos', { url })
   }
@@ -544,7 +544,7 @@ import { setProperty } from 'dot-prop'
             formatter({ event: 'repo.updated', repoId, path, response })
             return response
           } catch (error) {
-            formatter({ event: 'repo.update.error', repoId, error: Error.wrap(error), path })
+            formatter({ event: 'repo.update.error', repoId, error: NoopError.wrap(error), path })
             // throw error
           }
         }
@@ -556,7 +556,7 @@ import { setProperty } from 'dot-prop'
             watcher.removeAllListeners()
             return response
           } catch (error) {
-            formatter({ event: 'repo.destroy.error', repoId, error: Error.wrap(error), path })
+            formatter({ event: 'repo.destroy.error', repoId, error: NoopError.wrap(error), path })
             // throw error
           }
         }
@@ -606,7 +606,7 @@ import { setProperty } from 'dot-prop'
         // TODO - Add windows implimentation...
       }
     } catch (error) {
-      formatter({ event: 'mcp.install.error', error: Error.wrap(error) })
+      formatter({ event: 'mcp.install.error', error: NoopError.wrap(error) })
       return { configPath, installed: false }
     }
   }

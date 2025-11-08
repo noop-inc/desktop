@@ -4,13 +4,14 @@ import { app } from 'electron'
 import { join } from 'node:path'
 import { createServer } from 'node:http'
 import { access, unlink } from 'node:fs/promises'
-import { Readable, pipeline } from 'node:stream'
+import { Readable } from 'node:stream'
 import { ReadableStream } from 'node:stream/web'
 import { inspect, promisify } from 'node:util'
 import Error from '@noop-inc/foundation/lib/Error.js'
 import { setTimeout as wait } from 'node:timers/promises'
 import { settlePromises } from '@noop-inc/foundation/lib/Helpers.js'
 import SourceInventory from './inference/SourceInventory.js'
+import Stream from '@noop-inc/foundation/lib/Stream.js'
 
 const mainWindowViteDevServerURL = MAIN_WINDOW_VITE_DEV_SERVER_URL // eslint-disable-line no-undef
 const packaged = (!mainWindowViteDevServerURL && app.isPackaged)
@@ -357,7 +358,7 @@ export class ProxyServer {
       const [href, options] = await proxySign({ path, method, body, settings })
       const response = await fetch(href, options)
       res.writeHead(response.status, Object.fromEntries(response.headers.entries()))
-      pipeline(Readable.fromWeb(response.body), res, error => {
+      Stream.pipeline(Readable.fromWeb(response.body), res, error => {
         if (error) logHandler({ event: 'proxy.body.error', error: Error.wrap(error) })
       })
     } catch (error) {
@@ -384,18 +385,13 @@ export class ProxyServer {
       const handleError = error => {
         logHandler({ event: 'proxy.socket.error', error: Error.wrap(error) })
       }
-      // const handleEnd = () => {
-      //   if (!socket.destroyed) socket.end()
-      // }
       const handleClose = () => {
         socket.off('error', handleError)
-        // socket.off('end', handleEnd)
         socket.off('close', handleClose)
         if (!socket.destroyed) socket.destroy()
         sockets.delete(socket)
       }
       socket.on('error', handleError)
-      // socket.on('end', handleEnd)
       socket.on('close', handleClose)
     }
   }

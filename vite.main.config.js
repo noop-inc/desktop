@@ -72,7 +72,8 @@ export default defineConfig({
       fileName: () => '[name].js',
       formats: ['es']
     },
-    sourcemap: true
+    sourcemap: true,
+    minify: false
   },
   plugins: [
     (process.env.npm_lifecycle_event === 'report') && (process.env.npm_package_name === packageJson.name)
