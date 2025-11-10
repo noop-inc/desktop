@@ -1,5 +1,5 @@
 import linguist from 'linguist-js'
-import { readFile } from 'node:fs/promises'
+import { readFile, access, constants } from 'node:fs/promises'
 import { basename, extname, join } from 'node:path'
 
 const important = [
@@ -60,16 +60,22 @@ const isImportant = filename => {
 export default class SourceInventory {
   static async scan (projectDir) {
     const options = {
-      keepVendored: false,
+      keepVendored: true,
       ignoredFiles: ['**/node_modules/**', '**/.git/**', '**/.DS_Store'],
       quick: false,
-      childLanguages: true
+      childLanguages: true,
+      offline: true
+    }
+    try {
+      await access(join(projectDir, '.gitignore'), constants.R_OK)
+    } catch (error) {
+      options.keepVendored = false
     }
     const results = await linguist(projectDir, options)
     const files = []
     for (const [filePath, language] of Object.entries(results.files.results)) {
-      const localpath = filePath.replace(projectDir, '.')
-      const file = await SourceFile.scan(projectDir, localpath, language)
+      const localPath = filePath.replace(`${projectDir}/`, '')
+      const file = await SourceFile.scan(projectDir, localPath, language)
       files.push(file)
     }
     return new SourceInventory(files)
@@ -81,25 +87,25 @@ export default class SourceInventory {
 }
 
 class SourceFile {
-  static async scan (projectDir, filePath, language) {
-    return await (new SourceFile(projectDir, filePath, language)).scan()
+  static async scan (projectDir, localPath, language) {
+    return await (new SourceFile(projectDir, localPath, language)).scan()
   }
 
   #projectDir
 
-  get #fullpath () {
+  get #fullPath () {
     return join(this.#projectDir, this.path)
   }
 
-  constructor (projectDir, filePath, language) {
+  constructor (projectDir, localPath, language) {
     this.#projectDir = projectDir
-    this.path = filePath.replace(projectDir, '.')
+    this.path = localPath
     this.language = language
   }
 
   async scan () {
     if (isImportant(basename(this.path))) {
-      this.content = (await readFile(this.#fullpath)).toString()
+      this.content = (await readFile(this.#fullPath)).toString()
     }
     return this
   }
