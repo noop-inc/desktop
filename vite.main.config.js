@@ -55,6 +55,9 @@ export default defineConfig({
     modulePreload: { polyfill: false },
     reportCompressedSize: false,
     rollupOptions: {
+      external: [
+        'linguist-js'
+      ],
       output: {
         manualChunks (id, { getModuleInfo }) {
           const result = checkIfNotDynamicallyImported(id, { getModuleInfo })

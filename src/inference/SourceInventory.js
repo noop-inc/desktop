@@ -63,8 +63,8 @@ export default class SourceInventory {
       keepVendored: true,
       ignoredFiles: ['**/node_modules/**', '**/.git/**', '**/.DS_Store'],
       quick: false,
-      childLanguages: true,
-      offline: true
+      childLanguages: true
+      // offline: true
     }
     try {
       await access(join(projectDir, '.gitignore'), constants.R_OK)
