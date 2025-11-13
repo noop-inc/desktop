@@ -61,7 +61,7 @@ export default class SourceInventory {
   static async scan (projectDir) {
     const options = {
       keepVendored: true,
-      ignoredFiles: ['**/node_modules/**', '**/.git/**', '**/.DS_Store'],
+      ignoredFiles: ['**/node_modules/**', '**/.git/**', '**/.DS_Store', '**/Thumbs.db'],
       quick: false,
       childLanguages: true
       // offline: true

@@ -54,6 +54,9 @@ const checkIfNodeModulesImport = (id, { getModuleInfo }) => {
 
 export default mergeConfig(consoleConfig, defineConfig({
   build: {
+    target: 'esnext',
+    modulePreload: { polyfill: false },
+    reportCompressedSize: false,
     outDir: fileURLToPath(new URL('./.vite/renderer/main_window', import.meta.url)),
     rollupOptions: {
       output: {
@@ -67,9 +70,7 @@ export default mergeConfig(consoleConfig, defineConfig({
           return null
         }
       }
-    },
-    sourcemap: true,
-    minify: false
+    }
   },
   plugins: [
     (process.env.npm_lifecycle_event === 'report') && (process.env.npm_package_name === packageJson.name)

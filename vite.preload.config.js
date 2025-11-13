@@ -10,9 +10,7 @@ export default defineConfig({
   build: {
     target: 'esnext',
     modulePreload: { polyfill: false },
-    reportCompressedSize: false,
-    sourcemap: true,
-    minify: false
+    reportCompressedSize: false
   },
   plugins: [
     (process.env.npm_lifecycle_event === 'report') && (process.env.npm_package_name === packageJson.name)

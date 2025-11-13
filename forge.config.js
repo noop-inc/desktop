@@ -31,7 +31,7 @@ const selectedArch = arg || process.arch
 
 export default {
   packagerConfig: {
-    // asar: true,
+    asar: true,
     name: 'Noop',
     appBundleId: 'app.noop.desktop',
     icon: `assets/icons/${process.platform}/icon`,
@@ -140,8 +140,8 @@ export default {
       [FuseV1Options.EnableCookieEncryption]: true,
       [FuseV1Options.EnableNodeOptionsEnvironmentVariable]: false,
       [FuseV1Options.EnableNodeCliInspectArguments]: false,
-      [FuseV1Options.EnableEmbeddedAsarIntegrityValidation]: false,
-      [FuseV1Options.OnlyLoadAppFromAsar]: false
+      [FuseV1Options.EnableEmbeddedAsarIntegrityValidation]: true,
+      [FuseV1Options.OnlyLoadAppFromAsar]: true
     })
   ],
   publishers: [

@@ -186,7 +186,9 @@ export default class FileWatcher extends EventEmitter {
           normalizedPath.includes(join(sep, '.git', sep)) ||
           (name === 'node_modules') ||
           normalizedPath.includes(join(sep, 'node_modules', sep)) ||
-          (name === 'Dockerfile')
+          (name === 'Dockerfile') ||
+          (name === '.DS_Store') ||
+          (name === 'Thumbs.db')
         ) {
           return true
         }

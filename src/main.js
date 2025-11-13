@@ -468,7 +468,7 @@ import Stream from '@noop-inc/foundation/lib/Stream.js'
 
   const handleOpenPath = async (_event, url) => {
     await ensureMainWindow()
-    shell.openPath(fileURLToPath(url))
+    shell.showItemInFolder(fileURLToPath(url))
     return true
   }
 
@@ -570,96 +570,126 @@ import Stream from '@noop-inc/foundation/lib/Stream.js'
 
   ipcMain.handle('local-repositories', async (_event, repositories) => await handleLocalRepositories(repositories))
 
-  const handleMcpConfig = async (configPath, configProperty, configContent, install) => {
+  const handleCheckConfigPath = async configPath => {
     try {
       if (process.platform === 'darwin') {
         const homeDir = app.getPath('home')
         const appDir = app.getPath('appData')
         const parentDir = dirname(configPath)
-        try {
-          await access([homeDir, appDir].includes(parentDir) ? configPath : parentDir)
-        } catch (error) {
-          return { configPath, installed: false }
-        }
-        let existingConfigString
-        let existingConfigParsed
-        try {
-          await access(configPath)
-          existingConfigString = (await readFile(configPath)).toString()
-          existingConfigParsed = JSON.parse(existingConfigString)
-        } catch (error) {
-          if (((typeof existingConfigString) === 'string') && (existingConfigParsed === undefined)) return null
-        }
-        if (!existingConfigParsed) existingConfigParsed = {}
-        const newConfig = setProperty(
-          JSON.parse(JSON.stringify(existingConfigParsed)),
-          configProperty,
-          configContent
-        )
-        if (!deepEquals(existingConfigParsed, newConfig)) {
-          if (!install) return { configPath, installed: false }
-          await writeFile(configPath, JSON.stringify(newConfig, null, 2))
-          formatter({ event: 'mcp.install', path: configPath })
-        }
-        return { configPath, installed: true }
+        const checkPath = [homeDir, appDir].includes(parentDir) ? configPath : parentDir
+        await access(checkPath)
+        return true
       } else if (process.platform === 'win32') {
         // TODO - Add windows implimentation...
       }
     } catch (error) {
-      formatter({ event: 'mcp.install.error', error: NoopError.wrap(error) })
-      return { configPath, installed: false }
+      return false
     }
   }
 
-  const handleClaudeDesktopConfig = async install => {
-    const cliPath = await ensureCli()
-    const configPath = join(app.getPath('appData'), 'Claude', 'claude_desktop_config.json')
-    if (!cliPath) return { configPath, installed: false }
+  const handleMcpConfig = async (configPath, configProperty, configContent, addConfig) => {
+    const href = pathToFileURL(configPath).href
+    const result = {}
+    try {
+      const cliPath = await ensureCli()
+      const checkConfigPath = await handleCheckConfigPath(configPath)
+      if (checkConfigPath) result.href = href
+      if (cliPath && checkConfigPath) {
+        const configOrder = ['type', 'command', 'args', 'env']
+        configContent = Object.fromEntries(
+          Object.entries({
+            command: cliPath, args: ['mcp'], env: {}, ...configContent
+          })
+            .sort(([a], [b]) =>
+              configOrder.indexOf(a) - configOrder.indexOf(b)
+            )
+        )
+        if (process.platform === 'darwin') {
+          let existingConfigString
+          let existingConfigParsed
+          try {
+            await access(configPath)
+            existingConfigString = (await readFile(configPath)).toString()
+            existingConfigParsed = JSON.parse(existingConfigString)
+          } catch (error) {
+            if (((typeof existingConfigString) === 'string') && (existingConfigParsed === undefined)) {
+              throw error
+            } else {
+              delete result.href
+            }
+          }
+          if (!existingConfigParsed) existingConfigParsed = {}
+          const newConfig = setProperty(
+            JSON.parse(JSON.stringify(existingConfigParsed)),
+            configProperty,
+            configContent
+          )
+          if (!deepEquals(existingConfigParsed, newConfig)) {
+            if (addConfig) {
+              await writeFile(configPath, JSON.stringify(newConfig, null, 2))
+              formatter({ event: 'mcp.added', path: configPath })
+              result.status = 'added'
+              if (!result.href) result.href = href
+            } else {
+              result.status = 'not_added'
+            }
+          } else {
+            result.status = 'added'
+          }
+        } else if (process.platform === 'win32') {
+          // TODO - Add windows implimentation...
+        }
+      } else {
+        if (!cliPath) {
+          result.status = 'missing'
+        } else if (!checkConfigPath) {
+          result.status = 'unknown'
+        }
+      }
+    } catch (error) {
+      formatter({ event: 'mcp.added.error', error: NoopError.wrap(error) })
+      result.status = 'error'
+    }
+    return result
+  }
+
+  const handleClaudeDesktopConfig = async addConfig => {
     return await handleMcpConfig(
-      configPath,
+      join(app.getPath('appData'), 'Claude', 'claude_desktop_config.json'),
       'mcpServers.noop',
-      { command: cliPath, args: ['mcp'], env: {} },
-      install
+      {},
+      addConfig
     )
   }
 
-  const handleClaudeCodeConfig = async install => {
-    const cliPath = await ensureCli()
-    const configPath = join(app.getPath('home'), '.claude.json')
-    if (!cliPath) return { configPath, installed: false }
+  const handleClaudeCodeConfig = async addConfig => {
     return await handleMcpConfig(
-      configPath,
+      join(app.getPath('home'), '.claude.json'),
       'mcpServers.noop',
-      { type: 'stdio', command: cliPath, args: ['mcp'], env: {} },
-      install
+      { type: 'stdio' },
+      addConfig
     )
   }
 
-  const handleVsCodeConfig = async install => {
-    const cliPath = await ensureCli()
-    const configPath = join(app.getPath('appData'), 'Code', 'User', 'mcp.json')
-    if (!cliPath) return { configPath, installed: false }
+  const handleVsCodeConfig = async addConfig => {
     return await handleMcpConfig(
-      configPath,
+      join(app.getPath('appData'), 'Code', 'User', 'mcp.json'),
       'servers.noop',
-      { type: 'stdio', command: cliPath, args: ['mcp'], env: {} },
-      install
+      { type: 'stdio' },
+      addConfig
     )
   }
 
-  const handleCursorConfig = async install => {
-    const cliPath = await ensureCli()
-    const configPath = join(app.getPath('home'), '.cursor', 'mcp.json')
-    if (!cliPath) return { configPath, installed: false }
+  const handleCursorConfig = async addConfig => {
     return await handleMcpConfig(
-      configPath,
+      join(app.getPath('home'), '.cursor', 'mcp.json'),
       'mcpServers.noop',
-      { command: cliPath, args: ['mcp'], env: {} },
-      install
+      {},
+      addConfig
     )
   }
 
-  const handleMcpServer = async install => {
+  const handleMcpServer = async addConfig => {
     const result = {
       mcpConfig: null,
       claudeDesktop: null,
@@ -668,12 +698,19 @@ import Stream from '@noop-inc/foundation/lib/Stream.js'
       cursor: null
     }
     const cliPath = await ensureCli()
-    if (cliPath) result.mcpConfig = { type: 'stdio', command: cliPath, args: ['mcp'], env: {} }
+    if (cliPath) {
+      result.config = [
+        '"type": "stdio"',
+        `"command": ${JSON.stringify(cliPath)}`,
+        '"args": ["mcp"]',
+        '"env": {}'
+      ].join('\n')
+    }
     const [claudeCode, claudeDesktop, cursor, vsCode] = await Promise.all([
-      handleClaudeCodeConfig(install),
-      handleClaudeDesktopConfig(install),
-      handleCursorConfig(install),
-      handleVsCodeConfig(install)
+      handleClaudeCodeConfig(addConfig),
+      handleClaudeDesktopConfig(addConfig),
+      handleCursorConfig(addConfig),
+      handleVsCodeConfig(addConfig)
     ])
     result.claudeCode = claudeCode
     result.claudeDesktop = claudeDesktop
@@ -682,10 +719,9 @@ import Stream from '@noop-inc/foundation/lib/Stream.js'
     return result
   }
 
-  ipcMain.handle('mcp-server', async (_event, install) => await handleMcpServer(install))
+  ipcMain.handle('mcp-server', async (_event, addConfig) => await handleMcpServer(addConfig))
 
   const handleSetStorage = storage => {
-    // console.log(storage)
     setStorage(storage)
   }
 
