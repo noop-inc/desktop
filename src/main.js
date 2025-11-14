@@ -247,15 +247,19 @@ import Stream from '@noop-inc/foundation/lib/Stream.js'
       const cliVersion = packageJson['@noop-inc'].cli
       const packaged = (!mainWindowViteDevServerURL && app.isPackaged)
 
+      const ext = (process.platform === 'win32')
+        ? '.exe'
+        : ''
+
       let executablePath
 
       if (packaged) {
-        executablePath = join(resourcesPath, `noop-cli-v${cliVersion}-${process.platform}-${process.arch}`)
+        executablePath = join(resourcesPath, `noop-cli-v${cliVersion}-${process.platform}-${process.arch}${ext}`)
       } else {
         if (process.platform === 'darwin') {
-          executablePath = join(npmConfigLocalPrefix, `../cli/dist/noop-cli-v0.0.0-automated-${process.platform}-${process.arch}`)
+          executablePath = join(npmConfigLocalPrefix, `../cli/dist/noop-cli-v0.0.0-automated-${process.platform}-${process.arch}${ext}`)
         } else if (process.platform === 'win32') {
-          // TODO - Add windows implimentation...
+          executablePath = 'C:\\Users\\dfnj1\\noop\\desktop\\noop-cli-v0.0.1-pr6.8-win32-x64.exe'
         }
       }
       await access(executablePath)
@@ -264,7 +268,7 @@ import Stream from '@noop-inc/foundation/lib/Stream.js'
       await mkdir(dataDir, { recursive: true })
       const cliDir = join(dataDir, 'CLI')
       await mkdir(cliDir, { recursive: true })
-      const symlinkPath = join(cliDir, 'noop')
+      const symlinkPath = join(cliDir, `noop${ext}`)
       try {
         const existingPath = await realpath(symlinkPath)
         if (existingPath === executablePath) return symlinkPath

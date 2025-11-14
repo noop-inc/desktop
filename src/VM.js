@@ -499,10 +499,8 @@ export default class VM extends EventEmitter {
     if (npmLifecycleEvent === 'serve') {
       if (process.platform === 'darwin') {
         return join(npmConfigLocalPrefix, '../workshop-vm/prep/disks/noop-workshop-vm-v0.0.0-automated-arm64.disk')
-      }
-
-      if (process.platform === 'win32') {
-        return 'C:\\Users\\dfnj1\\Downloads\\noop-workshop-vm-0.8.2-pr10.52.x86_64.tar.gz'
+      } else if (process.platform === 'win32') {
+        return 'C:\\Users\\dfnj1\\noop\\desktop\\noop-workshop-vm-v0.20.13-x64.tar.gz'
       }
     } else if (['darwin', 'win32'].includes(process.platform)) {
       const file = `noop-workshop-vm-v${packageJson['@noop-inc']['workshop-vm']}-${process.arch}.${({ darwin: 'disk', win32: 'tar.gz' })[process.platform]}`
