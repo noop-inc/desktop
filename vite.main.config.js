@@ -56,12 +56,7 @@ export default defineConfig({
     reportCompressedSize: false,
     rollupOptions: {
       external: [
-        'better-sqlite3',
-        'node-pty',
-        '@aws-sdk/client-s3'
-        // 'chokidar'
-        // 'electron-squirrel-startup'
-        // 'node-cron'
+        'linguist-js'
       ],
       output: {
         manualChunks (id, { getModuleInfo }) {

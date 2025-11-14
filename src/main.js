@@ -1,21 +1,26 @@
 import { app, shell, BrowserWindow, screen, ipcMain, nativeTheme, dialog, autoUpdater } from 'electron'
-import { join, resolve, sep } from 'node:path'
+import { join, resolve, sep, dirname } from 'node:path'
 import serve from 'electron-serve'
 import VM from './VM.js'
 import log from 'electron-log/main'
 import { extract } from 'tar-fs'
 import { Readable } from 'node:stream'
-import { finished } from 'node:stream/promises'
-import { readdir, mkdir } from 'node:fs/promises'
+import { readdir, mkdir, access, realpath, symlink, rm, readFile, writeFile } from 'node:fs/promises'
 import { pathToFileURL, fileURLToPath } from 'node:url'
 import FileWatcher from './FileWatcher.js'
 import { inspect } from 'node:util'
 import settings from './Settings.js'
+import started from 'electron-squirrel-startup'
+import packageJson from '../package.json' with { type: 'json' }
+import { setStorage, api, ProxyServer } from './api.js'
+import { deepEquals } from '@noop-inc/foundation/lib/Helpers.js'
+import NoopError from '@noop-inc/foundation/lib/Error.js'
+import TransactionQueue from '@noop-inc/foundation/lib/TransactionQueue.js'
+import { setProperty } from 'dot-prop'
+import Stream from '@noop-inc/foundation/lib/Stream.js'
 
 (async () => {
-  if ((await import('electron-squirrel-startup')).default) {
-    app.quit()
-  }
+  if (started) app.quit()
 
   const __dirname = fileURLToPath(new URL('.', import.meta.url))
 
@@ -25,14 +30,18 @@ import settings from './Settings.js'
   Object.assign(console, log.functions)
 
   const {
-    npm_lifecycle_event: npmLifecycleEvent
-  } = process.env
+    resourcesPath,
+    env: {
+      npm_lifecycle_event: npmLifecycleEvent,
+      npm_config_local_prefix: npmConfigLocalPrefix
+    }
+  } = process
 
-  const mainWindowViteDevServerURL = MAIN_WINDOW_VITE_DEV_SERVER_URL
-  const mainWindowViteName = MAIN_WINDOW_VITE_NAME
+  const mainWindowViteDevServerURL = MAIN_WINDOW_VITE_DEV_SERVER_URL // eslint-disable-line no-undef
+  const mainWindowViteName = MAIN_WINDOW_VITE_NAME // eslint-disable-line no-undef
 
-  const eulaWindowViteDevServerURL = EULA_WINDOW_VITE_DEV_SERVER_URL
-  const eulaWindowViteName = EULA_WINDOW_VITE_NAME
+  const eulaWindowViteDevServerURL = EULA_WINDOW_VITE_DEV_SERVER_URL // eslint-disable-line no-undef
+  const eulaWindowViteName = EULA_WINDOW_VITE_NAME // eslint-disable-line no-undef
 
   const packaged = (!mainWindowViteDevServerURL && app.isPackaged)
   const managingVm = (packaged || (npmLifecycleEvent === 'serve'))
@@ -43,7 +52,7 @@ import settings from './Settings.js'
     console[messages[0].event.includes('.error') ? 'error' : 'log'](
       ...messages.map(message =>
         inspect(
-          message,
+          JSON.parse(JSON.stringify(message)),
           { breakLength: 10000, colors: !packaged, compact: true, depth: null }
         )
       )
@@ -53,7 +62,6 @@ import settings from './Settings.js'
     ? serve({ directory: `./.vite/renderer/${mainWindowViteName}` })
     : null
 
-  const workshopApiBase = 'https://workshop.local.noop.app:44452'
   const noopProtocal = 'noop'
   let githubLoginUrl
   let mainWindow
@@ -62,150 +70,220 @@ import settings from './Settings.js'
   let updaterInterval
   let localRepositories = []
   const fileWatchers = {}
+  const proxy = new ProxyServer()
 
+  const createMainWindowTransactions = new TransactionQueue()
   const createMainWindow = async () => {
-    await app.whenReady()
-    if (mainWindow) return
-    const eula = !!(await settings.get('Desktop.EULA'))
-    if (eula) {
-      if (eulaWindow) eulaWindow.close()
-      const { width, height } = screen.getPrimaryDisplay().workAreaSize
-      // Create the browser window.
-      mainWindow = new BrowserWindow({
-        width: width < 1280 ? width : 1280,
-        height: height < 720 ? height : 720,
-        minWidth: 640,
-        minHeight: 360,
-        backgroundColor: '#212121',
-        ...(
-          (process.platform === 'darwin')
-            ? {
-                titleBarStyle: 'hidden',
-                trafficLightPosition: { x: 8, y: 6 }
-              }
-            : {}
-        ),
-        webPreferences: {
-          preload: join(__dirname, 'preload.js')
-        }
-      })
-
-      vm.mainWindow = mainWindow
-
-      mainWindow.on('enter-full-screen', () => {
-        mainWindow.webContents.send('is-fullscreen', true)
-        mainWindow.webContents.send('electron-fullscreen', true)
-      })
-
-      mainWindow.on('leave-full-screen', () => {
-        mainWindow.webContents.send('is-fullscreen', false)
-      })
-
-      mainWindow.on('will-resize', (event, newBounds) => {
-        if (authWindow) {
-          const { width, height } = newBounds
-          authWindow.setBounds({ width: Math.floor(Math.min(width - 32, 460)), height: Math.floor(Math.min(height - 64, 900)) })
-        }
-      })
-
-      mainWindow.on('close', event => {
-        if (!vm.isQuitting) {
-          event.preventDefault()
-          if (process.platform === 'darwin') mainWindow.hide()
-          if (process.platform === 'win32') mainWindow.minimize()
-        }
-      })
-
-      mainWindow.once('closed', () => {
-        mainWindow = null
-      })
-
-      mainWindow.webContents.on('will-navigate', (event, url) => {
-        const currentHost = new URL(mainWindow.webContents.getURL()).host
-        const requestedHost = new URL(url).host
-        if (requestedHost && requestedHost !== currentHost) {
-          event.preventDefault()
-          shell.openExternal(url)
-        }
-      })
-
-      // and load the index.html of the app.
-      if (!packaged) {
-        mainWindow.loadURL(mainWindowViteDevServerURL)
-        // Open the DevTools.
-        mainWindow.webContents.openDevTools()
-      } else {
-        await loadURL(mainWindow)
-      }
-
-      if (managingVm) {
-        await handleWorkshopVmStatus()
-        vm.on('status', handleWorkshopVmStatus)
-        await vm.start()
-      }
-
-      const version = app.getVersion()
-
-      if (packaged && !version.includes('-')) {
-        const server = 'https://update.electronjs.org'
-        const repo = 'noop-inc/desktop'
-        const platform = process.platform
-        const arch = process.arch
-        const url = `${server}/${repo}/${platform}-${arch}/${version}`
-
-        console.log('Auto Updater Feed URL', url)
-
-        autoUpdater.setFeedURL({ url })
-
-        autoUpdater.on('error', error => {
-          console.log('updater error')
-          console.error(error)
-        })
-        autoUpdater.on('checking-for-update', () => {
-          console.log('checking-for-update')
-        })
-        autoUpdater.on('update-available', () => {
-          console.log('update-available; downloading...')
-        })
-        autoUpdater.on('update-not-available', () => {
-          console.log('update-not-available')
-        })
-        autoUpdater.on('before-quit-for-update', () => {
-          vm.isQuitting = true
-          console.log('before-quit-for-update')
-        })
-
-        autoUpdater.on('update-downloaded', async (event, releaseNotes, releaseName, releaseDate, updateURL) => {
-          console.log('update-downloaded', [event, releaseNotes, releaseName, releaseDate, updateURL])
-          await ensureMainWindow()
-          const returnValue = await dialog.showMessageBox(mainWindow, {
-            type: 'info',
-            buttons: ['Restart', 'Later'],
-            title: 'Application Update',
-            message: process.platform === 'win32' ? releaseNotes : releaseName,
-            detail: 'A new version has been downloaded. Restart the application to apply the updates.',
-            cancelId: 2
-          })
-          if (returnValue.response === 0) {
-            vm.isQuitting = true
-            clearInterval(updaterInterval)
-            await Promise.all(Object.entries(fileWatchers).map(async ([repoId, watcher]) => {
-              await watcher.stop()
-              watcher.removeAllListeners()
-              delete fileWatchers[repoId]
-            }))
-
-            await vm.stop()
-
-            autoUpdater.quitAndInstall()
+    await createMainWindowTransactions.queue()
+    try {
+      await app.whenReady()
+      if (mainWindow) return
+      const eula = !!(await settings.get('Desktop.EULA'))
+      if (eula) {
+        if (eulaWindow) eulaWindow.close()
+        const { width, height } = screen.getPrimaryDisplay().workAreaSize
+        // Create the browser window.
+        mainWindow = new BrowserWindow({
+          width: width < 1280 ? width : 1280,
+          height: height < 720 ? height : 720,
+          minWidth: 640,
+          minHeight: 360,
+          backgroundColor: '#212121',
+          ...(
+            (process.platform === 'darwin')
+              ? {
+                  titleBarStyle: 'hidden',
+                  trafficLightPosition: { x: 8, y: 6 }
+                }
+              : {}
+          ),
+          webPreferences: {
+            preload: join(__dirname, 'preload.js')
           }
         })
 
-        autoUpdater.checkForUpdates()
-        updaterInterval = setInterval(() => {
-          autoUpdater.checkForUpdates()
-        }, 1000 * 60 * 10)
+        vm.mainWindow = mainWindow
+
+        mainWindow.on('enter-full-screen', () => {
+          mainWindow.webContents.send('is-fullscreen', true)
+          mainWindow.webContents.send('electron-fullscreen', true)
+        })
+
+        mainWindow.on('leave-full-screen', () => {
+          mainWindow.webContents.send('is-fullscreen', false)
+        })
+
+        mainWindow.on('will-resize', (event, newBounds) => {
+          if (authWindow) {
+            const { width, height } = newBounds
+            authWindow.setBounds({ width: Math.floor(Math.min(width - 32, 460)), height: Math.floor(Math.min(height - 64, 900)) })
+          }
+        })
+
+        mainWindow.on('close', event => {
+          if (!vm.isQuitting) {
+            event.preventDefault()
+            if (process.platform === 'darwin') {
+              mainWindow.hide()
+            } else if (process.platform === 'win32') {
+              mainWindow.minimize()
+            }
+          }
+        })
+
+        mainWindow.once('closed', () => {
+          mainWindow = null
+        })
+
+        mainWindow.webContents.on('will-navigate', (event, url) => {
+          const currentHost = new URL(mainWindow.webContents.getURL()).host
+          const requestedHost = new URL(url).host
+          if (requestedHost && requestedHost !== currentHost) {
+            event.preventDefault()
+            shell.openExternal(url)
+          }
+        })
+
+        setImmediate(async () => {
+          // and load the index.html of the app.
+          if (!packaged) {
+            mainWindow.loadURL(mainWindowViteDevServerURL)
+            // Open the DevTools.
+            mainWindow.webContents.openDevTools()
+          } else {
+            await loadURL(mainWindow)
+          }
+        })
+
+        setImmediate(async () => {
+          if (managingVm) {
+            await handleWorkshopVmStatus()
+            vm.on('status', handleWorkshopVmStatus)
+            await vm.start()
+          }
+        })
+
+        setImmediate(async () => {
+          await proxy.start()
+        })
+
+        setImmediate(async () => {
+          const version = app.getVersion()
+
+          if (packaged && !version.includes('-')) {
+            const server = 'https://update.electronjs.org'
+            const repo = 'noop-inc/desktop'
+            const platform = process.platform
+            const arch = process.arch
+            const url = `${server}/${repo}/${platform}-${arch}/${version}`
+
+            console.log('Auto Updater Feed URL', url)
+
+            autoUpdater.setFeedURL({ url })
+
+            autoUpdater.on('error', error => {
+              console.log('updater error')
+              console.error(error)
+            })
+            autoUpdater.on('checking-for-update', () => {
+              console.log('checking-for-update')
+            })
+            autoUpdater.on('update-available', () => {
+              console.log('update-available; downloading...')
+            })
+            autoUpdater.on('update-not-available', () => {
+              console.log('update-not-available')
+            })
+            autoUpdater.on('before-quit-for-update', () => {
+              vm.isQuitting = true
+              console.log('before-quit-for-update')
+            })
+
+            autoUpdater.on('update-downloaded', async (event, releaseNotes, releaseName, releaseDate, updateURL) => {
+              console.log('update-downloaded', [event, releaseNotes, releaseName, releaseDate, updateURL])
+              await ensureMainWindow()
+              const returnValue = await dialog.showMessageBox(mainWindow, {
+                type: 'info',
+                buttons: ['Restart', 'Later'],
+                title: 'Application Update',
+                message: (process.platform === 'win32') ? releaseNotes : releaseName,
+                detail: 'A new version has been downloaded. Restart the application to apply the updates.',
+                cancelId: 2
+              })
+              if (returnValue.response === 0) {
+                await proxy.stop()
+                vm.isQuitting = true
+                clearInterval(updaterInterval)
+                await Promise.all(Object.entries(fileWatchers).map(async ([repoId, watcher]) => {
+                  await watcher.stop()
+                  watcher.removeAllListeners()
+                  delete fileWatchers[repoId]
+                }))
+                await vm.stop()
+                autoUpdater.quitAndInstall()
+              }
+            })
+
+            autoUpdater.checkForUpdates()
+            updaterInterval = setInterval(() => {
+              autoUpdater.checkForUpdates()
+            }, 1000 * 60 * 10)
+          }
+        })
+
+        setImmediate(async () => {
+          await ensureCli()
+        })
       }
+    } finally {
+      createMainWindowTransactions.advance()
+    }
+  }
+
+  const ensureCliTransactions = new TransactionQueue()
+  const ensureCli = async () => {
+    await ensureCliTransactions.queue()
+    try {
+      const cliVersion = packageJson['@noop-inc'].cli
+      const packaged = (!mainWindowViteDevServerURL && app.isPackaged)
+
+      const ext = (process.platform === 'win32')
+        ? '.exe'
+        : ''
+
+      let executablePath
+
+      if (packaged) {
+        executablePath = join(resourcesPath, `noop-cli-v${cliVersion}-${process.platform}-${process.arch}${ext}`)
+      } else {
+        if (process.platform === 'darwin') {
+          executablePath = join(npmConfigLocalPrefix, `../cli/dist/noop-cli-v0.0.0-automated-${process.platform}-${process.arch}${ext}`)
+        } else if (process.platform === 'win32') {
+          executablePath = 'C:\\Users\\dfnj1\\noop\\desktop\\noop-cli-v0.0.1-pr6.8-win32-x64.exe'
+        }
+      }
+      await access(executablePath)
+      const userData = app.getPath('userData')
+      const dataDir = join(userData, 'data')
+      await mkdir(dataDir, { recursive: true })
+      const cliDir = join(dataDir, 'CLI')
+      await mkdir(cliDir, { recursive: true })
+      const symlinkPath = join(cliDir, `noop${ext}`)
+      try {
+        const existingPath = await realpath(symlinkPath)
+        if (existingPath === executablePath) return symlinkPath
+      } catch (err) {
+        // swallow for now...
+      }
+      await rm(symlinkPath, { recursive: true, force: true })
+      await symlink(executablePath, symlinkPath)
+      await access(symlinkPath)
+      formatter({ event: 'cli.ensured', path: symlinkPath })
+      return symlinkPath
+    } catch (error) {
+      formatter({ event: 'cli.ensured.error', error: NoopError.wrap(error) })
+    } finally {
+      ensureCliTransactions.advance()
     }
   }
 
@@ -221,27 +299,34 @@ import settings from './Settings.js'
     }
   }
 
+  const createEulaWindowTransactions = new TransactionQueue()
   const createEulaWindow = async () => {
-    await app.whenReady()
-    eulaWindow = new BrowserWindow({
-      width: 640,
-      height: 480,
-      resizable: false,
-      frame: false,
-      backgroundColor: '#212529',
-      webPreferences: {
-        preload: join(__dirname, 'preload.js')
+    await createEulaWindowTransactions.queue()
+    try {
+      await app.whenReady()
+      if (eulaWindow) return
+      eulaWindow = new BrowserWindow({
+        width: 640,
+        height: 480,
+        resizable: false,
+        frame: false,
+        backgroundColor: '#212529',
+        webPreferences: {
+          preload: join(__dirname, 'preload.js')
+        }
+      })
+      eulaWindow.once('closed', () => {
+        eulaWindow = null
+      })
+      if (!packaged) {
+        eulaWindow.loadURL(eulaWindowViteDevServerURL)
+        // Open the DevTools.
+        // eulaWindow.webContents.openDevTools()
+      } else {
+        eulaWindow.loadFile(join(__dirname, `../renderer/${eulaWindowViteName}/index.html`))
       }
-    })
-    eulaWindow.once('closed', () => {
-      eulaWindow = null
-    })
-    if (!packaged) {
-      eulaWindow.loadURL(eulaWindowViteDevServerURL)
-      // Open the DevTools.
-      // eulaWindow.webContents.openDevTools()
-    } else {
-      eulaWindow.loadFile(join(__dirname, `../renderer/${eulaWindowViteName}/index.html`))
+    } finally {
+      createEulaWindowTransactions.advance()
     }
   }
 
@@ -250,27 +335,34 @@ import settings from './Settings.js'
     if (!eulaWindow) await createEulaWindow()
   }
 
+  const createAuthWindowTransactions = new TransactionQueue()
   const createAuthWindow = async () => {
-    await app.whenReady()
-    await ensureMainWindow()
-    const { width, height } = mainWindow.getBounds()
-    authWindow = new BrowserWindow({
-      width: Math.floor(Math.min(width - 32, 460)),
-      height: Math.floor(Math.min(height - 32, 900)),
-      resizable: false,
-      parent: mainWindow,
-      modal: true,
-      backgroundColor: nativeTheme.shouldUseDarkColors
-        ? '#161b22'
-        : '#ffffff'
-    })
-    authWindow.once('closed', () => {
-      authWindow = null
-    })
-    authWindow.webContents.on('before-input-event', (event, input) => {
-      const { type, key } = input
-      if ((type === 'keyUp') && (key === 'Escape')) authWindow.close()
-    })
+    await createAuthWindowTransactions.queue()
+    try {
+      await app.whenReady()
+      await ensureMainWindow()
+      if (authWindow) return
+      const { width, height } = mainWindow.getBounds()
+      authWindow = new BrowserWindow({
+        width: Math.floor(Math.min(width - 32, 460)),
+        height: Math.floor(Math.min(height - 32, 900)),
+        resizable: false,
+        parent: mainWindow,
+        modal: true,
+        backgroundColor: nativeTheme.shouldUseDarkColors
+          ? '#161b22'
+          : '#ffffff'
+      })
+      authWindow.once('closed', () => {
+        authWindow = null
+      })
+      authWindow.webContents.on('before-input-event', (event, input) => {
+        const { type, key } = input
+        if ((type === 'keyUp') && (key === 'Escape')) authWindow.close()
+      })
+    } finally {
+      createAuthWindowTransactions.advance()
+    }
   }
 
   const ensureAuthWindow = async () => {
@@ -365,18 +457,7 @@ import settings from './Settings.js'
       throw Error('Selected directory must be scoped within the current Projects Directory.')
     }
     await ensureMainWindow()
-    const cloneResponse = await fetch(`${workshopApiBase}/local/repos/clone`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ repositoryUrl })
-    })
-    if (!cloneResponse.ok) {
-      if (cloneResponse.headers.get('content-type') === 'application/json') {
-        throw await cloneResponse.json()
-      } else {
-        throw cloneResponse.body
-      }
-    }
+    const response = await api.post('/local/repos/clone', { repositoryUrl }, { raw: true })
     const directoryName = repositoryUrl.split('/').at(-1).split('.git')[0]
     const files = await readdir(subdirectory)
     let num = 1
@@ -385,30 +466,18 @@ import settings from './Settings.js'
     }
     const foundDirectory = join(subdirectory, `${directoryName}${num === 1 ? '' : `-${num}`}`)
     await mkdir(foundDirectory, { recursive: true })
-    const tarStream = Readable.fromWeb(cloneResponse.body)
+    const tarStream = Readable.fromWeb(response.body)
     const tarExtractor = extract(foundDirectory)
-    await finished(tarStream.pipe(tarExtractor))
+    await Stream.promises.pipeline(tarStream, tarExtractor)
     const url = pathToFileURL(foundDirectory).href
-    const repoResponse = await fetch(`${workshopApiBase}/local/repos`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url })
-    })
-    if (!repoResponse.ok) {
-      if (repoResponse.headers.get('content-type') === 'application/json') {
-        throw await repoResponse.json()
-      } else {
-        throw repoResponse.body
-      }
-    }
-    return await repoResponse.json()
+    return await api.post('/local/repos', { url })
   }
 
   ipcMain.handle('clone-repository', handleCloneRepository)
 
   const handleOpenPath = async (_event, url) => {
     await ensureMainWindow()
-    shell.openPath(fileURLToPath(url))
+    shell.showItemInFolder(fileURLToPath(url))
     return true
   }
 
@@ -438,11 +507,7 @@ import settings from './Settings.js'
         try {
           vm.isRestarting = true
           if (registries) {
-            await fetch(`${workshopApiBase}/registry/prune`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(registries)
-            })
+            await api.post('/local/registry/prune', registries)
           }
           await Promise.all(Object.entries(fileWatchers).map(async ([repoId, watcher]) => {
             await watcher.stop()
@@ -484,47 +549,23 @@ import settings from './Settings.js'
         const changeHandler = async files => {
           formatter({ event: 'repo.update', repoId, path, files })
           try {
-            const createEvent = await fetch(`${workshopApiBase}${repoId}/events`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({})
-            })
-            if (!createEvent.ok) {
-              if (createEvent.headers.get('content-type') === 'application/json') {
-                throw await createEvent.json()
-              } else {
-                throw createEvent.body
-              }
-            }
-            const response = await createEvent.json()
+            const response = await api.post(`${repoId}/events`)
             formatter({ event: 'repo.updated', repoId, path, response })
             return response
           } catch (error) {
-            formatter({ event: 'repo.update.error', repoId, error, path })
+            formatter({ event: 'repo.update.error', repoId, error: NoopError.wrap(error), path })
             // throw error
           }
         }
         const deleteHandler = async files => {
           formatter({ event: 'repo.destroy', repoId, path, files })
           try {
-            const deleteRepo = await fetch(`${workshopApiBase}${repoId}`, {
-              method: 'DELETE',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({})
-            })
-            if (!deleteRepo.ok) {
-              if (deleteRepo.headers.get('content-type') === 'application/json') {
-                throw await deleteRepo.json()
-              } else {
-                throw deleteRepo.body
-              }
-            }
-            const response = await deleteRepo.json()
+            const response = await api.del(repoId)
             formatter({ event: 'repo.destroyed', repoId, path, response })
             watcher.removeAllListeners()
             return response
           } catch (error) {
-            formatter({ event: 'repo.destroy.error', repoId, error, path })
+            formatter({ event: 'repo.destroy.error', repoId, error: NoopError.wrap(error), path })
             // throw error
           }
         }
@@ -537,6 +578,161 @@ import settings from './Settings.js'
   }
 
   ipcMain.handle('local-repositories', async (_event, repositories) => await handleLocalRepositories(repositories))
+
+  const handleCheckConfigPath = async configPath => {
+    try {
+      const homeDir = app.getPath('home')
+      const appDir = app.getPath('appData')
+      const parentDir = dirname(configPath)
+      const checkPath = [homeDir, appDir].includes(parentDir) ? configPath : parentDir
+      await access(checkPath)
+      return true
+    } catch (error) {
+      return false
+    }
+  }
+
+  const handleMcpConfig = async (configPath, configProperty, configContent, addConfig) => {
+    const href = pathToFileURL(configPath).href
+    const result = {}
+    try {
+      const cliPath = await ensureCli()
+      const checkConfigPath = await handleCheckConfigPath(configPath)
+      if (checkConfigPath) result.href = href
+      if (cliPath && checkConfigPath) {
+        const configOrder = ['type', 'command', 'args', 'env']
+        configContent = Object.fromEntries(
+          Object.entries({
+            command: cliPath, args: ['mcp'], env: {}, ...configContent
+          })
+            .sort(([a], [b]) =>
+              configOrder.indexOf(a) - configOrder.indexOf(b)
+            )
+        )
+        let existingConfigString
+        let existingConfigParsed
+        try {
+          await access(configPath)
+          existingConfigString = (await readFile(configPath)).toString()
+          existingConfigParsed = JSON.parse(existingConfigString)
+        } catch (error) {
+          if (((typeof existingConfigString) === 'string') && (existingConfigParsed === undefined)) {
+            throw error
+          } else {
+            delete result.href
+          }
+        }
+        if (!existingConfigParsed) existingConfigParsed = {}
+        const newConfig = setProperty(
+          JSON.parse(JSON.stringify(existingConfigParsed)),
+          configProperty,
+          configContent
+        )
+        if (!deepEquals(existingConfigParsed, newConfig)) {
+          if (addConfig) {
+            await writeFile(configPath, JSON.stringify(newConfig, null, 2))
+            formatter({ event: 'mcp.added', path: configPath })
+            result.status = 'added'
+            if (!result.href) result.href = href
+          } else {
+            result.status = 'not_added'
+          }
+        } else {
+          result.status = 'added'
+        }
+      } else {
+        if (!cliPath) {
+          result.status = 'missing'
+        } else if (!checkConfigPath) {
+          result.status = 'unknown'
+        }
+      }
+    } catch (error) {
+      formatter({ event: 'mcp.added.error', error: NoopError.wrap(error) })
+      result.status = 'error'
+    }
+    return result
+  }
+
+  const handleClaudeDesktopConfig = async addConfig => {
+    return await handleMcpConfig(
+      join(app.getPath('appData'), 'Claude', 'claude_desktop_config.json'),
+      'mcpServers.noop',
+      {},
+      addConfig
+    )
+  }
+
+  const handleClaudeCodeConfig = async addConfig => {
+    return await handleMcpConfig(
+      join(app.getPath('home'), '.claude.json'),
+      'mcpServers.noop',
+      { type: 'stdio' },
+      addConfig
+    )
+  }
+
+  const handleVsCodeConfig = async addConfig => {
+    return await handleMcpConfig(
+      join(app.getPath('appData'), 'Code', 'User', 'mcp.json'),
+      'servers.noop',
+      { type: 'stdio' },
+      addConfig
+    )
+  }
+
+  const handleCursorConfig = async addConfig => {
+    return await handleMcpConfig(
+      join(app.getPath('home'), '.cursor', 'mcp.json'),
+      'mcpServers.noop',
+      {},
+      addConfig
+    )
+  }
+
+  const handleMcpServer = async addConfig => {
+    const result = {
+      mcpConfig: null,
+      claudeDesktop: null,
+      claudeCode: null,
+      vsCode: null,
+      cursor: null
+    }
+    const cliPath = await ensureCli()
+    if (cliPath) {
+      result.config = [
+        '"type": "stdio"',
+        `"command": ${JSON.stringify(cliPath)}`,
+        '"args": ["mcp"]',
+        '"env": {}'
+      ].join('\n')
+    }
+    const [claudeCode, claudeDesktop, cursor, vsCode] = await Promise.all([
+      handleClaudeCodeConfig(addConfig),
+      handleClaudeDesktopConfig(addConfig),
+      handleCursorConfig(addConfig),
+      handleVsCodeConfig(addConfig)
+    ])
+    result.claudeCode = claudeCode
+    result.claudeDesktop = claudeDesktop
+    result.cursor = cursor
+    result.vsCode = vsCode
+    return result
+  }
+
+  ipcMain.handle('mcp-server', async (_event, addConfig) => await handleMcpServer(addConfig))
+
+  const handleSetStorage = storage => {
+    setStorage(storage)
+  }
+
+  ipcMain.handle('set-storage', async (_event, storage) => await handleSetStorage(storage))
+
+  ipcMain.handle('unhandled-error', async () => {
+    setImmediate(() => {
+      throw new Error('Unhandled Error')
+    })
+  })
 
   if (process.defaultApp) {
     if (process.argv.length >= 2) {
@@ -613,16 +809,28 @@ import settings from './Settings.js'
 
   app.on('before-quit', async event => {
     vm.isQuitting = true
-    if (managingVm && !['PENDING', 'STOPPED'].includes(vm.status)) {
+    if (proxy.server || (managingVm && !['PENDING', 'STOPPED'].includes(vm.status))) {
       event.preventDefault()
-      clearInterval(updaterInterval)
-      await Promise.all(Object.entries(fileWatchers).map(async ([repoId, watcher]) => {
-        await watcher.stop()
-        watcher.removeAllListeners()
-        delete fileWatchers[repoId]
-      }))
-      await vm.stop()
+      if (proxy.server) await proxy.stop()
+      if (managingVm && !['PENDING', 'STOPPED'].includes(vm.status)) {
+        clearInterval(updaterInterval)
+        await Promise.all(Object.entries(fileWatchers).map(async ([repoId, watcher]) => {
+          await watcher.stop()
+          watcher.removeAllListeners()
+          delete fileWatchers[repoId]
+        }))
+        await vm.stop()
+      }
       app.quit()
+    }
+  })
+
+  app.on('certificate-error', (event, webContents, url, error, certificate, callback) => {
+    if ((url === 'https://localhost:13443') || url.startsWith('https://localhost:13443/')) {
+      event.preventDefault()
+      callback(true) // eslint-disable-line n/no-callback-literal
+    } else {
+      callback(false) // eslint-disable-line n/no-callback-literal
     }
   })
 

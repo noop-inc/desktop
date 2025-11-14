@@ -10,7 +10,7 @@ const {
   npm_lifecycle_event: npmLifecycleEvent
 } = process.env
 
-const mainWindowViteDevServerURL = MAIN_WINDOW_VITE_DEV_SERVER_URL
+const mainWindowViteDevServerURL = MAIN_WINDOW_VITE_DEV_SERVER_URL // eslint-disable-line no-undef
 const packaged = (!mainWindowViteDevServerURL && app.isPackaged)
 
 const managingVm = (packaged || (npmLifecycleEvent === 'serve'))
@@ -24,7 +24,7 @@ const formatter = (...messages) =>
   console[messages[0].event.includes('.error') ? 'error' : 'log'](
     ...messages.map(message =>
       inspect(
-        message,
+        JSON.parse(JSON.stringify(message)),
         { breakLength: 10000, colors: !packaged, compact: true, depth: null }
       )
     )

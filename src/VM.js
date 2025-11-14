@@ -1,7 +1,7 @@
 import { join } from 'node:path'
 import { QemuVirtualMachine, WslVirtualMachine } from '@noop-inc/foundation/lib/VirtualMachine.js'
 import Error from '@noop-inc/foundation/lib/Error.js'
-import { readdir, stat, mkdir, rm, access, rename } from 'node:fs/promises'
+import { stat, mkdir, rm, access, rename } from 'node:fs/promises'
 import { EventEmitter } from 'node:events'
 import { inspect, promisify, stripVTControlCharacters } from 'node:util'
 import { app, dialog } from 'electron'
@@ -9,8 +9,11 @@ import { homedir, availableParallelism, totalmem } from 'node:os'
 import settings from './Settings.js'
 import { createServer, createConnection } from 'node:net'
 import { setTimeout as wait } from 'node:timers/promises'
-
-const arch = process.arch.includes('arm') ? 'aarch64' : 'x86_64'
+import packageJson from '../package.json' with { type: 'json' }
+import packageLockJson from '../package-lock.json' with { type: 'json' }
+import { api } from './api.js'
+import { settlePromises } from '@noop-inc/foundation/lib/Helpers.js'
+import Stream from '@noop-inc/foundation/lib/Stream.js'
 
 const userData = app.getPath('userData')
 const dataDir = join(userData, 'data')
@@ -27,18 +30,18 @@ const {
   resourcesPath,
   env: {
     npm_lifecycle_event: npmLifecycleEvent,
-    // WORKSHOP_VM_VERSION: workshopVmVersion,
     npm_config_local_prefix: npmConfigLocalPrefix
   }
 } = process
 
 if (process.platform === 'darwin') {
+  const folder = `noop-desktop-qemu-v${packageLockJson.packages['node_modules/@noop-inc/desktop-qemu'].version}-${process.platform}-${process.arch}`
   QemuVirtualMachine.path = (npmLifecycleEvent === 'serve')
-    ? join(npmConfigLocalPrefix, `node_modules/@noop-inc/desktop-qemu/dist/qemu.macos-${arch}`)
-    : join(resourcesPath, `qemu.macos-${arch}`)
+    ? join(npmConfigLocalPrefix, `node_modules/@noop-inc/desktop-qemu/dist/${folder}`)
+    : join(resourcesPath, folder)
 }
 
-const mainWindowViteDevServerURL = MAIN_WINDOW_VITE_DEV_SERVER_URL
+const mainWindowViteDevServerURL = MAIN_WINDOW_VITE_DEV_SERVER_URL // eslint-disable-line no-undef
 const packaged = (!mainWindowViteDevServerURL && app.isPackaged)
 
 const logHandler = ({ message, ...log }) => {
@@ -70,7 +73,7 @@ const formatter = (...messages) =>
   console[messages[0].event.includes('.error') ? 'error' : (messages[0].event.includes('.initialize') ? 'warn' : 'log')](
     ...messages.map(message =>
       inspect(
-        message,
+        JSON.parse(JSON.stringify(message)),
         { breakLength: 10000, colors: !packaged, compact: true, depth: null }
       )
     )
@@ -144,6 +147,9 @@ export default class VM extends EventEmitter {
     if ((process.platform === 'darwin') && !this.#traffic) {
       this.#sockets = new Set()
       this.#traffic = createServer(socket => this.handleTrafficSocket(socket))
+      this.#traffic.on('error', error => {
+        logHandler({ event: 'traffic.server.error', error: Error.wrap(error) })
+      })
       await promisify(this.#traffic.listen.bind(this.#traffic))({ port: 443, host: '0.0.0.0' })
     }
     if (now === this.#lastCmd) {
@@ -232,7 +238,10 @@ export default class VM extends EventEmitter {
           if (event.context.message) {
             if (VM.signalPattern.test(event.context.message)) {
               const [, signal] = VM.signalPattern.exec(event.context.message)
-              if ((signal === 'RUNNING') && !this.isQuitting) {
+              if (
+                ((signal === 'RUNNING') && !this.isQuitting) ||
+                ((signal === 'STOPPED') && this.isQuitting)
+              ) {
                 this.handleStatus(signal)
               }
             }
@@ -240,7 +249,7 @@ export default class VM extends EventEmitter {
           logHandler({ event: 'vm.output', message: event.context?.message || event.context })
         })
       } catch (error) {
-        logHandler({ event: 'vm.create.error', error })
+        logHandler({ event: 'vm.create.error', error: Error.wrap(error) })
         if (now === this.#lastCmd) {
           this.handleStatus('CREATE_FAILED')
           throw error
@@ -254,7 +263,7 @@ export default class VM extends EventEmitter {
       try {
         await this.#vm.start()
       } catch (error) {
-        logHandler({ event: 'vm.start.error', error })
+        logHandler({ event: 'vm.start.error', error: Error.wrap(error) })
         if (now === this.#lastCmd) {
           this.handleStatus('START_FAILED')
           throw error
@@ -273,64 +282,135 @@ export default class VM extends EventEmitter {
     this.#lastCmd = now
     this.#quitting = now
 
+    const wasRunning = this.status === 'RUNNING'
+
     this.handleStatus(this.#restarting ? 'RESTARTING' : 'STOPPING')
 
     try {
       await Promise.all([
         (async () => {
           if (this.#traffic) {
-            logHandler({ event: 'vm.traffic.close.start', sockets: this.#sockets?.size })
             const traffic = this.#traffic
-            const stopServer = async () => {
-              if (this.#restarting) return
+            const sockets = this.#sockets
+            logHandler({ event: 'vm.traffic.close.start', sockets: sockets?.size })
+
+            const closeServer = async () => {
               try {
-                await promisify(this.#traffic.close.bind(this.#traffic))
+                if (traffic) await promisify(traffic.close.bind(traffic))()
               } catch (error) {
                 if (error.code !== 'ERR_SERVER_NOT_RUNNING') throw error
               }
             }
-            const serverStopped = stopServer()
-            await Promise.all([
-              ...[...this.#sockets].map(async socket => {
-                if (!socket.destroyed) {
-                  const endSocket = async () => {
-                    try {
-                      await promisify(socket.end.bind(socket))
-                    } catch (error) {
-                      if (error.code !== 'ERR_STREAM_ALREADY_FINISHED') throw error
-                    }
-                  }
-                  const ac = new AbortController()
-                  const signal = ac.signal
-                  await Promise.race([wait(1000, null, { signal }), endSocket()])
+
+            const destroySocket = async socket => {
+              const ac = new AbortController()
+              const handleTimeout = async () => {
+                try {
+                  await wait(1_000, null, { ref: false, signal: ac.signal })
+                } catch (error) {
+                  if (error.code !== 'ABORT_ERR') throw error
+                } finally {
                   ac.abort()
                 }
-                if (!socket.destroyed) {
-                  try {
-                    socket.destroy()
-                  } catch (error) {
-                    if (error.code !== 'ERR_STREAM_ALREADY_FINISHED') throw error
-                  }
+              }
+              const handleEnd = async () => {
+                try {
+                  if (!socket.destroyed) await promisify(socket.end.bind(socket))()
+                } finally {
+                  ac.abort()
                 }
-                this.#sockets.delete(socket)
-              }),
-              serverStopped
+              }
+              try {
+                await Promise.all([
+                  handleTimeout(),
+                  handleEnd()
+                ])
+              } finally {
+                try {
+                  if (!socket.destroyed) socket.destroy()
+                } finally {
+                  ac.abort()
+                }
+              }
+            }
+
+            const { errors: stopErrors } = await settlePromises([
+              ...[...sockets].map(async socket => await destroySocket(socket))
             ])
-            logHandler({ event: 'vm.traffic.close.end', sockets: this.#sockets?.size })
+            const { errors: closeErrors } = await settlePromises([
+              closeServer(),
+              ...[...sockets].map(async socket => await destroySocket(socket))
+            ])
+            const errors = [...stopErrors, ...closeErrors].map(error => Error.wrap(error))
+
+            if (errors?.length) logHandler({ event: 'vm.traffic.close.error', errors })
+
+            logHandler({ event: 'vm.traffic.close.end', sockets: sockets?.size })
             if (this.#restarting) return
             if (this.#traffic === traffic) {
               this.#sockets = null
               this.#traffic = null
             }
           } else if (process.platform === 'darwin') {
-            logHandler({ event: 'vm.traffic.close.skip', sockets: this.#sockets?.size })
+            logHandler({ event: 'vm.traffic.close.skip' })
           }
         })(),
         (async () => {
           if (this.#vm) {
             logHandler({ event: 'vm.stop.start' })
             const vm = this.#vm
-            await vm.stop(timeout)
+            let apiStopError = false
+            if (timeout && wasRunning) {
+              const ac = new AbortController()
+              const { signal } = ac
+              const handleTimeout = async () => {
+                try {
+                  await wait((timeout * 1_000), null, { ref: false, signal })
+                } catch (error) {
+                  if (error.code !== 'ABORT_ERR') throw error
+                } finally {
+                  ac.abort()
+                }
+              }
+              const handleStop = async () => {
+                const waitForStopped = new Promise(resolve => {
+                  const cleanup = () => {
+                    this.off('status', handleStop)
+                    signal.removeEventListener('abort', cleanup)
+                    resolve()
+                  }
+                  const handleStop = status => {
+                    if (status === 'STOPPED') cleanup()
+                  }
+                  this.on('status', handleStop)
+                  signal.addEventListener('abort', cleanup, { once: true })
+                })
+                try {
+                  try {
+                    await api.post('/local/workshop/stop')
+                  } catch (error) {
+                    apiStopError = true
+                    throw error
+                  }
+                  await waitForStopped
+                } finally {
+                  ac.abort()
+                }
+              }
+              try {
+                await Promise.all([
+                  handleTimeout(),
+                  handleStop()
+                ])
+              } catch (error) {
+                if (wasRunning) logHandler({ event: 'vm.stop.api.error', error: Error.wrap(error) })
+              }
+            }
+            await vm.stop(
+              (timeout && wasRunning && !apiStopError && (this.status === 'STOPPED'))
+                ? Math.min(5, timeout)
+                : wasRunning ? timeout : 5
+            )
             logHandler({ event: 'vm.stop.end' })
             if (this.#vm === vm) {
               this.#vm = null
@@ -344,7 +424,7 @@ export default class VM extends EventEmitter {
         })()
       ])
     } catch (error) {
-      logHandler({ event: 'vm.stop.error', error })
+      logHandler({ event: 'vm.stop.error', error: Error.wrap(error) })
       if (now === this.#lastCmd) {
         this.handleStatus('STOP_FAILED')
         throw error
@@ -359,7 +439,7 @@ export default class VM extends EventEmitter {
     const now = Date.now()
     this.#restarting = now
     try {
-      await this.stop(reset ? 0 : 30)
+      await this.stop(reset ? 5 : 30)
       if (this.isQuitting || this.#quitting) return
       if (reset) {
         await rm(dataDisk)
@@ -418,17 +498,15 @@ export default class VM extends EventEmitter {
   async workshopVmAsset () {
     if (npmLifecycleEvent === 'serve') {
       if (process.platform === 'darwin') {
-        return join(npmConfigLocalPrefix, '../workshop-vm/prep/disks/noop-workshop-vm-0.0.0-automated.aarch64.disk')
-      }
-
-      if (process.platform === 'win32') {
-        return 'C:\\Users\\dfnj1\\Downloads\\noop-workshop-vm-0.8.2-pr10.52.x86_64.tar.gz'
+        return join(npmConfigLocalPrefix, '../workshop-vm/prep/disks/noop-workshop-vm-v0.0.0-automated-arm64.disk')
+      } else if (process.platform === 'win32') {
+        return 'C:\\Users\\dfnj1\\noop\\desktop\\noop-workshop-vm-v0.20.13-x64.tar.gz'
       }
     } else if (['darwin', 'win32'].includes(process.platform)) {
-      const files = await readdir(resourcesPath)
-      return join(resourcesPath, files.find(file =>
-        file.startsWith('noop-workshop-vm') &&
-        file.endsWith(`.${arch}.${process.platform === 'darwin' ? 'disk' : 'tar.gz'}`)))
+      const file = `noop-workshop-vm-v${packageJson['@noop-inc']['workshop-vm']}-${process.arch}.${({ darwin: 'disk', win32: 'tar.gz' })[process.platform]}`
+      const path = join(resourcesPath, file)
+      await access(path)
+      return path
     }
   }
 
@@ -437,34 +515,49 @@ export default class VM extends EventEmitter {
   }
 
   handleTrafficSocket (incoming) {
-    this.#sockets.add(incoming)
-    const host = '127.0.0.1'
-    const port = 44451
+    const sockets = this.#sockets
     try {
-      const outgoing = createConnection({ host, port }, () => {
-        incoming.pipe(outgoing)
-        outgoing.pipe(incoming)
-      })
-      this.#sockets.add(outgoing)
-      outgoing.once('error', () => {
-        this.#sockets?.delete(outgoing)
-        incoming.end(() => {
-          if (!incoming.destroyed) incoming.destroy()
-          this.#sockets?.delete(incoming)
+      this.handleSocketEvents(incoming)
+      const host = '127.0.0.1'
+      const port = 44451
+      const outgoing = createConnection({ host, port })
+      try {
+        this.handleSocketEvents(outgoing)
+        outgoing.once('connect', () => {
+          Stream.pipeline(incoming, outgoing, error => {
+            if (error) logHandler({ event: 'traffic.incoming.pipe.error', error: Error.wrap(error) })
+          })
+          Stream.pipeline(outgoing, incoming, error => {
+            if (error) logHandler({ event: 'traffic.outgoing.pipe.error', error: Error.wrap(error) })
+          })
         })
-      })
-      incoming.once('error', () => {
-        this.#sockets?.delete(incoming)
-        outgoing.end(() => {
-          if (!outgoing.destroyed) outgoing.destroy()
-          this.#sockets?.delete(outgoing)
-        })
-      })
+      } catch (error) {
+        if (!outgoing.destroyed) outgoing.destroy()
+        sockets.delete(outgoing)
+        throw error
+      }
     } catch (error) {
-      incoming.end(() => {
-        if (!incoming.destroyed) incoming.destroy()
-        this.#sockets?.delete(incoming)
-      })
+      logHandler({ event: 'traffic.pipe.error', error: Error.wrap(error) })
+      if (!incoming.destroyed) incoming.destroy()
+      sockets.delete(incoming)
+    }
+  }
+
+  handleSocketEvents (socket) {
+    if (!this.#sockets.has(socket)) {
+      const sockets = this.#sockets
+      sockets.add(socket)
+      const handleError = error => {
+        logHandler({ event: 'traffic.socket.error', error: Error.wrap(error) })
+      }
+      const handleClose = () => {
+        socket.off('error', handleError)
+        socket.off('close', handleClose)
+        if (!socket.destroyed) socket.destroy()
+        sockets.delete(socket)
+      }
+      socket.on('error', handleError)
+      socket.on('close', handleClose)
     }
   }
 

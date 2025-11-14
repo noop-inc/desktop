@@ -27,7 +27,14 @@ contextBridge.exposeInMainWorld(
     eula: async accept =>
       await ipcRenderer.invoke('eula', accept),
     isFullscreen: async () =>
-      await ipcRenderer.invoke('is-fullscreen')
+      await ipcRenderer.invoke('is-fullscreen'),
+    setStorage: async storage =>
+      await ipcRenderer.invoke('set-storage', storage),
+    mcpServer: async install =>
+      await ipcRenderer.invoke('mcp-server', install),
+    unhandledError: async () => {
+      await ipcRenderer.invoke('unhandled-error')
+    }
   }
 )
 
