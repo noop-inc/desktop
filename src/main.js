@@ -123,8 +123,11 @@ import Stream from '@noop-inc/foundation/lib/Stream.js'
         mainWindow.on('close', event => {
           if (!vm.isQuitting) {
             event.preventDefault()
-            if (process.platform === 'darwin') mainWindow.hide()
-            if (process.platform === 'win32') mainWindow.minimize()
+            if (process.platform === 'darwin') {
+              mainWindow.hide()
+            } else if (process.platform === 'win32') {
+              mainWindow.minimize()
+            }
           }
         })
 
@@ -203,7 +206,7 @@ import Stream from '@noop-inc/foundation/lib/Stream.js'
                 type: 'info',
                 buttons: ['Restart', 'Later'],
                 title: 'Application Update',
-                message: process.platform === 'win32' ? releaseNotes : releaseName,
+                message: (process.platform === 'win32') ? releaseNotes : releaseName,
                 detail: 'A new version has been downloaded. Restart the application to apply the updates.',
                 cancelId: 2
               })
@@ -246,33 +249,35 @@ import Stream from '@noop-inc/foundation/lib/Stream.js'
 
       let executablePath
 
-      if (process.platform === 'darwin') {
-        executablePath = packaged
-          ? join(resourcesPath, `noop-cli-v${cliVersion}-${process.platform}-${process.arch}`)
-          : join(npmConfigLocalPrefix, `../cli/dist/noop-cli-v0.0.0-automated-${process.platform}-${process.arch}`)
-        await access(executablePath)
-        const userData = app.getPath('userData')
-        const dataDir = join(userData, 'data')
-        await mkdir(dataDir, { recursive: true })
-        const cliDir = join(dataDir, 'CLI')
-        await mkdir(cliDir, { recursive: true })
-        const symlinkPath = join(cliDir, 'noop')
-        try {
-          const existingPath = await realpath(symlinkPath)
-          if (existingPath === executablePath) return symlinkPath
-        } catch (err) {
-          // swallow for now...
+      if (packaged) {
+        executablePath = join(resourcesPath, `noop-cli-v${cliVersion}-${process.platform}-${process.arch}`)
+      } else {
+        if (process.platform === 'darwin') {
+          executablePath = join(npmConfigLocalPrefix, `../cli/dist/noop-cli-v0.0.0-automated-${process.platform}-${process.arch}`)
+        } else if (process.platform === 'win32') {
+          // TODO - Add windows implimentation...
         }
-        await rm(symlinkPath, { recursive: true, force: true })
-        await symlink(executablePath, symlinkPath)
-        await access(symlinkPath)
-        formatter({ event: 'cli.ensure', path: symlinkPath })
-        return symlinkPath
-      } else if (process.platform === 'win32') {
-        // TODO - Add windows implimentation...
       }
+      await access(executablePath)
+      const userData = app.getPath('userData')
+      const dataDir = join(userData, 'data')
+      await mkdir(dataDir, { recursive: true })
+      const cliDir = join(dataDir, 'CLI')
+      await mkdir(cliDir, { recursive: true })
+      const symlinkPath = join(cliDir, 'noop')
+      try {
+        const existingPath = await realpath(symlinkPath)
+        if (existingPath === executablePath) return symlinkPath
+      } catch (err) {
+        // swallow for now...
+      }
+      await rm(symlinkPath, { recursive: true, force: true })
+      await symlink(executablePath, symlinkPath)
+      await access(symlinkPath)
+      formatter({ event: 'cli.ensured', path: symlinkPath })
+      return symlinkPath
     } catch (error) {
-      formatter({ event: 'cli.ensure.error', error: NoopError.wrap(error) })
+      formatter({ event: 'cli.ensured.error', error: NoopError.wrap(error) })
     } finally {
       ensureCliTransactions.advance()
     }
@@ -572,16 +577,12 @@ import Stream from '@noop-inc/foundation/lib/Stream.js'
 
   const handleCheckConfigPath = async configPath => {
     try {
-      if (process.platform === 'darwin') {
-        const homeDir = app.getPath('home')
-        const appDir = app.getPath('appData')
-        const parentDir = dirname(configPath)
-        const checkPath = [homeDir, appDir].includes(parentDir) ? configPath : parentDir
-        await access(checkPath)
-        return true
-      } else if (process.platform === 'win32') {
-        // TODO - Add windows implimentation...
-      }
+      const homeDir = app.getPath('home')
+      const appDir = app.getPath('appData')
+      const parentDir = dirname(configPath)
+      const checkPath = [homeDir, appDir].includes(parentDir) ? configPath : parentDir
+      await access(checkPath)
+      return true
     } catch (error) {
       return false
     }
@@ -604,40 +605,36 @@ import Stream from '@noop-inc/foundation/lib/Stream.js'
               configOrder.indexOf(a) - configOrder.indexOf(b)
             )
         )
-        if (process.platform === 'darwin') {
-          let existingConfigString
-          let existingConfigParsed
-          try {
-            await access(configPath)
-            existingConfigString = (await readFile(configPath)).toString()
-            existingConfigParsed = JSON.parse(existingConfigString)
-          } catch (error) {
-            if (((typeof existingConfigString) === 'string') && (existingConfigParsed === undefined)) {
-              throw error
-            } else {
-              delete result.href
-            }
-          }
-          if (!existingConfigParsed) existingConfigParsed = {}
-          const newConfig = setProperty(
-            JSON.parse(JSON.stringify(existingConfigParsed)),
-            configProperty,
-            configContent
-          )
-          if (!deepEquals(existingConfigParsed, newConfig)) {
-            if (addConfig) {
-              await writeFile(configPath, JSON.stringify(newConfig, null, 2))
-              formatter({ event: 'mcp.added', path: configPath })
-              result.status = 'added'
-              if (!result.href) result.href = href
-            } else {
-              result.status = 'not_added'
-            }
+        let existingConfigString
+        let existingConfigParsed
+        try {
+          await access(configPath)
+          existingConfigString = (await readFile(configPath)).toString()
+          existingConfigParsed = JSON.parse(existingConfigString)
+        } catch (error) {
+          if (((typeof existingConfigString) === 'string') && (existingConfigParsed === undefined)) {
+            throw error
           } else {
-            result.status = 'added'
+            delete result.href
           }
-        } else if (process.platform === 'win32') {
-          // TODO - Add windows implimentation...
+        }
+        if (!existingConfigParsed) existingConfigParsed = {}
+        const newConfig = setProperty(
+          JSON.parse(JSON.stringify(existingConfigParsed)),
+          configProperty,
+          configContent
+        )
+        if (!deepEquals(existingConfigParsed, newConfig)) {
+          if (addConfig) {
+            await writeFile(configPath, JSON.stringify(newConfig, null, 2))
+            formatter({ event: 'mcp.added', path: configPath })
+            result.status = 'added'
+            if (!result.href) result.href = href
+          } else {
+            result.status = 'not_added'
+          }
+        } else {
+          result.status = 'added'
         }
       } else {
         if (!cliPath) {

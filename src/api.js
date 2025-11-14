@@ -261,9 +261,14 @@ export class ProxyServer {
   server
 
   get socketPath () {
-    const userData = app.getPath('userData')
-    const dataDir = join(userData, 'data')
-    const socketPath = join(dataDir, 'noop.sock')
+    let socketPath
+    if (process.platform === 'darwin') {
+      const userData = app.getPath('userData')
+      const dataDir = join(userData, 'data')
+      socketPath = join(dataDir, 'noop.sock')
+    } else if (process.platform === 'win32') {
+      socketPath = '\\\\.\\pipe\\noop'
+    }
     return socketPath
   }
 
