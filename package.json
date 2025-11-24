@@ -84,7 +84,7 @@
     "tar-fs": "^3.1.1",
     "tar-stream": "^3.1.7",
     "undici": "^7.16.0",
-    "vite": "^7.2.2"
+    "vite": "^7.2.4"
   },
   "overrides": {
     "@noop-inc/console": "$@noop-inc/console",
