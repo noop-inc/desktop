@@ -16,7 +16,7 @@ jobs:
     steps:
       - name: Code Checkout
         id: code-checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Install NodeJS
         uses: actions/setup-node@v6
@@ -86,7 +86,7 @@ jobs:
     steps:
       - name: Code Checkout
         id: code-checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           ref: ${{ github.event.inputs.DesktopVersion }}
 
