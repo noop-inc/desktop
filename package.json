@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "productName": "Noop",
-  "version": "0.0.0-automated",
+  "version": "0.25.1",
   "main": ".vite/build/main.js",
   "author": {
     "name": "Noop Inc",
