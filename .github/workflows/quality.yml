@@ -9,11 +9,11 @@ on:
 jobs:
   linting:
     name: Linting
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     timeout-minutes: 5
     steps:
       - name: Code Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Install NodeJS
         uses: actions/setup-node@v6

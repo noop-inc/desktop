@@ -12,11 +12,11 @@ on:
 jobs:
   Bump:
     name: Create Release
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     steps:
       - name: Code Checkout
         id: code-checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Install NodeJS
         uses: actions/setup-node@v6
@@ -86,7 +86,7 @@ jobs:
     steps:
       - name: Code Checkout
         id: code-checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           ref: ${{ github.event.inputs.DesktopVersion }}
 
@@ -101,7 +101,7 @@ jobs:
 
       - name: Setup Python
         id: setup-python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: 3.14
 
