@@ -29,15 +29,5 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN }}
 
-      - name: Cache Lint
-        id: cache-lint
-        uses: actions/cache@v4
-        with:
-          path: |
-            ./node_modules/.cache/prettier
-            ./node_modules/.cache/.eslintcache
-          key: ${{ runner.os }}-lint-${{ github.sha }}
-          restore-keys: ${{ runner.os }}-lint-
-
       - name: Code Linting
         run: npm run lint
