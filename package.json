@@ -57,7 +57,7 @@
     "@noop-inc/console": "3.4.1-pr1817.0",
     "@noop-inc/desktop-qemu": "^0.0.90",
     "@noop-inc/discovery": "^4.1.0",
-    "@noop-inc/foundation": "4.1.0-pr658.0",
+    "@noop-inc/foundation": "4.1.0-pr658.1",
     "@types/node": "^25.0.3",
     "ajv": "^8.17.1",
     "autoprefixer": "^10.4.23",
