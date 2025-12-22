@@ -56,7 +56,7 @@
     "@html-eslint/eslint-plugin": "^0.50.0",
     "@noop-inc/console": "^3.4.1",
     "@noop-inc/desktop-qemu": "^0.0.90",
-    "@noop-inc/discovery": "^4.0.7",
+    "@noop-inc/discovery": "^4.1.0",
     "@noop-inc/foundation": "4.0.60-pr658.0",
     "ajv": "^8.17.1",
     "autoprefixer": "^10.4.22",
