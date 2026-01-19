@@ -71,7 +71,7 @@
     "electron-serve": "^3.0.0",
     "electron-squirrel-startup": "^1.0.1",
     "eslint": "^9.39.2",
-    "eslint-plugin-yml": "^1.19.1",
+    "eslint-plugin-yml": "^3.0.0",
     "globals": "^17.0.0",
     "ignore": "^7.0.5",
     "marked": "^17.0.1",
