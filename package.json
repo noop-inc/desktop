@@ -78,7 +78,7 @@
     "minimatch": "^10.1.1",
     "neostandard": "^0.12.2",
     "prettier": "^3.7.4",
-    "rollup-plugin-visualizer": "^6.0.5",
+    "rollup-plugin-visualizer": "^7.0.1",
     "sass": "^1.97.2",
     "stylelint": "^16.26.1",
     "stylelint-config-standard": "^39.0.1",
