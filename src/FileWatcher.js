@@ -58,7 +58,7 @@ export default class FileWatcher extends EventEmitter {
       }
       formatter({ event: `watcher.${this.shouldRestart ? 'restarted' : 'started'}`, path: this.path })
     } catch (error) {
-      formatter({ event: `watcher.${this.shouldRestart ? 'restart' : 'start'}.error`, path: this.path, error: Error.wrap(error) })
+      formatter({ event: `watcher.${this.shouldRestart ? 'restart' : 'start'}.error`, path: this.path, error: Error.wrap(error), stack: error.stack })
       await this.stop()
     }
     this.shouldRestart = false
@@ -141,14 +141,14 @@ export default class FileWatcher extends EventEmitter {
       const files = await readdir(path, { withFileTypes: true })
       const ignoreFile = files.find(file => file.isFile() && (file.name === '.gitignore'))
       if (ignoreFile) {
-        const { path, name } = ignoreFile
-        const joinedPath = join(path, name)
-        this.ignorers[path] = ignore().add((await readFile(joinedPath)).toString())
+        const { parentPath, name } = ignoreFile
+        const joinedPath = join(parentPath, name)
+        this.ignorers[parentPath] = ignore().add((await readFile(joinedPath)).toString())
       }
       const dirs = files.filter(file => {
-        const { path, name } = file
+        const { parentPath, name } = file
         if (file.isDirectory() && (name !== '.git')) {
-          const joinedPath = join(path, name)
+          const joinedPath = join(parentPath, name)
           for (const ignorerPath in this.ignorers) {
             if (!joinedPath.startsWith(join(ignorerPath, sep))) continue
             const ignorer = this.ignorers[ignorerPath]
@@ -161,7 +161,7 @@ export default class FileWatcher extends EventEmitter {
         }
         return false
       })
-      await Promise.all(dirs.map(async ({ path, name }) => await scanPath(join(path, name))))
+      await Promise.all(dirs.map(async ({ parentPath, name }) => await scanPath(join(parentPath, name))))
     }
     await scanPath(this.path)
   }

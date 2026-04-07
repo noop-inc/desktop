@@ -2,8 +2,7 @@
   "compilerOptions": {
     "allowJs": true,
     "target": "esnext",
-    "module": "esnext",
-    "baseUrl": "./",
-    "moduleResolution": "node"
+    "module": "nodenext",
+    "moduleResolution": "nodenext"
   }
 }
