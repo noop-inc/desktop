@@ -13,6 +13,7 @@ export default defineConfig({
     reportCompressedSize: false,
     rollupOptions: {
       output: {
+        codeSplitting: false,
         comments: false
       }
     }

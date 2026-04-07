@@ -55,7 +55,7 @@
     "@eslint/json": "^1.2.0",
     "@eslint/markdown": "^8.0.1",
     "@html-eslint/eslint-plugin": "^0.59.0",
-    "@noop-inc/console": "3.4.2-pr1817.1",
+    "@noop-inc/console": "3.4.2-pr1817.2",
     "@noop-inc/desktop-qemu": "^0.0.92",
     "@noop-inc/discovery": "^4.1.1",
     "@noop-inc/foundation": "4.1.15-pr658.0",
