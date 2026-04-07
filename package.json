@@ -55,7 +55,7 @@
     "@eslint/json": "^1.2.0",
     "@eslint/markdown": "^8.0.1",
     "@html-eslint/eslint-plugin": "^0.59.0",
-    "@noop-inc/console": "3.4.2-pr1817.2",
+    "@noop-inc/console": "3.4.2-pr1817.3",
     "@noop-inc/desktop-qemu": "^0.0.92",
     "@noop-inc/discovery": "^4.1.1",
     "@noop-inc/foundation": "4.1.15-pr658.0",
@@ -72,7 +72,7 @@
     "eslint-plugin-yml": "^3.3.1",
     "globals": "^17.4.0",
     "ignore": "^7.0.5",
-    "marked": "^17.0.6",
+    "marked": "^18.0.0",
     "minimatch": "^10.2.5",
     "neostandard": "^0.13.0",
     "prettier": "^3.8.1",
@@ -83,7 +83,7 @@
     "tar-fs": "^3.1.2",
     "tar-stream": "^3.1.8",
     "undici": "^8.0.2",
-    "vite": "^8.0.5"
+    "vite": "^8.0.7"
   },
   "overrides": {
     "@noop-inc/console": "$@noop-inc/console",
