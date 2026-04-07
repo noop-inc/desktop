@@ -2,5 +2,6 @@ export default {
   semi: false,
   singleQuote: true,
   trailingComma: 'none',
-  arrowParens: 'avoid'
+  arrowParens: 'avoid',
+  embeddedLanguageFormatting: 'off'
 }
