@@ -53,7 +53,7 @@
     "@eslint/compat": "^2.0.4",
     "@eslint/js": "^10.0.1",
     "@eslint/json": "^1.2.0",
-    "@eslint/markdown": "^8.0.1",
+    "@eslint/markdown": "^8.0.2",
     "@html-eslint/eslint-plugin": "^0.59.0",
     "@noop-inc/console": "3.4.2-pr1817.3",
     "@noop-inc/desktop-qemu": "^0.0.92",
