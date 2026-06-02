@@ -61,7 +61,7 @@
     "@noop-inc/foundation": "4.1.15-pr658.0",
     "@stylistic/eslint-plugin": "^5.10.0",
     "chokidar": "^5.0.0",
-    "concurrently": "^9.2.1",
+    "concurrently": "^10.0.3",
     "dot-prop": "^10.1.0",
     "electron": "^41.1.1",
     "electron-log": "^5.4.3",
