@@ -75,7 +75,7 @@
     "marked": "^18.0.0",
     "minimatch": "^10.2.5",
     "neostandard": "^0.13.0",
-    "prettier": "^3.8.1",
+    "prettier": "^3.9.3",
     "rollup-plugin-visualizer": "^7.0.1",
     "sass-embedded": "^1.99.0",
     "stylelint": "^17.6.0",
